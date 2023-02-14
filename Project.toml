@@ -1,0 +1,7 @@
+name = "CtrlVQE"
+uuid = "b0286c9f-ec41-4a06-9137-e6f7f9cecc08"
+authors = ["Kyle Sherbert <kyle.sherbert@vt.edu> and contributors"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
