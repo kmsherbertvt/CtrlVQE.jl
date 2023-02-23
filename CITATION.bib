@@ -1,8 +1,58 @@
-@misc{CtrlVQE.jl,
-	author  = {Kyle Sherbert <kyle.sherbert@vt.edu> and contributors},
-	title   = {CtrlVQE.jl},
-	url     = {https://github.com/kmsherbertvt/CtrlVQE.jl},
-	version = {v0.1.0},
-	year    = {2023},
-	month   = {2}
+
+@article{asthana_minimizing_2022,
+	title = {Minimizing state preparation times in pulse-level variational molecular simulations},
+	url = {https://arxiv.org/abs/2203.06818v1},
+	doi = {10.48550/arxiv.2203.06818},
+	abstract = {Quantum simulation on NISQ devices is severely limited by short coherence
+times. A variational pulse-shaping algorithm known as ctrl-VQE was recently
+proposed to address this issue by eliminating the need for parameterized
+quantum circuits, which lead to long state preparation times. Here, we find the
+shortest possible pulses for ctrl-VQE to prepare target molecular wavefunctions
+for a given device Hamiltonian describing coupled transmon qubits. We find that
+the time-optimal pulses that do this have a bang-bang form consistent with
+Pontryagin's maximum principle. We further investigate how the minimal state
+preparation time is impacted by truncating the transmons to two versus more
+levels. We find that leakage outside the computational subspace (something that
+is usually considered problematic) speeds up the state preparation, further
+reducing device coherence-time demands. This speedup is due to an enlarged
+solution space of target wavefunctions and to the appearance of additional
+channels connecting initial and target states.},
+	urldate = {2023-01-09},
+	author = {Asthana, Ayush and Liu, Chenxu and Meitei, Oinam Romesh and Economou, Sophia E. and Barnes, Edwin and Mayhall, Nicholas J.},
+	month = mar,
+	year = {2022},
+	note = {arXiv: 2203.06818},
+	file = {PDF:/Users/kyles/Zotero/storage/UWERGBPQ/full-text.pdf:application/pdf},
+}
+
+@article{meitei_gate-free_2020,
+	title = {Gate-free state preparation for fast variational quantum eigensolver simulations: ctrl-{VQE}},
+	url = {https://arxiv.org/abs/2008.04302v3},
+	doi = {10.48550/arxiv.2008.04302},
+	abstract = {The variational quantum eigensolver (VQE) is currently the flagship algorithm
+for solving electronic structure problems on near-term quantum computers. This
+hybrid quantum/classical algorithm involves implementing a sequence of
+parameterized gates on quantum hardware to generate a target quantum state, and
+then measuring the expectation value of the molecular Hamiltonian. Due to
+finite coherence times and frequent gate errors, the number of gates that can
+be implemented remains limited on current quantum devices, preventing accurate
+applications to systems with significant entanglement, such as strongly
+correlated molecules. In this work, we propose an alternative algorithm (which
+we refer to as ctrl-VQE) where the quantum circuit used for state preparation
+is removed entirely and replaced by a quantum control routine which
+variationally shapes a pulse to drive the initial Hartree-Fock state to the
+full CI target state. As with VQE, the objective function optimized is the
+expectation value of the qubit-mapped molecular Hamiltonian. However, by
+removing the quantum circuit, the coherence times required for state
+preparation can be drastically reduced by directly optimizing the pulses. We
+demonstrate the potential of this method numerically by directly optimizing
+pulse shapes which accurately model the dissociation curves of the hydrogen
+molecule (covalent bond) and helium hydride ion (ionic bond), and we compute
+the single point energy for LiH with four transmons.},
+	urldate = {2023-01-09},
+	author = {Meitei, Oinam Romesh and Gard, Bryan T. and Barron, George S. and Pappas, David P. and Economou, Sophia E. and Barnes, Edwin and Mayhall, Nicholas J.},
+	month = aug,
+	year = {2020},
+	note = {arXiv: 2008.04302},
+	file = {PDF:/Users/kyles/Zotero/storage/6DGW3DVX/full-text.pdf:application/pdf},
 }
