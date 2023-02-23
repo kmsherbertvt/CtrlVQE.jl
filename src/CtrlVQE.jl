@@ -9,8 +9,8 @@ end
 
 module Basis
     abstract type AbstractBasis end
-    struct Dressed <: Basis end
-    abstract type LocalBasis <: Basis end
+    struct Dressed <: AbstractBasis end
+    abstract type LocalBasis <: AbstractBasis end
     struct Occupation <: LocalBasis end
     struct Coordinate <: LocalBasis end
     struct Momentum   <: LocalBasis end
