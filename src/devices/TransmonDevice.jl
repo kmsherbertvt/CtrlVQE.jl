@@ -11,10 +11,13 @@ struct Quple
 end
 
 ##########################################################################################
-#=                  TRANSMON DEVICE (no rotating wave approximation)
+#=                  TRANSMON DEVICE (with rotating wave approximation)
+
+TODO: TransmonDevice may be abstract; just assume subtypes have n, ω, δ, G.
+        Maybe go ahead and assume m and channels also and just let violating subtypes override the relevant methods. Or, make those methods less dependent on m.
 =#
 
-struct TransmonDeviceSansRWA{F<:AbstractFloat} <: Devices.Device
+struct TransmonDevice{F<:AbstractFloat} <: Devices.Device
     n::Int,
     m::Int,
     ω::Tuple{Vararg{F}}
@@ -22,7 +25,7 @@ struct TransmonDeviceSansRWA{F<:AbstractFloat} <: Devices.Device
     G::Dict{Quple,F}
     channels::Tuple{Vararg{Pulses.AbstractChannel}}
 
-    function TransmonDeviceSansRWA(
+    function TransmonDevice(
         n::Int,
         m::Int,
         ω::Tuple{Vararg{F}},
@@ -71,18 +74,18 @@ end
 
 #= MANDATORY DEVICE METHODS =#
 
-Devices.nqubits(device::TransmonDeviceSansRWA) = device.n
-Devices.nstates(device::TransmonDeviceSansRWA, q::Int) = device.m
+Devices.nqubits(device::TransmonDevice) = device.n
+Devices.nstates(device::TransmonDevice, q::Int) = device.m
 
 function Devices.localidentityoperator(
-    device::TransmonDeviceSansRWA{F},
+    device::TransmonDevice{F},
     q::Int,
 ) where {F}
     return Matrix{F}(I, device.m, device.m)
 end
 
 function Devices.localloweringoperator(
-    device::TransmonDeviceSansRWA{F},
+    device::TransmonDevice{F},
     q::Int,
 ) where {F}
     a = zeros(F, device.m, device.m)
@@ -93,7 +96,7 @@ function Devices.localloweringoperator(
 end
 
 function Devices.localstatichamiltonian(
-    device::TransmonDeviceSansRWA,
+    device::TransmonDevice,
     ā::AbstractVector{AbstractMatrix},
     q::Int,
 )
@@ -119,7 +122,7 @@ function Devices.localdrivenhamiltonian(
 end
 
 function Devices.mixedstatichamiltonian(
-    device::TransmonDeviceSansRWA{F},
+    device::TransmonDevice{F},
     ā::AbstractVector{AbstractMatrix},
 ) where {F}
     G = zero(ā[1])
@@ -131,7 +134,7 @@ function Devices.mixedstatichamiltonian(
 end
 
 function Devices.mixeddrivenhamiltonian(
-    device::TransmonDeviceSansRWA{F},
+    device::TransmonDevice{F},
     ā::AbstractVector{AbstractMatrix},
     t::Real,
 ) where {F}
@@ -142,12 +145,12 @@ end
 
 # No need to chain so many function calls together when all m are constant.
 
-Devices.nstates(device::TransmonDeviceSansRWA) = device.n ^ device.m
+Devices.nstates(device::TransmonDevice) = device.n ^ device.m
 
 # Because J(t)=0, we can override Driven methods to use purely Local functionality.
 
 function Devices.hamiltonian(::Type{Temporality.Driven},
-    device::Device,
+    device::TransmonDevice,
     t::Real,
     basis::Type{<:AbstractBasis}=Basis.Occupation,
 )
@@ -155,7 +158,7 @@ function Devices.hamiltonian(::Type{Temporality.Driven},
 end
 
 function Devices.propagator(::Type{Temporality.Driven},
-    device::Device,
+    device::TransmonDevice,
     t::Real,
     τ::Real,
     basis::Type{<:AbstractBasis}=Basis.Occupation,
@@ -164,7 +167,7 @@ function Devices.propagator(::Type{Temporality.Driven},
 end
 
 function Devices.propagate!(::Type{Temporality.Driven},
-    device::Device,
+    device::TransmonDevice,
     t::Real,
     τ::Real,
     ψ::AbstractVector,

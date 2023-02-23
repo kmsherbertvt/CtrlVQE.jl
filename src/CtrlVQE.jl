@@ -48,7 +48,7 @@ end
 
 #= SPECIFIC DEVICES =#
 
-module TransmonDevice
+module TransmonDevices
     include("devices/TransmonDevice.jl")
 end
 

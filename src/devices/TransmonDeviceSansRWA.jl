@@ -143,7 +143,7 @@ Devices.nstates(device::TransmonDeviceSansRWA) = device.n ^ device.m
 # Because J(t)=0, we can override Driven methods to use purely Local functionality.
 
 function Devices.hamiltonian(::Type{Temporality.Driven},
-    device::Device,
+    device::TransmonDeviceSansRWA,
     t::Real,
     basis::Type{<:AbstractBasis}=Basis.Occupation,
 )
@@ -151,7 +151,7 @@ function Devices.hamiltonian(::Type{Temporality.Driven},
 end
 
 function Devices.propagator(::Type{Temporality.Driven},
-    device::Device,
+    device::TransmonDeviceSansRWA,
     t::Real,
     τ::Real,
     basis::Type{<:AbstractBasis}=Basis.Occupation,
@@ -160,7 +160,7 @@ function Devices.propagator(::Type{Temporality.Driven},
 end
 
 function Devices.propagate!(::Type{Temporality.Driven},
-    device::Device,
+    device::TransmonDeviceSansRWA,
     t::Real,
     τ::Real,
     ψ::AbstractVector,
