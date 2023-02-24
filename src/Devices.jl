@@ -247,6 +247,14 @@ function hamiltonian(::Type{Temporality.Static},
     ))
 end
 
+function hamiltonian(::Type{Temporality.Static},
+    device::Device,
+    ::Type{Basis.Dressed},
+)
+    Λ, U = diagonalize(Basis.Dressed, device)
+    return Diagonal(Λ)
+end
+
 function hamiltonian(::Type{Temporality.Driven},
     device::Device,
     t::Real,
