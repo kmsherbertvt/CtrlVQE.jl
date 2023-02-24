@@ -15,6 +15,10 @@ After toying with ideas for a number of more customized cache implementations,
 
     By chance, it seems like relative time only appears without absolute time in a context where the relative time could be interpreted as an absolute time (ie. propagation of a static hamiltonian), which means we actually just don't cache any times at all... Huh.
 
+    Naw. We do very much desire staticpropagator(τ) to cache.
+    If we definitely do not want staticpropagator(t) to cache,
+        thing to do is to split one off into a new method.
+
 As it happens, it also solves problem 2 in the short term,
     because, at present, static device parameters are considered fixed.
 So, the changing state of the device would only actually impact time-dependent methods.
@@ -43,8 +47,8 @@ If it can be done, it would require obtaining the actual `IdDict`
     IdDict should be fine.
 =#
 
-using LinearAlgebra: Eigen, eigen
-import ..Basis, ..Locality, ..Temporality
+using LinearAlgebra: Diagonal, Eigen, eigen
+import ..Basis, ..Locality, ..Temporality, ..LinearAlgebraTools
 
 """
 NOTE: Implements `Parameter` interface.
@@ -474,8 +478,8 @@ function propagator(::Type{Locality.Mixed}, ::Type{Temporality.Driven},
     τ::Real,
     basis::Type{<:AbstractBasis}=Basis.Occupation,
 )
-    H = hamiltonian(Locality.Mixed, Temporality.Driven, device, t)
-    return LinearAlgebraTools.propagator(H, τ, basis)
+    H = hamiltonian(Locality.Mixed, Temporality.Driven, device, t, basis)
+    return LinearAlgebraTools.propagator(H, τ)
 end
 
 
@@ -511,6 +515,28 @@ function localpropagators(::Type{Temporality.Driven},
     v = localhamiltonians(Temporality.Driven, device, t, basis)
     return [LinearAlgebraTools.propagator(v[q], τ) for q in 1:nqubits(device)]
 end
+
+
+
+#= TODO: Work out a way to OPTIONALLY cache the methods depending ONLY on τ.
+
+We're going to have to duplicate methods, I think.
+It's annoying, but we obviously can't have an uncached version call a cached version.
+We could have a cached version call an uncached version,
+    except that I think we want propagate! to use the cached version!
+
+So, I think the thing to do is to create a new function, `staticevolver`,
+    which just does exactly what `propagator` does,
+    but this function just isn't cached.
+
+For completeness's sake, we, er, will also want to have localevolvers and staticevolve!.
+Very annoying but I think it best. It is a semantically different task after all.
+
+=#
+
+
+
+
 
 
 
@@ -646,11 +672,5 @@ function propagate!(::Type{Locality.Mixed}, ::Type{Temporality.Driven},
     U = propagator(Locality.Mixed, Temporality.Driven, device, t, τ, basis)
     return LinearAlgebraTools.rotate!(U, ψ)
 end
-
-
-
-
-
-
 
 

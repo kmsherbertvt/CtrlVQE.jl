@@ -1,10 +1,11 @@
 #= cache of temp arrays, indexed by (type, shape, index) =#
-𝑖 = im
-    # NOTE: MUCH more semantic imaginary unit. My keyboard is awesome. But VSCode doesn't like it; I'll probably get rid of this after awhile.
+
 function kron(::AbstractVector{<:AbstractMatrix})::AbstractMatrix end
     # NOTE: must also be able to kron vectors. Might need separate method.
 function propagator(H::AbstractMatrix, τ::Real)::AbstractMatrix end
-    # NOTE: A bit much physics for a `LinearAlgebraTools` module. Maybe `ComputeBox` is more semantic. Anyway, this method should use cached temp arrays with eigen! to efficiently take exp(-𝑖τH). Okay maybe actually we move the -𝑖τ to Devices and call this `exponentiate`.
+    # NOTE: A bit much physics for a `LinearAlgebraTools` module. Maybe `ComputeBox` is more semantic. Anyway, this method should use cached temp arrays with eigen! to efficiently take exp(-𝑖τH). In fact it just creates the new matrix -𝑖τH, calls exponentiate!, and returns the result.
+function exponentiate!(A::AbstractMatrix)::AbstractMatrix end
+    # NOTE: mutates and returns A
 function rotate!(U::AbstractMatrix, ψ::AbstractVector)::AbstractVector end
     # NOTE: mutates and returns ψ
 function rotate!(U::AbstractMatrix, A::AbstractMatrix)::AbstractMatrix end
