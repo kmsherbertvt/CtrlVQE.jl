@@ -7,25 +7,26 @@ module Parameter
     function bind(::Any, x̄::AbstractVector)::Nothing end
 end
 
-module Basis
-    abstract type AbstractBasis end
-    struct Dressed <: AbstractBasis end
-    abstract type LocalBasis <: AbstractBasis end
+module Bases
+    abstract type BasisType end
+    struct Dressed <: BasisType end
+    abstract type LocalBasis <: BasisType end
     struct Occupation <: LocalBasis end
     struct Coordinate <: LocalBasis end
     struct Momentum   <: LocalBasis end
 end
 
-module Locality
-    abstract type AbstractLocality end
-    struct Local <: AbstractLocality end
-    struct Mixed <: AbstractLocality end
-end
-
-module Temporality
-    abstract type AbstractTemporality end
-    struct Static <: AbstractTemporality end
-    struct Driven <: AbstractTemporality end
+module Operators
+    abstract type OperatorType end
+    abstract type StaticOperator end
+    struct Qubit        <: StaticOperator end
+    struct Coupling     <: StaticOperator end
+    struct Channel      <: OperatorType end
+    struct Gradient     <: OperatorType end
+    struct Uncoupled    <: StaticOperator end
+    struct Static       <: StaticOperator end
+    struct Drive        <: OperatorType end
+    struct Hamiltonian  <: OperatorType end
 end
 
 module LinearAlgebraTools
@@ -36,10 +37,6 @@ module Signals
     include("Signals.jl")
 end
 
-module Channels
-    include("Channels.jl")
-end
-
 module Devices
     include("Devices.jl")
 end
@@ -47,7 +44,6 @@ end
 module Evolutions
     include("Evolutions.jl")
 end
-
 
 
 

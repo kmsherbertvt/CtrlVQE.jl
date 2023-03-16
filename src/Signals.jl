@@ -247,25 +247,28 @@ mutable struct StepFunction{F} <: ParametricSignal
 end
 
 function (signal::StepFunction{F})(t::Real) where {F}
-    return t < signal.s ?   zero(F)
-        :  t > signal.s ?   signal.A
-        :                   signal.A / 2
+    return (t < signal.s ?  zero(F)
+        :   t > signal.s ?  signal.A
+        :                   signal.A / 2)
 end
 
 function partial(i::Int, signal::StepFunction, t::Real)
     field = parameters(signal)[i]
-    return field == :A ?    partial_A(signal, t)
-        :  field == :s ?    partial_s(signal, t)
-        :                   error("Not Implemented")
+    return (field == :A ?   partial_A(signal, t)
+        :   field == :s ?   partial_s(signal, t)
+        :                   error("Not Implemented"))
+end
 
 function partial_A(signal::StepFunction{F}, t::Real) where {F}
-    return t < signal.s ?   zero(F)
-        :  t > signal.s ?   one(F)
-        :                   one(F) / 2
+    return (t < signal.s ?  zero(F)
+        :   t > signal.s ?  one(F)
+        :                   one(F) / 2)
+end
 
 function partial_s(signal::StepFunction{F}, t::Real) where {F}
     return - signal.A * (t ≈ signal.s)
-    #= NOTE: This method is not stable, so you should usually constrain `s`.
+end
+    #= NOTE: This method is not numerically stable, so you should usually constrain `s`.
 
     Properly speaking, the gradient is ``-A⋅δ(t-s)``
         This is NOT well-defined in float arithmetic,
