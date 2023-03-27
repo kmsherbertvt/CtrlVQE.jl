@@ -5,6 +5,6 @@
 #     # Write your tests here.
 # end
 
-module LinearAlgebraTools
+module TestLinearAlgebraTools
     include("LinearAlgebraTools.jl")
 end

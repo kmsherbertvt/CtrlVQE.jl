@@ -209,9 +209,13 @@ Same goes for gradient operators.
 
 # LOCALIZING DRIVE OPERATORS
 
+function localdriveoperators(device::TransmonDevice, t::Real)
+    return localdriveoperators(device, Basis.Occupation, t)
+end
+
 function localdriveoperators(
     device::TransmonDevice{nQ,nS,nD,F},
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     t::Real,
 ) where {nQ,nS,nD,F}
     ā = Devices.localalgebra(device, basis)
@@ -222,9 +226,13 @@ function localdriveoperators(
     return v̄
 end
 
+function localdrivepropagators(device::TransmonDevice, τ::Real, t::Real)
+    return localdrivepropagators(device, Basis.Occupation, τ, t)
+end
+
 function localdrivepropagators(
     device::TransmonDevice{nQ,nS,nD,F},
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
     t::Real,
 ) where {nQ,nS,nD,F}
@@ -234,7 +242,7 @@ end
 
 function Devices.propagator(::Type{Operators.Drive},
     device::TransmonDevice,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
     t::Real,
 )
@@ -244,7 +252,7 @@ end
 
 function Devices.propagator(::Type{Operators.Channel},
     device::TransmonDevice,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
     i::Int,
     t::Real,
@@ -257,9 +265,9 @@ end
 
 function Devices.propagate!(::Type{Operators.Drive},
     device::TransmonDevice,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
-    ψ::AbstractVector,
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     t::Real,
 )
     ū = localdrivepropagators(device, basis, τ, t)
@@ -268,9 +276,9 @@ end
 
 function Devices.propagate!(::Type{Operators.Channel},
     device::TransmonDevice{nQ,nS,nD,F},
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
-    ψ::AbstractVector,
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     i::Int,
     t::Real,
 ) where {nQ,nS,nD,F}
@@ -285,7 +293,7 @@ end
 
 function Devices.braket(::Type{Operators.Gradient},
     device::TransmonDevice{nQ,nS,nD,F},
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     ψ1::AbstractVector,
     ψ2::AbstractVector,
     j::Int,

@@ -1,36 +1,42 @@
 import DifferentialEquations, KrylovKit
 #= TODO: These should be considered optional dependencies
             and certainly do not need to be installed every time we run on ARC!!!
+    From what I can gather,
+        the proper course is to split these off into different packages,
+        external to `CtrlVQE.jl` and presumably with their own manifest and all. :?
 =#
 import ..Bases, ..Operators, ..LinearAlgebraTools, ..Devices
 
 
-function evolve(device::Devices.Device, ψ0::AbstractVector, args...; kwargs...)
-    ψ = copy(ψ0)
-    return evolve!(device, ψ, args...; kwargs...)
+evolvabletype(F) = real(F) <: Integer ? ComplexF64 : Complex{real(F)}
+
+function evolve(ψ0::AbstractVector, args...; kwargs...)
+    # NOTE: Method signature is very distinct from evolve!
+    ψ = convert(Array{evolvabletype(eltype(ψ0))}, ψ0)
+    return evolve!(args..., ψ; kwargs...)
 end
 
 abstract type EvolutionAlgorithm end
 
 
+
+
+
 struct Rotate <: EvolutionAlgorithm end
 
-function evolve!(
-    device::Devices.Device,
-    ψ::AbstractVector,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
-    T::Real;
-    kwargs...
-)
-    return evolve!(device, ψ, T, Rotate; kwargs...)
+function evolve!(args...; kwargs...)
+    return evolve!(Rotate, args...; kwargs...)
 end
 
-function evolve!(
+function evolve!(::Type{Rotate}, device::Devices.Device, args...; kwargs...)
+    return evolve!(Rotate, device, Bases.Occupation, args...; kwargs...)
+end
+
+function evolve!(::Type{Rotate},
     device::Devices.Device,
-    ψ::AbstractVector,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     T::Real,
-    ::Type{Rotate};
+    ψ::AbstractVector{<:Complex{<:AbstractFloat}};
     r::Int=1000,
     callback=nothing
 )
@@ -42,24 +48,30 @@ function evolve!(
 
     # FIRST STEP: NO NEED TO APPLY STATIC OPERATOR
     callback !== nothing && callback(0, t̄[1], ψ)
-    ψ = Devices.propagate!(Operators.Drive, device, t̄[1], τ̄[1], ψ, basis)
+        ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[1], ψ, t̄[1])
 
     # RUN EVOLUTION
     for i in 2:r+1
         callback !== nothing && callback(i, t̄[i], ψ)
-        ψ = Devices.propagate!(Operators.Static, device, τ̄[i],       ψ, basis)
-        ψ = Devices.propagate!(Operators.Drive,  device, t̄[i], τ̄[i], ψ, basis)
+        ψ = Devices.propagate!(Operators.Static, device, basis, τ̄[i], ψ)
+        ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[i], ψ, t̄[i])
     end
 
     return ψ
 end
 
 
+
+
+function gradientsignals(device::Devices.Device, args...; kwargs...)
+    return gradientsignals(device, Bases.Occupation, args...; kwargs...)
+end
+
 function gradientsignals(
     device::Devices.Device,
-    ψ0::AbstractVector,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     T::Real,
+    ψ0::AbstractVector,
     r::Int,
     Ō::AbstractVector{<:AbstractMatrix};
     callback=nothing
@@ -71,23 +83,22 @@ function gradientsignals(
     t̄ = τ * (0:r)
 
     # PREPARE SIGNAL ARRAYS ϕ̄[k,j,i]
-    ϕ̄ = Array{eltype(real.(ψ0))}(undef, length(Ō), ngrades(device), r+1)
+    ϕ̄ = Array{real(evolvabletype(eltype(ψ0)))}(undef, length(Ō), ngrades(device), r+1)
 
     # PREPARE STATE AND CO-STATES
-    ψ = copy(ψ0)
-    λ̄ = [copy(ψ0) for k in eachindex(Ō)]
+    ψ = convert(Array{evolvabletype(eltype(ψ0))}, ψ0)
+    λ̄ = [convert(Array{evolvabletype(eltype(ψ0))}, ψ0) for k in eachindex(Ō)]
     for k in eachindex(Ō)
-        λ = evolve!(device, λ, basis,  T, Rotate; r=r)
-        λ = LinearAlgebraTools.rotate!(Ō[k], λ)    # NOTE: O is not unitary.
-        λ = evolve!(device, λ, basis, -T, Rotate; r=r)
-        push!(λ̄, λ)
+        λ̄[k] = evolve!(Rotate, device, basis,  T, λ̄[k]; r=r)
+        λ̄[k] = LinearAlgebraTools.rotate!(Ō[k], λ̄[k])    # NOTE: O is not unitary.
+        λ̄[k] = evolve!(Rotate, device, basis, -T, λ̄[k]; r=r)
     end
 
     # FIRST STEP: NO NEED TO APPLY STATIC OPERATOR
     callback !== nothing && callback(0, t̄[0], ψ)
-    ψ = Devices.propagate!(Operators.Drive, device, t̄[1], τ̄[1], ψ, basis)
+    ψ = Devices.propagate!(Operators.Drive, device, basis, τ̄[1], ψ, t̄[1])
     for λ in λ̄
-        Devices.propagate!(Operators.Drive, device, t̄[1], τ̄[1], λ, basis)
+        Devices.propagate!(Operators.Drive, device, basis, τ̄[1], λ, t̄[1])
     end
 
     # FIRST GRADIENT SIGNALS
@@ -102,11 +113,11 @@ function gradientsignals(
     for i in 2:r+1
         # CONTINUE TIME EVOLUTION
         callback !== nothing && callback(i, t̄[i], ψ)
-        ψ = Devices.propagate!(Operators.Static, device, τ̄[i],       ψ, basis)
-        ψ = Devices.propagate!(Operators.Drive,  device, t̄[i], τ̄[i], ψ, basis)
+        ψ = Devices.propagate!(Operators.Static, device, basis, τ̄[i], ψ)
+        ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[i], ψ, t̄[i])
         for λ in λ̄
-            Devices.propagate!(Operators.Static, device, τ̄[i],       λ, basis)
-            Devices.propagate!(Operators.Drive,  device, t̄[i], τ̄[i], λ, basis)
+            Devices.propagate!(Operators.Static, device, basis, τ̄[i], λ)
+            Devices.propagate!(Operators.Drive,  device, basis, τ̄[i], λ, t̄[i])
         end
 
         # CALCULATE GRADIENT SIGNAL BRAKETS
@@ -139,17 +150,23 @@ end
 
 struct ODE <: EvolutionAlgorithm end
 
-function evolve!(
+function evolve!(::Type{ODE}, device::Devices.Device, args...; kwargs...)
+    return evolve!(ODE, device, Bases.Dressed, args...; kwargs...)
+end
+
+function evolve!(::Type{ODE},
     device::Devices.Device,
-    ψ::AbstractVector,
-    basis::Type{<:Bases.BasisType}, # TODO: Default dressed
+    basis::Type{<:Bases.BasisType},
     T::Real,
-    ::Type{ODE};
+    ψ::AbstractVector{<:Complex{<:AbstractFloat}};
     callback=nothing
 )
     # ALLOCATE MEMORY FOR INTERACTION HAMILTONIAN
     U = Devices.evolver(Operators.Static, device, basis, 0)
     V = Devices.operator(Operators.Drive, device, basis, 0)
+    # PROMOTE `V` SO THAT IT CAN BE ROTATED IN PLACE
+    F = promote_type(eltype(U), eltype(V))
+    V = convert(Matrix{F}, V)
 
     # DELEGATE TO `DifferentialEquations`
     i = Ref(0)
@@ -183,12 +200,15 @@ end
 
 struct Direct <: EvolutionAlgorithm end
 
-function evolve!(
+function evolve!(::Type{Direct}, device::Devices.Device, args...; kwargs...)
+    return evolve!(Direct, device, Bases.Dressed, args...; kwargs...)
+end
+
+function evolve!(::Type{Direct},
     device::Devices.Device,
-    ψ::AbstractVector,
-    basis::Type{<:Bases.BasisType}, # TODO: Default dressed
+    basis::Type{<:Bases.BasisType},
     T::Real,
-    ::Type{Direct};
+    ψ::AbstractVector{<:Complex{<:AbstractFloat}};
     r::Int=1000,
     callback=nothing
 )
@@ -201,6 +221,9 @@ function evolve!(
     # ALLOCATE MEMORY FOR INTERACTION HAMILTONIAN
     U = Devices.evolver(Operators.Static, device, basis, 0)
     V = Devices.operator(Operators.Drive, device, basis, 0)
+    # PROMOTE `V` SO THAT IT CAN BE ROTATED IN PLACE AND EXPONENTIATED
+    F = Complex{real(promote_type(eltype(U), eltype(V)))}
+    V = convert(Matrix{F}, V)
 
     # RUN EVOLUTION
     for i in 1:r+1
@@ -208,8 +231,7 @@ function evolve!(
         U .= Devices.evolver(Operators.Static, device, basis, t̄[i])
         V .= Devices.operator(Operators.Drive, device, basis, t̄[i])
         V = LinearAlgebraTools.rotate!(U', V)
-        V .*= -im * τ̄[i]
-        V = LinearAlgebraTools.exponentiate!(V)
+        V = LinearAlgebraTools.cis!(V, -τ̄[i])
         ψ = LinearAlgebraTools.rotate!(V, ψ)
     end
 
@@ -223,12 +245,15 @@ end
 
 struct Lanczos <: EvolutionAlgorithm end
 
-function evolve!(
+function evolve!(::Type{Lanczos}, device::Devices.Device, args...; kwargs...)
+    return evolve!(Lanczos, device, Bases.Dressed, args...; kwargs...)
+end
+
+function evolve!(::Type{Lanczos},
     device::Devices.Device,
-    ψ::AbstractVector,
-    basis::Type{<:Bases.BasisType}, # TODO: Default dressed
+    basis::Type{<:Bases.BasisType},
     T::Real,
-    ::Type{Lanczos};
+    ψ::AbstractVector{<:Complex{<:AbstractFloat}};
     r::Int=1000,
     callback=nothing
 )
@@ -241,6 +266,9 @@ function evolve!(
     # ALLOCATE MEMORY FOR INTERACTION HAMILTONIAN
     U = Devices.evolver(Operators.Static, device, basis, 0)
     V = Devices.operator(Operators.Drive, device, basis, 0)
+    # PROMOTE `V` SO THAT IT CAN BE ROTATED IN PLACE
+    F = promote_type(eltype(U), eltype(V))
+    V = convert(Matrix{F}, V)
 
     # RUN EVOLUTION
     for i in 1:r+1
@@ -248,8 +276,6 @@ function evolve!(
         U .= Devices.evolver(Operators.Static, device, basis, t̄[i])
         V .= Devices.operator(Operators.Drive, device, basis, t̄[i])
         V = LinearAlgebraTools.rotate!(U', V)
-        V .*= -im * τ̄[i]
-        V = LinearAlgebraTools.exponentiate!(V)
         ψ .= KrylovKit.exponentiate(V, -im * τ̄[i], ψ)[1]
     end
 

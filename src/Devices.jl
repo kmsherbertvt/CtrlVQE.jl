@@ -114,7 +114,18 @@ end
 
 
 
-# TODO: Memoized functions giving an array should give rather an SArray.
+#= TODO: It's a bit dangerous for memoized functions to return (mutable) arrays.
+
+They should instead return some form of read-only array.
+We could use StaticArrays,
+    but it seems to me that this package is only meant for arrays
+    with hard-coded shape, which is not the case here.
+We could use ReadOnlyArrays,
+    but this package is not maintained, and I don't like to list it as a dependency.
+
+Still looking for a good solution.
+
+=#
 
 
 
@@ -280,6 +291,11 @@ end
     ā = []
     for q in 1:nqubits(device)
         a0 = localloweringoperator(device, q)
+
+        # CONVERT TO A NUMBER TYPE COMPATIBLE WITH ROTATION
+        T = promote_type(eltype(U), eltype(a0))
+        a0 = convert(AbstractMatrix{T}, a0)
+
         a = globalize(device, a0, q)
         a = LinearAlgebraTools.rotate!(U, a)
         push!(ā, a)
@@ -295,6 +311,11 @@ end
     for q in 1:nqubits(device)
         U = basisrotation(Bases.Occupation, basis, device, q)
         a0 = localloweringoperator(device, q)
+
+        # CONVERT TO A NUMBER TYPE COMPATIBLE WITH ROTATION
+        T = promote_type(eltype(U), eltype(a0))
+        a0 = convert(AbstractMatrix{T}, a0)
+
         a = LinearAlgebraTools.rotate!(U, a0)
         push!(ā, a)
     end
@@ -303,26 +324,13 @@ end
 
 
 
-@memoize function operator(mode::Type{<:Operators.OperatorType}, device::Device, args...)
+function operator(mode::Type{<:Operators.OperatorType}, device::Device, args...)
     return operator(mode, device, Bases.Occupation, args...)
 end
-#= TODO: Trying to easily set default basis. I think this is ambiguous, no?
-
-But if it does somehow work, replicate for each of:
-- propagator
-- propagate!
-- evolver
-- evolve!
-- expectation
-- braket
-
-And then remove all the default arguments on basis, whether the end or no.
-
-=#
 
 @memoize function operator(::Type{Operators.Qubit},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     q::Int,
 )
     ā = algebra(device, basis)
@@ -331,7 +339,7 @@ end
 
 @memoize function operator(::Type{Operators.Coupling},
     device::Device,
-    basis::Type{<:Bases.BasisType}=Bases.Occupation,
+    basis::Type{<:Bases.BasisType},
 )
     ā = algebra(device, basis)
     return staticcoupling(device, ā)
@@ -339,7 +347,7 @@ end
 
 function operator(::Type{Operators.Channel},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     i::Int,
     t::Real,
 )
@@ -349,7 +357,7 @@ end
 
 function operator(::Type{Operators.Gradient},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     j::Int,
     t::Real,
 )
@@ -359,7 +367,7 @@ end
 
 @memoize function operator(::Type{Operators.Uncoupled},
     device::Device,
-    basis::Type{<:Bases.BasisType}=Bases.Occupation,
+    basis::Type{<:Bases.BasisType},
 )
     return sum((
         operator(Operators.Qubit, device, basis, q)
@@ -369,7 +377,7 @@ end
 
 @memoize function operator(::Type{Operators.Static},
     device::Device,
-    basis::Type{<:Bases.BasisType}=Bases.Occupation,
+    basis::Type{<:Bases.BasisType},
 )
     return sum((
         operator(Operators.Uncoupled, device, basis),
@@ -387,7 +395,7 @@ end
 
 function operator(::Type{Operators.Drive},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     t::Real,
 )
     return sum((
@@ -398,7 +406,7 @@ end
 
 function operator(::Type{Operators.Hamiltonian},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     t::Real,
 )
     return sum((
@@ -408,10 +416,13 @@ function operator(::Type{Operators.Hamiltonian},
 end
 
 
+function localqubitoperators(device::Device)
+    return localqubitoperators(device, Bases.Occupation)
+end
 
 @memoize function localqubitoperators(
     device::Device,
-    basis::Type{<:Bases.LocalBasis}=Bases.Occupation,
+    basis::Type{<:Bases.LocalBasis},
 )
     ā = localalgebra(device, basis)
     return [qubithamiltonian(device, ā, q) for q in 1:nqubits(device)]
@@ -420,23 +431,24 @@ end
 
 
 
-
-
+function propagator(mode::Type{<:Operators.OperatorType}, device::Device, args...)
+    return propagator(mode, device, Bases.Occupation, args...)
+end
 
 function propagator(mode::Type{<:Operators.OperatorType},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     τ::Real,
     args...,
 )
     H = operator(mode, device, basis, args...)
-    U = (-im*τ) .* H
-    return LinearAlgebraTools.exponentiate!(U)
+    U = convert(Complex{real(eltype(H))}, H)
+    return LinearAlgebraTools.cis!(U, -τ)
 end
 
 @memoize function propagator(mode::Type{<:Operators.StaticOperator},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     τ::Real,
     args...,
 )
@@ -445,7 +457,7 @@ end
 
 @memoize function propagator(::Type{Operators.Uncoupled},
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
 )
     ū = localqubitpropagators(device, basis, τ)
@@ -454,7 +466,7 @@ end
 
 @memoize function propagator(::Type{Operators.Qubit},
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
     q::Int,
 )
@@ -467,10 +479,13 @@ end
 
 
 
+function localqubitpropagators(device::Device, τ::Real)
+    return localqubitpropagators(device, Bases.Occupation, τ)
+end
 
 @memoize function localqubitpropagators(
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
 )
     h̄ = localqubitoperators(device, basis)
@@ -482,13 +497,15 @@ end
 
 
 
-
+function propagate!(mode::Type{<:Operators.OperatorType}, device::Device, args...)
+    return propagate!(mode, device, Bases.Occupation, args...)
+end
 
 function propagate!(mode::Type{<:Operators.OperatorType},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     τ::Real,
-    ψ::Union{AbstractVector,AbstractMatrix},
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     args...,
 )
     U = propagator(mode, device, basis, τ, args...)
@@ -497,9 +514,9 @@ end
 
 function propagate!(::Type{Operators.Uncoupled},
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
-    ψ::Union{AbstractVector,AbstractMatrix},
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
 )
     ū = localqubitpropagators(device, basis, τ)
     return LinearAlgebraTools.rotate!(ū, ψ)
@@ -507,9 +524,9 @@ end
 
 function propagate!(::Type{Operators.Qubit},
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     τ::Real,
-    ψ::Union{AbstractVector,AbstractMatrix},
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     q::Int,
 )
     ā = localalgebra(device, basis)
@@ -521,11 +538,13 @@ end
 
 
 
-
+function evolver(mode::Type{<:Operators.OperatorType}, device::Device, args...)
+    return evolver(mode, device, Bases.Occupation, args...)
+end
 
 function evolver(mode::Type{<:Operators.OperatorType},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     t::Real,
     args...,
 )
@@ -534,18 +553,18 @@ end
 
 function evolver(mode::Type{<:Operators.StaticOperator},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     t::Real,
     args...,
 )
     H = operator(mode, device, basis, args...)
-    U = (-im*t) .* H
-    return LinearAlgebraTools.exponentiate!(U)
+    U = convert(Complex{real(eltype(H))}, H)
+    return LinearAlgebraTools.cis!(U, -t)
 end
 
 function evolver(::Type{Operators.Uncoupled},
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     t::Real,
 )
     ū = localqubitevolvers(device, basis, t)
@@ -554,7 +573,7 @@ end
 
 function evolver(::Type{Operators.Qubit},
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     t::Real,
     q::Int,
 )
@@ -566,27 +585,34 @@ end
 
 
 
-
+function localqubitevolvers(device::Device, t::Real)
+    return localqubitevolvers(device, Bases.Occupation, t)
+end
 
 function localqubitevolvers(
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     t::Real,
 )
     h̄ = localqubitoperators(device, basis)
-    ū = (-im*t) .* h̄
-    return [LinearAlgebraTools.exponentiate!(ū[q]) for q in 1:nqubits(device)]
+    ū = [convert(Complex{real(eltype(h̄[q]))}, h̄[q]) for q in 1:nqubits(device)]
+    for u in ū
+        u = LinearAlgebraTools.cis!(u, -t)
+    end
+    return ū
 end
 
 
 
-
+function evolve!(mode::Type{<:Operators.OperatorType}, device::Device, args...)
+    return evolve!(mode, device, Bases.Occupation, args...)
+end
 
 function evolve!(mode::Type{<:Operators.OperatorType},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     t::Real,
-    ψ::Union{AbstractVector,AbstractMatrix},
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     args...,
 )
     error("Not implemented for non-static operator.")
@@ -594,9 +620,9 @@ end
 
 function evolve!(mode::Type{<:Operators.StaticOperator},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     t::Real,
-    ψ::Union{AbstractVector,AbstractMatrix},
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     args...,
 )
     U = evolver(mode, device, basis, t, args...)
@@ -605,9 +631,9 @@ end
 
 function evolve!(::Type{Operators.Uncoupled},
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     t::Real,
-    ψ::Union{AbstractVector,AbstractMatrix},
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
 )
     ū = localqubitevolvers(device, basis, t)
     return LinearAlgebraTools.rotate!(ū, ψ)
@@ -615,9 +641,9 @@ end
 
 function evolve!(::Type{Operators.Qubit},
     device::Device,
-    basis::Type{<:Bases.LocalBasis}, # TODO: Default
+    basis::Type{<:Bases.LocalBasis},
     t::Real,
-    ψ::Union{AbstractVector,AbstractMatrix},
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     q::Int,
 )
     ā = localalgebra(device, basis)
@@ -632,11 +658,13 @@ end
 
 
 
-
+function expectation(mode::Type{<:Operators.OperatorType}, device::Device, args...)
+    return expectation(mode, device, Bases.Occupation, args...)
+end
 
 function expectation(mode::Type{<:Operators.OperatorType},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     ψ::AbstractVector,
     args...,
 )
@@ -644,9 +672,13 @@ function expectation(mode::Type{<:Operators.OperatorType},
     return LinearAlgebraTools.expectation(H, ψ)
 end
 
+function braket(mode::Type{<:Operators.OperatorType}, device::Device, args...)
+    return braket(mode, device, Bases.Occupation, args...)
+end
+
 function braket(mode::Type{<:Operators.OperatorType},
     device::Device,
-    basis::Type{<:Bases.BasisType}, # TODO: Default
+    basis::Type{<:Bases.BasisType},
     ψ1::AbstractVector,
     ψ2::AbstractVector,
     args...,
