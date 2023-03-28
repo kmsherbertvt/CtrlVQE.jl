@@ -30,6 +30,11 @@ function kron(Ā::AbstractVector{<:AbstractMatrix{F}}) where {F}
     return copy(tgt)
 end
 
+function cis_type(x)
+    F = real(eltype(x))
+    return F <: Integer ? ComplexF64 : Complex{F}
+end
+
 function cis!(A::AbstractMatrix{<:Complex{<:AbstractFloat}}, x::Number=1)
     # NOTE: calculates exp(𝑖xA), aka Cos(xA) + I Sin(xA), hence cis
     # NOTE: A must not be a restrictive view

@@ -62,4 +62,4 @@ end
 #= TODO: Convenience constructor for a channel with square pulses.
 =#
 
-end
+end # module CtrlVQE

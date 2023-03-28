@@ -2,6 +2,7 @@ using StaticArrays: SVector, SMatrix, MVector, MMatrix
 using Memoization: @memoize
 import ..Parameter, ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals, ..Devices
 
+# TODO: I don't know if SVector is appropriate. I feel like tuples are better...
 
 struct TransmonDevice{nQ,nS,nD,F<:AbstractFloat} <: Devices.Device
     ω::SVector{nQ,F}
@@ -219,7 +220,7 @@ function localdriveoperators(
     t::Real,
 ) where {nQ,nS,nD,F}
     ā = Devices.localalgebra(device, basis)
-    v̄ = [zero(ā[q]) for q in 1:nQ]
+    v̄ = Tuple(zero(ā[q]) for q in 1:nQ)
     for i in 1:nD
         v̄[device.q[i]] .+= Devices.driveoperator(device, ā, i, t)
     end
@@ -237,7 +238,13 @@ function localdrivepropagators(
     t::Real,
 ) where {nQ,nS,nD,F}
     v̄ = localdriveoperators(device, basis, t)
-    return [LinearAlgebraTools.propagator(v̄[q], τ) for q in 1:nQ]
+    ū = []
+    for v in v̄
+        v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
+        u = LinearAlgebraTools.cis!(v, -τ)
+        push!(ū, u)
+    end
+    return Tuple(ū)
 end
 
 function Devices.propagator(::Type{Operators.Drive},
@@ -258,8 +265,9 @@ function Devices.propagator(::Type{Operators.Channel},
     t::Real,
 )
     ā = Devices.localalgebra(device, basis)
-    vi = Devices.driveoperator(device, ā, i, t)
-    u = LinearAlgebraTools.propagator(vi, τ)
+    v = Devices.driveoperator(device, ā, i, t)
+    v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
+    u = LinearAlgebraTools.cis!(v, -τ)
     return globalize(device, u, device.q[i])
 end
 
@@ -283,8 +291,9 @@ function Devices.propagate!(::Type{Operators.Channel},
     t::Real,
 ) where {nQ,nS,nD,F}
     ā = Devices.localalgebra(device, basis)
-    vi = Devices.driveoperator(device, ā, i, t)
-    u = LinearAlgebraTools.propagator(vi, τ)
+    v = Devices.driveoperator(device, ā, i, t)
+    v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
+    u = LinearAlgebraTools.cis!(v, -τ)
     ops = [p == device.q[i] ? u : one(u) for p in 1:nQ]
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
