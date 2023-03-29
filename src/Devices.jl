@@ -55,6 +55,16 @@ struct Quple
     Quple(q1, q2) = q1 > q2 ? new(q2, q1) : new(q1, q2)
 end
 
+# IMPLEMENT ITERATION, FOR CONVENIENT UNPACKING
+Base.iterate(quple::Quple) = quple.q1, true
+Base.iterate(quple::Quple, state) = state ? (quple.q2, false) : nothing
+
+# TODO: Generalize to n qubits (call sort on input arguments) and hopefully subtype Tuple
+
+
+
+
+
 """
 NOTE: Implements `Parameter` interface.
 """
@@ -115,18 +125,6 @@ end
 
 
 
-#= TODO: It's a bit dangerous for memoized functions to return (mutable) arrays.
-
-They should instead return some form of read-only array.
-We could use StaticArrays,
-    but it seems to me that this package is only meant for arrays
-    with hard-coded shape, which is not the case here.
-We could use ReadOnlyArrays,
-    but this package is not maintained, and I don't like to list it as a dependency.
-
-Still looking for a good solution.
-
-=#
 
 
 
@@ -705,3 +703,134 @@ function braket(mode::Type{<:Operators.OperatorType},
 end
 
 #= TODO: Localize expectation and braket, I suppose. =#
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+abstract type LocallyDrivenDevice end
+
+# METHODS NEEDING TO BE IMPLEMENTED
+drivequbit(::LocallyDrivenDevice, i::Int)::Int = error("Not Implemented")
+gradequbit(::LocallyDrivenDevice, j::Int)::Int = error("Not Implemented")
+
+# LOCALIZING DRIVE OPERATORS
+
+function localdriveoperators(device::TransmonDevice, t::Real)
+    return localdriveoperators(device, Basis.Occupation, t)
+end
+
+function localdriveoperators(
+    device::LocallyDrivenDevice,
+    basis::Type{<:Bases.LocalBasis},
+    t::Real,
+)
+    ā = Devices.localalgebra(device, basis)
+    v̄ = Tuple(zero(ā[q]) for q in 1:nqubits(device))
+    for i in 1:ndrives(device)
+        q = drivequbit(device, i)
+        v̄[q] .+= Devices.driveoperator(device, ā, i, t)
+    end
+    return v̄
+    # TODO: Zero-ing ā doesn't give the right type. x_x
+end
+
+function localdrivepropagators(device::TransmonDevice, τ::Real, t::Real)
+    return localdrivepropagators(device, Basis.Occupation, τ, t)
+end
+
+function localdrivepropagators(
+    device::LocallyDrivenDevice,
+    basis::Type{<:Bases.LocalBasis},
+    τ::Real,
+    t::Real,
+)
+    v̄ = localdriveoperators(device, basis, t)
+    ū = []
+    for v in v̄
+        v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
+        u = LinearAlgebraTools.cis!(v, -τ)
+        push!(ū, u)
+    end
+    return Tuple(ū)
+end
+
+function Devices.propagator(::Type{Operators.Drive},
+    device::LocallyDrivenDevice,
+    basis::Type{<:Bases.LocalBasis},
+    τ::Real,
+    t::Real,
+)
+    ū = localdrivepropagators(device, basis, τ, t)
+    return LinearAlgebraTools.kron(ū)
+end
+
+function Devices.propagator(::Type{Operators.Channel},
+    device::LocallyDrivenDevice,
+    basis::Type{<:Bases.LocalBasis},
+    τ::Real,
+    i::Int,
+    t::Real,
+)
+    ā = Devices.localalgebra(device, basis)
+    v = Devices.driveoperator(device, ā, i, t)
+    v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
+    u = LinearAlgebraTools.cis!(v, -τ)
+    q = drivequbit(device, i)
+    return globalize(device, u, q)
+end
+
+function Devices.propagate!(::Type{Operators.Drive},
+    device::LocallyDrivenDevice,
+    basis::Type{<:Bases.LocalBasis},
+    τ::Real,
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
+    t::Real,
+)
+    ū = localdrivepropagators(device, basis, τ, t)
+    return LinearAlgebraTools.rotate!(ū, ψ)
+end
+
+function Devices.propagate!(::Type{Operators.Channel},
+    device::LocallyDrivenDevice,
+    basis::Type{<:Bases.LocalBasis},
+    τ::Real,
+    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
+    i::Int,
+    t::Real,
+)
+    ā = Devices.localalgebra(device, basis)
+    v = Devices.driveoperator(device, ā, i, t)
+    v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
+    u = LinearAlgebraTools.cis!(v, -τ)
+    q = drivequbit(device, i)
+    ops = [p == q ? u : one(u) for p in 1:nqubits(device)]
+    return LinearAlgebraTools.rotate!(ops, ψ)
+end
+
+# LOCALIZING GRADIENT OPERATORS
+
+# # TODO: Uncomment when we have localized versions of braket and expectation.
+# function Devices.braket(::Type{Operators.Gradient},
+#     device::LocallyDrivenDevice,
+#     basis::Type{<:Bases.LocalBasis},
+#     ψ1::AbstractVector,
+#     ψ2::AbstractVector,
+#     j::Int,
+#     t::Real,
+# )
+#     ā = Devices.localalgebra(device, basis)
+#     A = Devices.gradeoperator(device, ā, j, t)
+#     q = gradequbit(device, j)
+#     ops = [p == q ? A : one(A) for p in 1:nqubits(device)]
+#     return LinearAlgebraTools.braket(ψ1, ops, ψ2)
+# end

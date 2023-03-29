@@ -210,6 +210,8 @@ function gradientsignals(
         end
     end
 
+    # TODO: Can we allow "extra" gradient operators here? I for E(t), Π for L(t)?
+
     return ϕ̄
 end
 

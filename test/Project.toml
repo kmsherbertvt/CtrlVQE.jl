@@ -1,2 +1,3 @@
 [deps]
+AnalyticSquarePulse = "58b49aaa-f693-49aa-a6dc-f24ac989f3ba"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

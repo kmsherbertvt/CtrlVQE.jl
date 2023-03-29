@@ -1,30 +1,31 @@
-using StaticArrays: SVector, SMatrix, MVector, MMatrix
 using Memoization: @memoize
+using ReadOnlyArrays: ReadOnlyArray
 import ..Parameter, ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals, ..Devices
 
-# TODO: I don't know if SVector is appropriate. I feel like tuples are better...
 
-struct TransmonDevice{nQ,nS,nD,F<:AbstractFloat} <: Devices.Device
-    ω::SVector{nQ,F}
-    δ::SVector{nQ,F}
-    G::SMatrix{Devices.Quple,F}
+struct TransmonDevice{F<:AbstractFloat} <: Devices.LocallyDrivenDevice
+    m::Int,
 
-    q::SVector{nD,Int}
-    Ω::SVector{nD,Signals.AbstractSignal}   # NOTE: Each Ω[q] is mutable.
-    ν::MVector{nD,F}                        # NOTE: ν is mutable.
+    ω::Tuple{Vararg{F}}     # length is number of qubits
+    δ::Tuple{Vararg{F}}     # length is number of qubits
 
-    function TransmonDevice(
-        m::I,
-        ω::SVector{nQ,F},
-        δ::SVector{nQ,F},
-        G::SMatrix{Devices.Quple,F},
-        q::SVector{nD,Int},
-        Ω::SVector{nD,Signals.AbstractSignal},
-        ν::MVector{nD,F},
-    ) where {I<:Integer,nQ,nD,F<:AbstractFloat}
-        return new{nQ,m,nD,F}(ω,δ,G,q,Ω,ν)
-    end
+    quples::Tuple{Vararg{Devices.Quple}}
+    g::Tuple{Vararg{F}}     # length is number of quples
+
+    q::Tuple{Vararg{Int}}   # length is number of drives
+    Ω::Tuple{Vararg{Signals.AbstractSignal}}
+    ν::Vector{F}
+
+    #= TODO: Inner constructor validates ω, δ have consistent n,
+        and all qubits in quples and q are consistent with that length.
+
+        And length of g matches length of quples.
+
+        And length of q matches length of Ω matches length of ν.
+    =#
 end
+
+
 
 #= Other types:
 
@@ -41,7 +42,7 @@ a linear version I guess
 #= Constructors:
 
 Obv. accept AbstractVector in lieu of SVector for all parameters.
-Accept Dict{Quple,F} for G.
+Accept Dict{Quple,F} or Matrix{F} for G.
 If q is omitted, defaults to [1..n]. Only works if Ω/ν lengths are n.
 If ν is omitted, initializes to ω[q]
 If m is omitted, defaults to 2.
@@ -51,71 +52,91 @@ If m is omitted, defaults to 2.
 
 #= IMPLEMENT BOOK-KEEPING =#
 
-nqubits(::TransmonDevice{nQ,nS,nD,F}) where {nQ,nS,nD,F} = nQ
-nstates(::TransmonDevice{nQ,nS,nD,F}) where {nQ,nS,nD,F} = nS
-ndrives(::TransmonDevice{nQ,nS,nD,F}) where {nQ,nS,nD,F} = nD
-ngrades(::TransmonDevice{nQ,nS,nD,F}) where {nQ,nS,nD,F} = 2*nD
+nqubits(device::TransmonDevice) = length(device.ω)
+nstates(device::TransmonDevice, q::Int) = device.m
+ndrives(device::TransmonDevice) = length(device.q)
+ngrades(device::TransmonDevice) = 2*ndrives(device)
+
+drivequbit(device::TransmonDevice, i::Int) = device.q[i]
+gradequbit(device::TransmonDevice, j::Int) = device.q[((j-1) >> 1) + 1]
+
+
+
+
 
 #= IMPLEMENT OPERATORS =#
 
 @memoize function Devices.localloweringoperator(
-    ::TransmonDevice{nQ,nS,nD,F},
-    ::Int,
-) where {nQ,nS,nD,F}
-    a = zeros(F, nS, nS)
+    device::TransmonDevice{F},
+    q::Int,
+) where {F}
+    a = zeros(F, nstates(device,q), nstates(device,q))
     for i ∈ 1:m-1
         a[i,i+1] = √i
     end
-    return SMatrix{nS,nS}(a)
+    return ReadOnlyArray(a)
 end
 
-function qubithamiltonian(
+function Devices.qubithamiltonian(
     device::TransmonDevice,
     ā::AbstractVector{AbstractMatrix},
     q::Int,
 )
-    hq = zero(ā[q])
-    hq .+=   device.ω[q]    .* (       ā[q]'* ā[q]       )
-    hq .+= (-device.δ[q]/2) .* (ā[q]'* ā[q]'* ā[q] * ā[q])
-    return hq
+    a = ā[q]
+    h = zero(a)
+    h .+=   device.ω[q]    .* (    a'*a     )
+    h .+= (-device.δ[q]/2) .* (a'* a'* a * a)
+    return h
 end
 
-function staticcoupling(
+function Devices.staticcoupling(
     device::TransmonDevice{nQ,nS,nD,F},
     ā::AbstractVector{AbstractMatrix},
 ) where {nQ,nS,nD,F}
     G = zero(ā[1])  # NOTE: Raises error if device has no qubits.
-    for p in 1:nQ; for q in 1:nQ
-        G .+= device.G[p,q] .* (ā[p]'* ā[q])
-    end; end
+    for (pq, (p,q)) in enumerate(device.quples)
+        G .+= device.g[pq] .* (ā[p]'* ā[q])
+    end
     return G
 end
 
-function driveoperator(
+function Devices.driveoperator(
     device::TransmonDevice{nQ,nS,nD,F},
     ā::AbstractVector{AbstractMatrix},
     i::Int,
     t::Real,
 ) where {nQ,nS,nD,F}
-    V = device.Ω[i] * exp(im*device.ν[i]*t) .* ā[device.q[i]]
-    V .+= V'
+    a = ā[drivequbit(device, i)]
+    e = exp(im * device.ν[i] * t)
+    Ω = device.Ω[i](t)
+
+    V   = (real(Ω) * e ) .* a
+    V .+= (real(Ω) * e') .* a'
+
+    if Ω isa Complex
+        V .+= (imag(Ω) * im*e ) .* a
+        V .-= (imag(Ω) * im*e') .* a'
+    end
+
     return V
 end
 
-function gradeoperator(
+function Devices.gradeoperator(
     device::TransmonDevice{nQ,nS,nD,F},
     ā::AbstractVector{AbstractMatrix},
     j::Int,
     t::Real,
 ) where {nQ,nS,nD,F}
-    q = ((j-1) >> 1) + 1        # If Julia indexed from 0, this could just be j÷2...
-    phase = im ^ ((j-1) & 1)    # OPERATOR FOR REAL OR IMAGINARY SIGNAL?
-    V = (phase * exp(im*device.ν[q]*t)) .* ā[device.q[q]]
-    V .+= V'
-    return V
+    a = ā[drivequbit(device, i)]
+    e = exp(im * device.ν[i] * t)
+
+    phase = Bool(j & 1) ? 1 : im    # Odd j -> "real" gradient operator; even j  -> "imag"
+    A = (phase * e) .* a
+    A .+= A'
+    return A
 end
 
-function gradient(
+function Devices.gradient(
     device::TransmonDevice,
     τ̄::AbstractVector,
     t̄::AbstractVector,
@@ -125,28 +146,32 @@ function gradient(
 
     # CALCULATE GRADIENT FOR SIGNAL PARAMETERS
     offset = 0
-    for (i, Ωi) in enumerate(device.Ω)
+    for (i, Ω) in enumerate(device.Ω)
         j = 2*(i-1) + 1         # If Julia indexed from 0, this could just be 2i...
-        L = Parameter.count(Ωi)
+        L = Parameter.count(Ω)
         for k in 1:L
-            ∂̄ = Signals.partial(k, Ωi, t̄)
-            grad[offset + k] .+= (τ̄ .* real.(∂̄) .* ϕ̄[j,:])
-            grad[offset + k] .+= (τ̄ .* imag.(∂̄) .* ϕ̄[j+1,:])
+            ∂̄ = Signals.partial(k, Ω, t̄)
+            grad[offset + k] += sum(τ̄ .* real.(∂̄) .* ϕ̄[j,:])
+            grad[offset + k] += sum(τ̄ .* imag.(∂̄) .* ϕ̄[j+1,:])
         end
         offset += L
     end
 
     # CALCULATE GRADIENT FOR FREQUENCY PARAMETERS
-    for (i, Ωi) in enumerate(device.Ω)
+    for (i, Ω) in enumerate(device.Ω)
         j = 2*(i-1) + 1         # If Julia indexed from 0, this could just be 2i...
-        Ω̄ = Ωi(t̄)
-        grad[offset + i] .+= (τ̄ .* t̄ .* real.(Ω̄) .* ϕ̄[j+1,:])
-        grad[offset + i] .-= (τ̄ .* t̄ .* imag.(Ω̄) .* ϕ̄[j,:])
+        Ω̄ = Ω(t̄)
+        grad[offset + i] += sum(τ̄ .* t̄ .* real.(Ω̄) .* ϕ̄[j+1,:])
+        grad[offset + i] -= sum(τ̄ .* t̄ .* imag.(Ω̄) .* ϕ̄[j,:])
 
     end
 
     return grad
 end
+
+
+
+
 
 #= IMPLEMENT PARAMETER INTERFACE =#
 
@@ -196,121 +221,4 @@ function Parameter.bind(device::TransmonDevice, x̄::AbstractVector)
         device.ν[i] = x̄[offset+i]
     end
     offset += length(device.ν)
-end
-
-
-
-
-#= ADDITIONAL OVERRRIDES
-
-All drive operators are local, so we can simplify calculations for local bases.
-Same goes for gradient operators.
-
-=#
-
-# LOCALIZING DRIVE OPERATORS
-
-function localdriveoperators(device::TransmonDevice, t::Real)
-    return localdriveoperators(device, Basis.Occupation, t)
-end
-
-function localdriveoperators(
-    device::TransmonDevice{nQ,nS,nD,F},
-    basis::Type{<:Bases.LocalBasis},
-    t::Real,
-) where {nQ,nS,nD,F}
-    ā = Devices.localalgebra(device, basis)
-    v̄ = Tuple(zero(ā[q]) for q in 1:nQ)
-    for i in 1:nD
-        v̄[device.q[i]] .+= Devices.driveoperator(device, ā, i, t)
-    end
-    return v̄
-end
-
-function localdrivepropagators(device::TransmonDevice, τ::Real, t::Real)
-    return localdrivepropagators(device, Basis.Occupation, τ, t)
-end
-
-function localdrivepropagators(
-    device::TransmonDevice{nQ,nS,nD,F},
-    basis::Type{<:Bases.LocalBasis},
-    τ::Real,
-    t::Real,
-) where {nQ,nS,nD,F}
-    v̄ = localdriveoperators(device, basis, t)
-    ū = []
-    for v in v̄
-        v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
-        u = LinearAlgebraTools.cis!(v, -τ)
-        push!(ū, u)
-    end
-    return Tuple(ū)
-end
-
-function Devices.propagator(::Type{Operators.Drive},
-    device::TransmonDevice,
-    basis::Type{<:Bases.LocalBasis},
-    τ::Real,
-    t::Real,
-)
-    ū = localdrivepropagators(device, basis, τ, t)
-    return LinearAlgebraTools.kron(ū)
-end
-
-function Devices.propagator(::Type{Operators.Channel},
-    device::TransmonDevice,
-    basis::Type{<:Bases.LocalBasis},
-    τ::Real,
-    i::Int,
-    t::Real,
-)
-    ā = Devices.localalgebra(device, basis)
-    v = Devices.driveoperator(device, ā, i, t)
-    v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
-    u = LinearAlgebraTools.cis!(v, -τ)
-    return globalize(device, u, device.q[i])
-end
-
-function Devices.propagate!(::Type{Operators.Drive},
-    device::TransmonDevice,
-    basis::Type{<:Bases.LocalBasis},
-    τ::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
-    t::Real,
-)
-    ū = localdrivepropagators(device, basis, τ, t)
-    return LinearAlgebraTools.rotate!(ū, ψ)
-end
-
-function Devices.propagate!(::Type{Operators.Channel},
-    device::TransmonDevice{nQ,nS,nD,F},
-    basis::Type{<:Bases.LocalBasis},
-    τ::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
-    i::Int,
-    t::Real,
-) where {nQ,nS,nD,F}
-    ā = Devices.localalgebra(device, basis)
-    v = Devices.driveoperator(device, ā, i, t)
-    v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
-    u = LinearAlgebraTools.cis!(v, -τ)
-    ops = [p == device.q[i] ? u : one(u) for p in 1:nQ]
-    return LinearAlgebraTools.rotate!(ops, ψ)
-end
-
-# LOCALIZING GRADIENT OPERATORS
-
-function Devices.braket(::Type{Operators.Gradient},
-    device::TransmonDevice{nQ,nS,nD,F},
-    basis::Type{<:Bases.LocalBasis},
-    ψ1::AbstractVector,
-    ψ2::AbstractVector,
-    j::Int,
-    t::Real,
-) where {nQ,nS,nD,F}
-    ā = Devices.localalgebra(device, basis)
-    A = Devices.gradeoperator(device, ā, j, t)
-    q = ((j-1) >> 1) + 1
-    ops = [p == q ? A : one(A) for p in 1:nQ]
-    return LinearAlgebraTools.braket(ψ1, ops, ψ2)
 end
