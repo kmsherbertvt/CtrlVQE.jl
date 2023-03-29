@@ -26,8 +26,8 @@ So, the changing state of the device would only actually impact time-dependent m
 BUT
 
 If ever we implement a device with "tunable couplings",
-    such that time-independent parameters of a device are changed on `Parameter.bind(⋅)`,
-    the implementation of `Parameter.bind` should CLEAR the cache:
+    such that time-independent parameters of a device are changed on `Parameters.bind(⋅)`,
+    the implementation of `Parameters.bind` should CLEAR the cache:
 
     Memoization.empty_all_caches!()
 
@@ -66,7 +66,7 @@ Base.iterate(quple::Quple, state) = state ? (quple.q2, false) : nothing
 
 
 """
-NOTE: Implements `Parameter` interface.
+NOTE: Implements `Parameters` interface.
 """
 abstract type Device end
 
@@ -725,7 +725,7 @@ gradequbit(::LocallyDrivenDevice, j::Int)::Int = error("Not Implemented")
 
 # LOCALIZING DRIVE OPERATORS
 
-function localdriveoperators(device::TransmonDevice, t::Real)
+function localdriveoperators(device::LocallyDrivenDevice, t::Real)
     return localdriveoperators(device, Basis.Occupation, t)
 end
 
@@ -744,7 +744,7 @@ function localdriveoperators(
     # TODO: Zero-ing ā doesn't give the right type. x_x
 end
 
-function localdrivepropagators(device::TransmonDevice, τ::Real, t::Real)
+function localdrivepropagators(device::LocallyDrivenDevice, τ::Real, t::Real)
     return localdrivepropagators(device, Basis.Occupation, τ, t)
 end
 

@@ -1,6 +1,6 @@
 module CtrlVQE
 
-module Parameter
+module Parameters
     function count(::Any)::Int end
     function names(::Any)::AbstractVector{String} end
     function types(::Any)::AbstractVector{DataType} end

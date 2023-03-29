@@ -1,4 +1,4 @@
-import ..Parameter
+import ..Parameters
 
 ##########################################################################################
 #=                                  ABSTRACT INTERFACES
@@ -8,11 +8,11 @@ import ..Parameter
 
 
 """
-NOTE: Implements `Parameter` interface.
+NOTE: Implements `Parameters` interface.
 """
 abstract type AbstractSignal end
 
-# In addition to `Parameter` interface:
+# In addition to `Parameters` interface:
 (::AbstractSignal)(t::Real)::Number = error("Not Implemented")
 partial(i::Int, ::AbstractSignal, t::Real)::Number = error("Not Implemented")
 
@@ -60,17 +60,17 @@ function parameters(signal::S) where {S<:ParametricSignal}
     return fieldnames(S)
 end
 
-Parameter.count(signal::S) where {S<:ParametricSignal} = length(parameters(signal))
+Parameters.count(signal::S) where {S<:ParametricSignal} = length(parameters(signal))
 
-function Parameter.names(signal::S) where {S<:ParametricSignal}
+function Parameters.names(signal::S) where {S<:ParametricSignal}
     return [string(field) for field in parameters(signal)]
 end
 
-function Parameter.types(signal::S) where {S<:ParametricSignal}
+function Parameters.types(signal::S) where {S<:ParametricSignal}
     return [typeof(getfield(signal, field)) for field in parameters(signal)]
 end
 
-function Parameter.bind(signal::S, x̄::AbstractVector) where {S<:ParametricSignal}
+function Parameters.bind(signal::S, x̄::AbstractVector) where {S<:ParametricSignal}
     for (i, field) in enumerate(parameters(signal))
         setfield!(signal, field, x̄[i])
     end
@@ -109,14 +109,14 @@ end
 
 Constrained(constrained, constraints::Symbol...) = Constrained(constrained, constraints)
 
-function Parameter.count(signal::Constrained)
-    return Parameter.count(signal.constrained) - length(signal.constraints)
+function Parameters.count(signal::Constrained)
+    return Parameters.count(signal.constrained) - length(signal.constraints)
 end
 
-Parameter.names(signal::Constrained) = Parameter.names(signal.constrained)[signal._map]
-Parameter.types(signal::Constrained) = Parameter.types(signal.constrained)[signal._map]
+Parameters.names(signal::Constrained) = Parameters.names(signal.constrained)[signal._map]
+Parameters.types(signal::Constrained) = Parameters.types(signal.constrained)[signal._map]
 
-function Parameter.bind(signal::Constrained, x̄::AbstractVector)
+function Parameters.bind(signal::Constrained, x̄::AbstractVector)
     fields = parameters(signal.constrained)
     for i in eachindex(x̄)
         setfield!(signal.constrained, fields[signal._map[i]], x̄[i])
@@ -124,38 +124,40 @@ function Parameter.bind(signal::Constrained, x̄::AbstractVector)
 end
 
 (signal::Constrained)(t::Real) = signal.constrained(t)
-partial(i::Int, signal::Constrained, t::Real) = partial(signal._map[i], signal, t)
+function partial(i::Int, signal::Constrained, t::Real)
+    return partial(signal._map[i], signal.constrained, t)
+end
 
 
 
 
 #= COMPOSITE SIGNAL =#
 
-struct Composite{S<:AbstractSignal} <: AbstractSignal
-    components::Tuple{Vararg{S}}
+struct Composite <: AbstractSignal
+    components::Tuple{Vararg{AbstractSignal}}
 end
 
-Composite(components::S...) where {S} = Composite(components)
+Composite(components::AbstractSignal...) = Composite(components)
 
-function Parameter.count(signal::Composite)
-    return sum(Parameter.count(component) for component in signal.components)
+function Parameters.count(signal::Composite)
+    return sum(Parameters.count(component) for component in signal.components)
 end
 
-function Parameter.names(signal::Composite)
-    names(i) = ["$name.$i" for name in Parameter.names(signal.components[i])]
+function Parameters.names(signal::Composite)
+    names(i) = ["$name.$i" for name in Parameters.names(signal.components[i])]
     return vcat((names(i) for i in eachindex(signal.components))...)
 end
 
-function Parameter.types(signal::Composite)
-    return vcat((Parameter.types(component) for component in signal.components)...)
+function Parameters.types(signal::Composite)
+    return vcat((Parameters.types(component) for component in signal.components)...)
 end
 
-function Parameter.bind(signal::Composite, x̄::AbstractVector)
+function Parameters.bind(signal::Composite, x̄::AbstractVector)
     offset = 0
     for component in signal.components
-        L = Parameter.count(component)
-        Parameter.bind(component, x̄[offset+1:offset+L])
-        offset += l
+        L = Parameters.count(component)
+        Parameters.bind(component, x̄[offset+1:offset+L])
+        offset += L
     end
 end
 
@@ -163,7 +165,7 @@ end
 
 function partial(i::Int, signal::Composite, t::Real)
     for component in signal.components
-        L = Parameter.count(component)
+        L = Parameters.count(component)
         if i <= L
             return partial(i, component, t)
         end
@@ -177,31 +179,31 @@ end
 #= MODULATED SIGNAL =#
 
 
-struct Modulated{S<:AbstractSignal} <: AbstractSignal
-    components::Tuple{Vararg{S}}
+struct Modulated <: AbstractSignal
+    components::Tuple{Vararg{AbstractSignal}}
 end
 
-Modulated(components::S...) where {S} = Modulated(components)
+Modulated(components::AbstractSignal...) = Modulated(components)
 
-function Parameter.count(signal::Modulated)
-    return sum(Parameter.count(component) for component in signal.components)
+function Parameters.count(signal::Modulated)
+    return sum(Parameters.count(component) for component in signal.components)
 end
 
-function Parameter.names(signal::Modulated)
-    names(i) = ["$name.$i" for name in Parameter.names(signal.components[i])]
+function Parameters.names(signal::Modulated)
+    names(i) = ["$name.$i" for name in Parameters.names(signal.components[i])]
     return vcat((names(i) for i in eachindex(signal.components))...)
 end
 
-function Parameter.types(signal::Modulated)
-    return vcat((Parameter.types(component) for component in signal.components)...)
+function Parameters.types(signal::Modulated)
+    return vcat((Parameters.types(component) for component in signal.components)...)
 end
 
-function Parameter.bind(signal::Modulated, x̄::AbstractVector)
+function Parameters.bind(signal::Modulated, x̄::AbstractVector)
     offset = 0
     for component in signal.components
-        L = Parameter.count(component)
-        Parameter.bind(component, x̄[offset+1:offset+L])
-        offset += l
+        L = Parameters.count(component)
+        Parameters.bind(component, x̄[offset+1:offset+L])
+        offset += L
     end
 end
 
@@ -210,8 +212,8 @@ end
 function partial(i::Int, signal::Modulated, t::Real)
     ∂f = 1
     for component in signal.components
-        L = Parameter.count(component)
-        if 0 <= i <= L
+        L = Parameters.count(component)
+        if 1 <= i <= L
             ∂f *= partial(i, component, t)
         else
             ∂f *= component(t)
@@ -233,7 +235,7 @@ mutable struct Constant{F} <: ParametricSignal
 end
 
 (signal::Constant)(t::Real) = signal.A
-partial(i::Int, ::Constant{F}, t::Real) where {F} = zero(F)
+partial(i::Int, ::Constant{F}, t::Real) where {F} = one(F)
 
 
 

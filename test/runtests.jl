@@ -2,10 +2,9 @@ module TestLinearAlgebraTools
     include("LinearAlgebraTools.jl")
 end
 
-# # TODO
-# module TestSignals
-#     include("Signals.jl")
-# end
+module TestSignals
+    include("Signals.jl")
+end
 
 # # TODO
 # module TestDevices

@@ -1,10 +1,10 @@
 using Memoization: @memoize
 using ReadOnlyArrays: ReadOnlyArray
-import ..Parameter, ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals, ..Devices
+import ..Parameters, ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals, ..Devices
 
 
 struct TransmonDevice{F<:AbstractFloat} <: Devices.LocallyDrivenDevice
-    m::Int,
+    m::Int
 
     ω::Tuple{Vararg{F}}     # length is number of qubits
     δ::Tuple{Vararg{F}}     # length is number of qubits
@@ -90,9 +90,9 @@ function Devices.qubithamiltonian(
 end
 
 function Devices.staticcoupling(
-    device::TransmonDevice{nQ,nS,nD,F},
+    device::TransmonDevice,
     ā::AbstractVector{AbstractMatrix},
-) where {nQ,nS,nD,F}
+)
     G = zero(ā[1])  # NOTE: Raises error if device has no qubits.
     for (pq, (p,q)) in enumerate(device.quples)
         G .+= device.g[pq] .* (ā[p]'* ā[q])
@@ -101,11 +101,11 @@ function Devices.staticcoupling(
 end
 
 function Devices.driveoperator(
-    device::TransmonDevice{nQ,nS,nD,F},
+    device::TransmonDevice,
     ā::AbstractVector{AbstractMatrix},
     i::Int,
     t::Real,
-) where {nQ,nS,nD,F}
+)
     a = ā[drivequbit(device, i)]
     e = exp(im * device.ν[i] * t)
     Ω = device.Ω[i](t)
@@ -122,11 +122,11 @@ function Devices.driveoperator(
 end
 
 function Devices.gradeoperator(
-    device::TransmonDevice{nQ,nS,nD,F},
+    device::TransmonDevice,
     ā::AbstractVector{AbstractMatrix},
     j::Int,
     t::Real,
-) where {nQ,nS,nD,F}
+)
     a = ā[drivequbit(device, i)]
     e = exp(im * device.ν[i] * t)
 
@@ -142,13 +142,13 @@ function Devices.gradient(
     t̄::AbstractVector,
     ϕ̄::AbstractMatrix,
 )::AbstractVector
-    grad = [zero(type) for type in Parameter.types(device)]
+    grad = [zero(type) for type in Parameters.types(device)]
 
     # CALCULATE GRADIENT FOR SIGNAL PARAMETERS
     offset = 0
     for (i, Ω) in enumerate(device.Ω)
         j = 2*(i-1) + 1         # If Julia indexed from 0, this could just be 2i...
-        L = Parameter.count(Ω)
+        L = Parameters.count(Ω)
         for k in 1:L
             ∂̄ = Signals.partial(k, Ω, t̄)
             grad[offset + k] += sum(τ̄ .* real.(∂̄) .* ϕ̄[j,:])
@@ -175,17 +175,17 @@ end
 
 #= IMPLEMENT PARAMETER INTERFACE =#
 
-function Parameter.count(device::TransmonDevice)
-    return sum(Parameter.count(Ωi) for Ωi in device.Ω) + length(device.ν)
+function Parameters.count(device::TransmonDevice)
+    return sum(Parameters.count(Ωi) for Ωi in device.Ω) + length(device.ν)
 end
 
-function Parameter.names(device::TransmonDevice)
+function Parameters.names(device::TransmonDevice)
     names = []
 
     # STRING TOGETHER PARAMETER NAMES FOR EACH SIGNAL Ω[i]
     annotate(name,i) = "Ω$i(q$(device.q[i])):$name"
     for i in eachindex(device.Ω)
-        append!(names, (annotate(name,i) for name in Parameter.names(device.Ω[i])))
+        append!(names, (annotate(name,i) for name in Parameters.names(device.Ω[i])))
     end
 
     # TACK ON PARAMETER NAMES FOR EACH ν[i]
@@ -193,12 +193,12 @@ function Parameter.names(device::TransmonDevice)
     return names
 end
 
-function Parameter.types(device::TransmonDevice)
+function Parameters.types(device::TransmonDevice)
     types = []
 
     # STRING TOGETHER PARAMETER TYPES FOR EACH SIGNAL Ω[i]
     for i in eachindex(device.Ω)
-        append!(types, (type for type in Parameter.types(device.Ω[i])))
+        append!(types, (type for type in Parameters.types(device.Ω[i])))
     end
 
     # TACK ON PARAMETER NAMES FOR EACH ν[i]
@@ -206,13 +206,13 @@ function Parameter.types(device::TransmonDevice)
     return types
 end
 
-function Parameter.bind(device::TransmonDevice, x̄::AbstractVector)
+function Parameters.bind(device::TransmonDevice, x̄::AbstractVector)
     offset = 0
 
     # BIND PARAMETERS FOR EACH SIGNAL Ω[i]
     for Ωi in device.Ω
-        L = Parameter.count(Ωi)
-        Parameter.bind(Ωi, x̄[offset+1:offset+L])
+        L = Parameters.count(Ωi)
+        Parameters.bind(Ωi, x̄[offset+1:offset+L])
         offset += L
     end
 
