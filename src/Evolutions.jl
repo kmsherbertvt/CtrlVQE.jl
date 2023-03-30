@@ -164,7 +164,7 @@ function gradientsignals(
 
     # PREPARE SIGNAL ARRAYS ϕ̄[k,j,i]
     F = real(LinearAlgebraTools.cis_type(ψ0))
-    ϕ̄ = Array{F}(undef, length(Ō), ngrades(device), r+1)
+    ϕ̄ = Array{F}(undef, r+1, ngrades(device), length(Ō))
 
     # PREPARE STATE AND CO-STATES
     ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, ψ0)
@@ -186,7 +186,7 @@ function gradientsignals(
     for (k, λ) in enumerate(λ̄)
         for j in 1:ngrades(device)
             z = Devices.braket(Operators.Gradient, device, basis, λ, ψ, j, t̄[1])
-            ϕ̄[k,j,i] = 2 * imag(z)  # ϕ̄[k,j,i] = -𝑖z + 𝑖z̄
+            ϕ̄[i,j,k] = 2 * imag(z)  # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
         end
     end
 
@@ -205,7 +205,7 @@ function gradientsignals(
         for (k, λ) in enumerate(λ̄)
             for j in 1:ngrades(device)
                 z = Devices.braket(Operators.Gradient, device, basis, λ, ψ, j, t̄[i])
-                ϕ̄[k,j,i] = 2 * imag(z)  # ϕ̄[k,j,i] = -𝑖z + 𝑖z̄
+                ϕ̄[i,j,k] = 2 * imag(z)  # ϕ̄[k,j,i] = -𝑖z + 𝑖z̄
             end
         end
     end

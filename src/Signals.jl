@@ -16,6 +16,11 @@ abstract type AbstractSignal end
 (::AbstractSignal)(t::Real)::Number = error("Not Implemented")
 partial(i::Int, ::AbstractSignal, t::Real)::Number = error("Not Implemented")
 
+# VECTORIZED METHODS
+(signal::AbstractSignal)(t̄::AbstractVector{<:Real}) = [signal(t) for t in t̄]
+function partial(i::Int, signal::AbstractSignal, t̄::AbstractVector{<:Real})
+    return [partial(i, signal, t) for t in t̄]
+end
 
 #= TODO: I kinda want to override string(⋅), but I'd want it to accept parameter names,
             so it would be a little bit fancy.
@@ -28,16 +33,6 @@ Like, string(⋅) = string(⋅, parameters(⋅)),
 
 That feels doable.
 =#
-
-# TODO: Check that value and slope vectorize properly; if so we don't need the following.
-#
-# function value(signal::AbstractSignal, t̄::AbstractVector{<:Real})
-#     return [value(signal, t) for t in t̄]
-# end
-
-# function slope(signal::AbstractSignal{F}, i::Int, t̄::AbstractVector{<:Real})
-#     return [slope(signal, i, t) for t in t̄]
-# end
 
 
 """

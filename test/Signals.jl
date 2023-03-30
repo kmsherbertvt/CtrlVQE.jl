@@ -80,4 +80,7 @@ using CtrlVQE: Parameters, Signals
     @test F.components[2].constrained.s == 0.7
 
 
+
+    # TODO: Cosine, Gaussian
+
 end

@@ -6,7 +6,9 @@ using Memoization: @memoize
     return Array{T}(undef, shape)
 end
 
-function kron(v̄::AbstractVector{<:AbstractVector{F}}) where {F}
+List{T} = Union{AbstractVector{T}, Tuple{Vararg{T}}}
+
+function kron(v̄::List{<:AbstractVector{F}}) where {F}
     op  = _TEMPARRAY(F, (1,)); op[1] = one(F)
     tgt = nothing
     for i in eachindex(v̄)
@@ -18,7 +20,7 @@ function kron(v̄::AbstractVector{<:AbstractVector{F}}) where {F}
     return copy(tgt)
 end
 
-function kron(Ā::AbstractVector{<:AbstractMatrix{F}}) where {F}
+function kron(Ā::List{<:AbstractMatrix{F}}) where {F}
     op  = _TEMPARRAY(F, (1,1)); op[1] = one(F)
     tgt = nothing
     for i in eachindex(Ā)
@@ -73,7 +75,7 @@ function rotate!(R::AbstractMatrix, A::AbstractMatrix)
     return mul!(A, left, R')
 end
 
-function rotate!(r̄::AbstractVector{<:AbstractMatrix{F}}, x::AbstractVector) where {F}
+function rotate!(r̄::List{<:AbstractMatrix{F}}, x::AbstractVector) where {F}
     if eltype(x) !== promote_type(F, eltype(x))
         # TODO: I'd prefer to enforce this by dispatch, but I can't think of how.
         error("Type of `x` does not support rotation by `R`.")
@@ -91,7 +93,7 @@ function rotate!(r̄::AbstractVector{<:AbstractMatrix{F}}, x::AbstractVector) wh
 end
 
 
-function rotate!(r̄::AbstractVector{<:AbstractMatrix{F}}, A::AbstractMatrix) where {F}
+function rotate!(r̄::List{<:AbstractMatrix{F}}, A::AbstractMatrix) where {F}
     if eltype(A) !== promote_type(F, eltype(A))
         # TODO: I'd prefer to enforce this by dispatch, but I can't think of how.
         error("Type of `x` does not support rotation by `R`.")

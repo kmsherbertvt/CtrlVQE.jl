@@ -45,6 +45,7 @@ If it can be done, it would require obtaining the actual `IdDict`
 
 using LinearAlgebra: I, Diagonal, Eigen, eigen
 using ReadOnlyArrays: ReadOnlyArray
+using ..LinearAlgebraTools: List
 import ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals
 
 
@@ -86,20 +87,20 @@ function localloweringoperator(::Device,
 end
 
 function qubithamiltonian(::Device,
-    ā::AbstractVector{AbstractMatrix},
+    ā::List{<:AbstractMatrix},
     q::Int,
 )::AbstractMatrix
     return error("Not Implemented")
 end
 
 function staticcoupling(::Device,
-    ā::AbstractVector{AbstractMatrix},
+    ā::List{<:AbstractMatrix},
 )::AbstractMatrix
     return error("Not Implemented")
 end
 
 function driveoperator(::Device,
-    ā::AbstractVector{AbstractMatrix},
+    ā::List{<:AbstractMatrix},
     i::Int,
     t::Real,
 )::AbstractMatrix
@@ -107,7 +108,7 @@ function driveoperator(::Device,
 end
 
 function gradeoperator(::Device,
-    ā::AbstractVector{AbstractMatrix},
+    ā::List{<:AbstractMatrix},
     j::Int,
     t::Real,
 )::AbstractMatrix
@@ -118,7 +119,7 @@ end
 function gradient(::Device,
     τ̄::AbstractVector,
     t̄::AbstractVector,
-    ϕ̄::AbstractVector{<:AbstractVector},
+    ϕ̄::AbstractMatrix,
 )::AbstractVector
     return error("Not Implemented")
 end
@@ -132,7 +133,7 @@ end
 # UTILITIES
 
 function globalize(device::Device, op::AbstractMatrix, q::Int)
-    ops = []
+    ops = AbstractMatrix{eltype(op)}[]
     for p in 1:nqubits(device)
         if p == q
             push!(ops, op)
@@ -145,7 +146,8 @@ function globalize(device::Device, op::AbstractMatrix, q::Int)
     return LinearAlgebraTools.kron(ops)
 end
 
-function _cd_from_ix(i::Int, m̄::AbstractVector{<:Integer})
+function _cd_from_ix(i::Int, m̄::List{<:Integer})
+    i = i - 1       # SWITCH TO INDEXING FROM 0
     ī = Vector{Int}(undef, length(m̄))
     for q in eachindex(m̄)
         i, ī[q] = divrem(i, m̄[q])
@@ -153,17 +155,17 @@ function _cd_from_ix(i::Int, m̄::AbstractVector{<:Integer})
     return ī
 end
 
-function _ix_from_cd(ī::AbstractVector{<:Integer}, m̄::AbstractVector{<:Integer})
+function _ix_from_cd(ī::AbstractVector{<:Integer}, m̄::List{<:Integer})
     i = 0
     offset = 1
     for q in eachindex(m̄)
         i += offset * ī[q]
         offset *= m̄[q]
     end
-    return i
+    return i + 1    # SWITCH TO INDEXING FROM 1
 end
 
-function project(device::Device, op::AbstractMatrix, m̄1::AbstractVector{Int})
+function project(device::Device, op::AbstractMatrix, m̄1::List{Int})
     N1 = size(op, 1)
 
     m̄2 = [nstates(device,q) for q in 1:nqubits(device)]
@@ -173,7 +175,7 @@ function project(device::Device, op::AbstractMatrix, m̄1::AbstractVector{Int})
     op2 = zeros(eltype(op), N2, N2)
     for i in 1:N1
         for j in 1:N1
-            Op[ix_map[i],ix_map[j]] = op[i,j]
+            op2[ix_map[i],ix_map[j]] = op[i,j]
         end
     end
     return op2
@@ -202,15 +204,15 @@ end
 # BASIS ROTATIONS
 
 @memoize function diagonalize(::Type{Bases.Dressed}, device::Device)
-    H0 = hamiltonian(Temporality.Static, device)
+    H0 = operator(Operators.Static, device)
     return eigen(H0)
     # TODO: Move code for Utils.dressedbasis to here.
 end
 
 @memoize function diagonalize(basis::Type{<:Bases.LocalBasis}, device::Device)
     ΛU = [diagonalize(basis, device, q) for q in 1:nqubits(device)]
-    Λ = LinearAlgebraTools.kron(ΛU[q].values  for q in 1:nqubits(device))
-    U = LinearAlgebraTools.kron(ΛU[q].vectors for q in 1:nqubits(device))
+    Λ = LinearAlgebraTools.kron([ΛU[q].values  for q in 1:nqubits(device)])
+    U = LinearAlgebraTools.kron([ΛU[q].vectors for q in 1:nqubits(device)])
     return Eigen(Λ, U)
 end
 
@@ -282,7 +284,7 @@ end
 
 
 
-# OPERATORS
+#= ALGEBRAS =#
 
 @memoize function algebra(
     device::Device,
@@ -295,7 +297,7 @@ end
 
         # CONVERT TO A NUMBER TYPE COMPATIBLE WITH ROTATION
         F = promote_type(eltype(U), eltype(a0))
-        a0 = convert(AbstractMatrix{F}, a0)
+        a0 = convert(Matrix{F}, a0)
 
         a = globalize(device, a0, q)
         a = LinearAlgebraTools.rotate!(U, a)
@@ -315,7 +317,7 @@ end
 
         # CONVERT TO A NUMBER TYPE COMPATIBLE WITH ROTATION
         F = promote_type(eltype(U), eltype(a0))
-        a0 = convert(AbstractMatrix{F}, a0)
+        a0 = convert(Matrix{F}, a0)
 
         a = LinearAlgebraTools.rotate!(U, a0)
         push!(ā, ReadOnlyArray(a))
@@ -324,6 +326,7 @@ end
 end
 
 
+#= HERMITIAN OPERATORS =#
 
 function operator(mode::Type{<:Operators.OperatorType}, device::Device, args...)
     return operator(mode, device, Bases.Occupation, args...)
@@ -363,7 +366,7 @@ function operator(::Type{Operators.Gradient},
     t::Real,
 )
     ā = algebra(device, basis)
-    return gradeeoperator(device, ā, j, t)
+    return gradeoperator(device, ā, j, t)
 end
 
 @memoize function operator(::Type{Operators.Uncoupled},
@@ -434,6 +437,10 @@ end
 
 
 
+#= PROPAGATORS =#
+
+
+
 function propagator(mode::Type{<:Operators.OperatorType}, device::Device, args...)
     return propagator(mode, device, Bases.Occupation, args...)
 end
@@ -455,7 +462,10 @@ end
     τ::Real,
     args...,
 )
-    return ReadOnlyArray(propagator(mode, device, basis, τ, args...))
+    # NOTE: This is a carbon copy of the above method, except with caching.
+    H = operator(mode, device, basis, args...)
+    H = convert(Array{LinearAlgebraTools.cis_type(H)}, H)
+    return ReadOnlyArray(LinearAlgebraTools.cis!(H, -τ))
 end
 
 @memoize function propagator(::Type{Operators.Uncoupled},
@@ -506,6 +516,7 @@ end
 
 
 
+#= MUTATING PROPAGATION =#
 
 function propagate!(mode::Type{<:Operators.OperatorType}, device::Device, args...)
     return propagate!(mode, device, Bases.Occupation, args...)
@@ -547,6 +558,9 @@ function propagate!(::Type{Operators.Qubit},
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
+
+
+#= PROPAGATORS FOR ARBITRARY TIME (static only) =#
 
 
 function evolver(mode::Type{<:Operators.OperatorType}, device::Device, args...)
@@ -617,6 +631,7 @@ function localqubitevolvers(
 end
 
 
+#= MUTATING EVOLUTION FOR ARBITRARY TIME (static only) =#
 
 function evolve!(mode::Type{<:Operators.OperatorType}, device::Device, args...)
     return evolve!(mode, device, Bases.Occupation, args...)
@@ -672,6 +687,7 @@ end
 
 
 
+#= SCALAR MATRIX OPERATIONS =#
 
 function expectation(mode::Type{<:Operators.OperatorType}, device::Device, args...)
     return expectation(mode, device, Bases.Occupation, args...)
@@ -717,7 +733,7 @@ end
 
 
 
-abstract type LocallyDrivenDevice end
+abstract type LocallyDrivenDevice <: Device end
 
 # METHODS NEEDING TO BE IMPLEMENTED
 drivequbit(::LocallyDrivenDevice, i::Int)::Int = error("Not Implemented")
@@ -735,13 +751,16 @@ function localdriveoperators(
     t::Real,
 )
     ā = Devices.localalgebra(device, basis)
-    v̄ = Tuple(zero(ā[q]) for q in 1:nqubits(device))
+
+    # SINGLE OPERATOR TO FETCH THE CORRECT TYPING
+    F = ndrives(device) > 0 ? eltype(Devices.driveoperator(device, ā, 1, t)) : eltype(ā)
+
+    v̄ = Tuple(zeros(F, size(ā[q])) for q in 1:nqubits(device))
     for i in 1:ndrives(device)
         q = drivequbit(device, i)
         v̄[q] .+= Devices.driveoperator(device, ā, i, t)
     end
     return v̄
-    # TODO: Zero-ing ā doesn't give the right type. x_x
 end
 
 function localdrivepropagators(device::LocallyDrivenDevice, τ::Real, t::Real)

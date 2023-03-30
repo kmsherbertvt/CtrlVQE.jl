@@ -1,9 +1,9 @@
 using Test
 using CtrlVQE: LinearAlgebraTools
 
-i = im
-
 @testset "LinearAlgebraTools" begin
+    i = im
+
     # PREPARE SOME BASIC TEST ARRAYS
     e0 = [1, 0]             # |0⟩
     e1 = [0, 1]             # |1⟩

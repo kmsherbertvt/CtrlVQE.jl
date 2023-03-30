@@ -18,7 +18,7 @@ end
 
 module Operators
     abstract type OperatorType end
-    abstract type StaticOperator end
+    abstract type StaticOperator <: OperatorType end
     struct Qubit        <: StaticOperator end
     struct Coupling     <: StaticOperator end
     struct Channel      <: OperatorType end
