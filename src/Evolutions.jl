@@ -10,7 +10,7 @@ abstract type EvolutionAlgorithm end
 function evolve(
     device::Devices.Device,
     T::Real,
-    ψ0::AbstractVector{<:Complex{<:AbstractFloat}};
+    ψ0::AbstractVector;
     kwargs...
 )
     ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, ψ0)
@@ -21,7 +21,7 @@ function evolve(
     device::Devices.Device,
     basis::Type{<:Bases.BasisType},
     T::Real,
-    ψ0::AbstractVector{<:Complex{<:AbstractFloat}};
+    ψ0::AbstractVector;
     kwargs...
 )
     ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, ψ0)
@@ -32,7 +32,7 @@ function evolve(
     algorithm::Type{<:EvolutionAlgorithm},
     device::Devices.Device,
     T::Real,
-    ψ0::AbstractVector{<:Complex{<:AbstractFloat}};
+    ψ0::AbstractVector;
     kwargs...
 )
     ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, ψ0)
@@ -44,7 +44,7 @@ function evolve(
     device::Devices.Device,
     basis::Type{<:Bases.BasisType},
     T::Real,
-    ψ0::AbstractVector{<:Complex{<:AbstractFloat}};
+    ψ0::AbstractVector;
     kwargs...
 )
     ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, ψ0)
@@ -83,12 +83,12 @@ function evolve!(::Type{Rotate},
 
     # FIRST STEP: NO NEED TO APPLY STATIC OPERATOR
     callback !== nothing && callback(0, t̄[1], ψ)
-        ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[1], ψ, t̄[1])
+    ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[1], ψ, t̄[1])
 
     # RUN EVOLUTION
     for i in 2:r+1
         callback !== nothing && callback(i, t̄[i], ψ)
-        ψ = Devices.propagate!(Operators.Static, device, basis, τ̄[i], ψ)
+        ψ = Devices.propagate!(Operators.Static, device, basis, τ, ψ)
         ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[i], ψ, t̄[i])
     end
 
@@ -137,6 +137,9 @@ function evolve!(::Type{Direct},
         ψ = LinearAlgebraTools.rotate!(V, ψ)
     end
 
+    # ROTATE OUT OF INTERACTION PICTURE
+    ψ = Devices.evolve!(Operators.Static, device, basis, T, ψ)
+
     return ψ
 end
 
@@ -164,7 +167,7 @@ function gradientsignals(
 
     # PREPARE SIGNAL ARRAYS ϕ̄[k,j,i]
     F = real(LinearAlgebraTools.cis_type(ψ0))
-    ϕ̄ = Array{F}(undef, r+1, ngrades(device), length(Ō))
+    ϕ̄ = Array{F}(undef, r+1, Devices.ngrades(device), length(Ō))
 
     # PREPARE STATE AND CO-STATES
     ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, ψ0)
@@ -184,9 +187,9 @@ function gradientsignals(
 
     # FIRST GRADIENT SIGNALS
     for (k, λ) in enumerate(λ̄)
-        for j in 1:ngrades(device)
+        for j in 1:Devices.ngrades(device)
             z = Devices.braket(Operators.Gradient, device, basis, λ, ψ, j, t̄[1])
-            ϕ̄[i,j,k] = 2 * imag(z)  # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
+            ϕ̄[1,j,k] = 2 * imag(z)  # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
         end
     end
 
@@ -203,9 +206,9 @@ function gradientsignals(
 
         # CALCULATE GRADIENT SIGNAL BRAKETS
         for (k, λ) in enumerate(λ̄)
-            for j in 1:ngrades(device)
+            for j in 1:Devices.ngrades(device)
                 z = Devices.braket(Operators.Gradient, device, basis, λ, ψ, j, t̄[i])
-                ϕ̄[i,j,k] = 2 * imag(z)  # ϕ̄[k,j,i] = -𝑖z + 𝑖z̄
+                ϕ̄[i,j,k] = 2 * imag(z)  # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
             end
         end
     end

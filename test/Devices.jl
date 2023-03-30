@@ -1,5 +1,5 @@
 using Test
-using LinearAlgebra: diagm
+using LinearAlgebra: diagm, norm
 using CtrlVQE: Parameters, Signals, Devices
 
 using CtrlVQE.TransmonDevices: TransmonDevice
@@ -27,8 +27,8 @@ using CtrlVQE.Operators: Uncoupled, Static, Drive, Hamiltonian
     )
 
     τ, t = 0.02, 1.0
-    ψ = ones(Devices.nstates(device))/2
-    φ = copy(ψ); φ[3:7] .*= -1
+    ψ = ones(Devices.nstates(device)); ψ ./= norm(ψ)
+    φ = copy(ψ); φ[3:7] .*= -1; φ ./= norm(φ)
 
     # SCALAR TESTS
     @test Devices.nqubits(device) == 2
@@ -100,7 +100,7 @@ using CtrlVQE.Operators: Uncoupled, Static, Drive, Hamiltonian
 
     U1 = Devices.basisrotation(Occupation, Dressed, device)
     U2 = Devices.basisrotation(Dressed, Occupation, device)
-    @test U1 ≈ U2'  # NOTE: Not very thorough...
+    @test U1 ≈ U2'  # NOTE: Not especially thorough...
 
 
     # ALGEBRA

@@ -40,6 +40,9 @@ function Evolutions.evolve!(::Type{Lanczos},
         ψ .= KrylovKit.exponentiate(V, -im * τ̄[i], ψ)[1]
     end
 
+    # ROTATE OUT OF INTERACTION PICTURE
+    ψ = Devices.evolve!(Operators.Static, device, basis, T, ψ)
+
     return ψ
 end
 

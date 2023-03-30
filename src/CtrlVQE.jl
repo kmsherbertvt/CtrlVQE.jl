@@ -5,6 +5,7 @@ module Parameters
     function names(::Any)::AbstractVector{String} end
     function types(::Any)::AbstractVector{DataType} end
     function bind(::Any, x̄::AbstractVector)::Nothing end
+    # TODO: In addition to names and types, *values* would also be helpful..!
 end
 
 module Bases

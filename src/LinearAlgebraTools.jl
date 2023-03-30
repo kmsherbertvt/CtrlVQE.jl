@@ -1,4 +1,4 @@
-using LinearAlgebra: kron!, eigen, Diagonal, mul!
+using LinearAlgebra: kron!, eigen, Diagonal, Hermitian, mul!
 using Memoization: @memoize
 
 @memoize function _TEMPARRAY(T::Type, shape::Tuple, index=nothing)
@@ -40,7 +40,8 @@ end
 function cis!(A::AbstractMatrix{<:Complex{<:AbstractFloat}}, x::Number=1)
     # NOTE: calculates exp(𝑖xA), aka Cos(xA) + I Sin(xA), hence cis
     # NOTE: A must not be a restrictive view
-    Λ, U = eigen(A)                         # TODO: UNNECESSARY ALLOCATIONS
+    # NOTE: A must be Hermitian (in character, not in type)
+    Λ, U = eigen(Hermitian(A))              # TODO: UNNECESSARY ALLOCATIONS
 
     F = Complex{real(eltype(Λ))}
     diag = _TEMPARRAY(F, size(Λ))

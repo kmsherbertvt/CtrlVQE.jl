@@ -237,8 +237,8 @@ end
 
 
 @memoize function basisrotation(
-    src::Type{<:Bases.BasisType},
     tgt::Type{<:Bases.BasisType},
+    src::Type{<:Bases.BasisType},
     device::Device,
 )
     Λ0, U0 = diagonalize(src, device)
@@ -249,8 +249,8 @@ end
 end
 
 @memoize function basisrotation(
-    src::Type{<:Bases.LocalBasis},
     tgt::Type{<:Bases.LocalBasis},
+    src::Type{<:Bases.LocalBasis},
     device::Device,
 )
     ū = localbasisrotations(src, tgt, device)
@@ -258,8 +258,8 @@ end
 end
 
 @memoize function basisrotation(
-    src::Type{<:Bases.LocalBasis},
     tgt::Type{<:Bases.LocalBasis},
+    src::Type{<:Bases.LocalBasis},
     device::Device,
     q::Int,
 )
@@ -271,12 +271,12 @@ end
 end
 
 @memoize function localbasisrotations(
-    src::Type{<:Bases.LocalBasis},
     tgt::Type{<:Bases.LocalBasis},
+    src::Type{<:Bases.LocalBasis},
     device::Device,
 )
     return Tuple(
-        ReadOnlyArray(basisrotation(src, tgt, device, q)) for q in 1:nqubits(device)
+        ReadOnlyArray(basisrotation(tgt, src, device, q)) for q in 1:nqubits(device)
     )
 end
 
@@ -290,7 +290,7 @@ end
     device::Device,
     basis::Type{<:Bases.BasisType}=Bases.Occupation,
 )
-    U = basisrotation(Bases.Occupation, basis, device)
+    U = basisrotation(basis, Bases.Occupation, device)
     ā = []
     for q in 1:nqubits(device)
         a0 = localloweringoperator(device, q)
@@ -312,7 +312,7 @@ end
 )
     ā = []
     for q in 1:nqubits(device)
-        U = basisrotation(Bases.Occupation, basis, device, q)
+        U = basisrotation(basis, Bases.Occupation, device, q)
         a0 = localloweringoperator(device, q)
 
         # CONVERT TO A NUMBER TYPE COMPATIBLE WITH ROTATION

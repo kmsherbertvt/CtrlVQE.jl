@@ -31,6 +31,9 @@ function Evolutions.evolve!(::Type{ODE},
     solution = solve(schrodinger, save_everystep=false)
     ψ .= solution.u[end]
 
+    # ROTATE OUT OF INTERACTION PICTURE
+    ψ = Devices.evolve!(Operators.Static, device, basis, T, ψ)
+
     return ψ
 end
 
