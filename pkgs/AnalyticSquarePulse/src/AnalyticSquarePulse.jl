@@ -4,6 +4,34 @@ import LinearAlgebra: norm
 import Polynomials: Polynomial, roots
 import SpecialMatrices: Vandermonde
 
+function evolve_transmon(ω, δ, Ω, ν, m, T, ψI)
+    # DELEGATE TO THE ORIGINAL INTERACTION-FRAME IMPLEMENTATION
+    ψ = (
+        m == 2 ? onequbitsquarepulse(ψI, T, ν, Ω, ω)
+      : m == 3 ? onequtritsquarepulse(ψI, T, ν, Ω, ω, δ)
+      : error("m=$m not implemented")
+    )
+
+    # ROTATE OUT OF INTERACTION FRAME
+    a = a_matrix(m)
+    n̂ =     a'* a
+    η̂ = a'* a'* a * a
+    return exp(-im*T*(ω*n̂ - δ/2*η̂)) * ψ
+end
+
+
+
+
+function a_matrix(m::Integer=2)
+    a = zeros((m,m))
+    for i ∈ 1:m-1
+        a[i,i+1] = √i               # BOSONIC ANNIHILATION OPERATOR
+    end
+    return a
+end
+
+
+
 function onequbitsquarepulse(
     ψI,             # INITIAL WAVE FUNCTION
     T,              # PULSE DURATION (ns)
@@ -105,21 +133,6 @@ function _solve_diffeq(a, b)
     # RETURN A FUNCTION GIVING THE LINEAR COMBINATION OF ALL SOLUTIONS
     return t -> transpose(C) * exp.(r*t)    # THIS IS AN INNER PRODUCT OF TWO VECTORS!
 end
-
-
-
-
-
-
-
-#= TODO: Can we make a light-weight device and hack in the same evolve(!) interface?
-
-Obviously the device may only have one qubit,
-    and pulse signals must be restricted to constant or else Trotterized
-    (probably this is two separate devices),
-    but I think that's valuable.
-
-=#
 
 
 

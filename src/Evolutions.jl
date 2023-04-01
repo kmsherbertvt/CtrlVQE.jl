@@ -81,6 +81,12 @@ function evolve!(::Type{Rotate},
     τ̄[[begin, end]] ./= 2
     t̄ = τ * (0:r)
 
+    # TEMP: -T reverses relative time correctly, but not absolute time.
+    if T < 0
+        t̄ = abs(τ) * reverse(0:r)
+    end
+    # TODO: τ, τ̄, t̄ should be gotten from an `trapezoidalrule(T,r)`. Handle -T here.
+
     # FIRST STEP: NO NEED TO APPLY STATIC OPERATOR
     callback !== nothing && callback(0, t̄[1], ψ)
     ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[1], ψ, t̄[1])
@@ -178,14 +184,14 @@ function gradientsignals(
         λ̄[k] = evolve!(Rotate, device, basis, -T, λ̄[k]; r=r)
     end
 
-    # FIRST STEP: NO NEED TO APPLY STATIC OPERATOR
-    callback !== nothing && callback(0, t̄[0], ψ)
-    ψ = Devices.propagate!(Operators.Drive, device, basis, τ̄[1], ψ, t̄[1])
+    # START THE FIRST STEP
+    ψ = Devices.propagate!(Operators.Drive, device, basis, τ̄[1]/2, ψ, t̄[1])
     for λ in λ̄
-        Devices.propagate!(Operators.Drive, device, basis, τ̄[1], λ, t̄[1])
+        Devices.propagate!(Operators.Drive, device, basis, τ̄[1]/2, λ, t̄[1])
     end
 
     # FIRST GRADIENT SIGNALS
+    callback !== nothing && callback(1, t̄[1], ψ)
     for (k, λ) in enumerate(λ̄)
         for j in 1:Devices.ngrades(device)
             z = Devices.braket(Operators.Gradient, device, basis, λ, ψ, j, t̄[1])
@@ -195,16 +201,18 @@ function gradientsignals(
 
     # ITERATE OVER TIME
     for i in 2:r+1
-        # CONTINUE TIME EVOLUTION
-        callback !== nothing && callback(i, t̄[i], ψ)
-        ψ = Devices.propagate!(Operators.Static, device, basis, τ̄[i], ψ)
-        ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[i], ψ, t̄[i])
+        # COMPLETE THE PREVIOUS TIME-STEP AND START THE NEXT
+        ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[i-1]/2, ψ, t̄[i-1])
+        ψ = Devices.propagate!(Operators.Static, device, basis, τ, ψ)
+        ψ = Devices.propagate!(Operators.Drive,  device, basis, τ̄[i]/2, ψ, t̄[i])
         for λ in λ̄
-            Devices.propagate!(Operators.Static, device, basis, τ̄[i], λ)
-            Devices.propagate!(Operators.Drive,  device, basis, τ̄[i], λ, t̄[i])
+            Devices.propagate!(Operators.Drive,  device, basis, τ̄[i-1]/2, λ, t̄[i-1])
+            Devices.propagate!(Operators.Static, device, basis, τ, λ)
+            Devices.propagate!(Operators.Drive,  device, basis, τ̄[i]/2, λ, t̄[i])
         end
 
         # CALCULATE GRADIENT SIGNAL BRAKETS
+        callback !== nothing && callback(i, t̄[i], ψ)
         for (k, λ) in enumerate(λ̄)
             for j in 1:Devices.ngrades(device)
                 z = Devices.braket(Operators.Gradient, device, basis, λ, ψ, j, t̄[i])
@@ -213,7 +221,7 @@ function gradientsignals(
         end
     end
 
-    # TODO: Can we allow "extra" gradient operators here? I for E(t), Π for L(t)?
+    # NOTE: I'd like to finish the last time-step, but there's no reason to.
 
     return ϕ̄
 end

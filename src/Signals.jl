@@ -61,8 +61,8 @@ function Parameters.names(signal::S) where {S<:ParametricSignal}
     return [string(field) for field in parameters(signal)]
 end
 
-function Parameters.types(signal::S) where {S<:ParametricSignal}
-    return [typeof(getfield(signal, field)) for field in parameters(signal)]
+function Parameters.values(signal::S) where {S<:ParametricSignal}
+    return [getfield(signal, field) for field in parameters(signal)]
 end
 
 function Parameters.bind(signal::S, x̄::AbstractVector) where {S<:ParametricSignal}
@@ -108,8 +108,13 @@ function Parameters.count(signal::Constrained)
     return Parameters.count(signal.constrained) - length(signal.constraints)
 end
 
-Parameters.names(signal::Constrained) = Parameters.names(signal.constrained)[signal._map]
-Parameters.types(signal::Constrained) = Parameters.types(signal.constrained)[signal._map]
+function Parameters.names(signal::Constrained)
+    return Parameters.names(signal.constrained)[collect(signal._map)]
+end
+
+function Parameters.values(signal::S) where {S<:Constrained}
+    return Parameters.values(signal.constrained)[collect(signal._map)]
+end
 
 function Parameters.bind(signal::Constrained, x̄::AbstractVector)
     fields = parameters(signal.constrained)
@@ -143,8 +148,8 @@ function Parameters.names(signal::Composite)
     return vcat((names(i) for i in eachindex(signal.components))...)
 end
 
-function Parameters.types(signal::Composite)
-    return vcat((Parameters.types(component) for component in signal.components)...)
+function Parameters.values(signal::Composite)
+    return vcat((Parameters.values(component) for component in signal.components)...)
 end
 
 function Parameters.bind(signal::Composite, x̄::AbstractVector)
@@ -189,8 +194,8 @@ function Parameters.names(signal::Modulated)
     return vcat((names(i) for i in eachindex(signal.components))...)
 end
 
-function Parameters.types(signal::Modulated)
-    return vcat((Parameters.types(component) for component in signal.components)...)
+function Parameters.values(signal::Modulated)
+    return vcat((Parameters.values(component) for component in signal.components)...)
 end
 
 function Parameters.bind(signal::Modulated, x̄::AbstractVector)

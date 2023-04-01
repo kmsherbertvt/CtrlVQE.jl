@@ -2,7 +2,8 @@ using Test
 
 using FiniteDifferences: grad, central_fdm
 
-using ..AnalyticSquarePulse
+include("../pkgs/AnalyticSquarePulse/src/AnalyticSquarePulse.jl")
+using .AnalyticSquarePulse
 using CtrlVQE: Parameters, Signals, Devices, Evolutions
 using CtrlVQE.TransmonDevices: TransmonDevice
 using CtrlVQE.Bases: Occupation, Dressed
@@ -17,14 +18,10 @@ using CtrlVQE.Bases: Occupation, Dressed
     ψ0 = [1,-1]/√2
     T = 3.5^2       # NOTE: Do NOT let T be a multiple of ω-ν!
     ω = 4.50 * 2π
+    δ = 0.34 * 2π
     Ω = 0.020 * 2π
     ν = 4.30 * 2π
-    ψT = AnalyticSquarePulse.onequbitsquarepulse(ψ0, T, ν, Ω, ω)
-
-    # ROTATE OUT OF INTERACTION FRAME (TODO: OMIT)
-    a = [0 1; 0 0]
-    n̂ =    a'*a
-    ψT = exp(-im*T*(ω*n̂)) * ψT
+    ψT = AnalyticSquarePulse.evolve_transmon(ω, δ, Ω, ν, 2, T, ψ0)
 
     # CONVERT STATEVECTORS TO DRESSED BASIS
     Ω̄ = [Signals.Constant(Ω)]
@@ -53,13 +50,7 @@ using CtrlVQE.Bases: Occupation, Dressed
     δ = 0.34 * 2π
     Ω = 0.020 * 2π
     ν = 4.30 * 2π
-    ψT = AnalyticSquarePulse.onequtritsquarepulse(ψ0, T, ν, Ω, ω, δ)
-
-    # ROTATE OUT OF INTERACTION FRAME (TODO: OMIT)
-    a = [0 1 0; 0 0 √2; 0 0 0]
-    n̂ =    a'*a
-    η̂ = a'*a'*a*a
-    ψT = exp(-im*T*(ω*n̂ - δ/2*η̂)) * ψT
+    ψT = AnalyticSquarePulse.evolve_transmon(ω, δ, Ω, ν, 3, T, ψ0)
 
     # CONVERT STATEVECTORS TO DRESSED BASIS
     Ω̄ = [Signals.Constant(Ω)]
@@ -81,8 +72,8 @@ using CtrlVQE.Bases: Occupation, Dressed
     #= TWO-QUBIT TESTS =#
 
     Ω̄ = [
-        Signals.Constant( 0.020),
-        Signals.Constant(-0.020),
+        Signals.Constant( 0.020*2π),
+        Signals.Constant(-0.020*2π),
     ]
 
     device = TransmonDevice(
@@ -116,13 +107,15 @@ using CtrlVQE.Bases: Occupation, Dressed
     O = Matrix([i*j for i in 1:Devices.nstates(device), j in 1:Devices.nstates(device)])
         # SOME SYMMETRIC MATRIX, SUITABLE TO PLAY THE ROLE OF AN OBSERVABLE
 
+    x̄ = Parameters.values(device)
+
     r = 1000
     ϕ̄ = Evolutions.gradientsignals(device, T, ψ0, r, [O])
     τ = T / r
     τ̄ = fill(τ, r + 1)
     τ̄[[begin, end]] ./= 2
     t̄ = τ * (0:r)
-    gx = Devices.gradient(device, τ̄, t̄, ϕ̄[:,:,1])
+    g0 = Devices.gradient(device, τ̄, t̄, ϕ̄[:,:,1])
 
     # TEST AGAINST THE FINITE DIFFERENCE
     function f(x̄)
@@ -130,23 +123,6 @@ using CtrlVQE.Bases: Occupation, Dressed
         ψ = Evolutions.evolve(device, T, ψ0; r=r)
         return real(ψ'*O*ψ)
     end
-    x̄ = 2π*[0.020, -0.020, 4.30, 4.80]      # TODO: Replace with Parameters.values
-    g0 = grad(central_fdm(5, 1), f, x̄)[1]
-    @test g0 ≈ gx
-
-    display(g0)
-    display(gx)
-    display(ϕ̄)
-
-    #= TODO:
-
-    We are so close, but this is going to be a pain to debug.
-
-    I guess we need to craft a piece-wise constant pulse with steps every half-Trotter step,
-        so that we can compare the finite difference directly to ϕ̄.
-
-    You should write a script for this. >_>
-
-    =#
-
+    gΔ = grad(central_fdm(5, 1), f, x̄)[1]
+    @test √sum((g0 .- gΔ).^2) < 1e-3
 end

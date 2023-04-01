@@ -123,7 +123,7 @@ function Devices.qubithamiltonian(
 )
     a = ā[q]
     h = zero(a)
-    h .+=   device.ω̄[q]    .* (    a'*a     )
+    h .+=   device.ω̄[q]    .* (    a'* a    )
     h .+= (-device.δ̄[q]/2) .* (a'* a'* a * a)
     return h
 end
@@ -154,8 +154,8 @@ function Devices.driveoperator(
     V .+= (real(Ω) * e') .* a'
 
     if Ω isa Complex
-        V .+= (imag(Ω) * im*e ) .* a
-        V .-= (imag(Ω) * im*e') .* a'
+        V .+= (imag(Ω) * im *e ) .* a
+        V .+= (imag(Ω) * im'*e') .* a'
     end
 
     return V
@@ -172,8 +172,8 @@ function Devices.gradeoperator(
     e = exp(im * device.ν̄[i] * t)
 
     phase = Bool(j & 1) ? 1 : im    # Odd j -> "real" gradient operator; even j  -> "imag"
-    A = (phase * e) .* a
-    A .+= A'
+    A   = (phase * e ) .* a
+    A .+= (phase'* e') .* a'
     return A
 end
 
@@ -183,12 +183,12 @@ function Devices.gradient(
     t̄::AbstractVector,
     ϕ̄::AbstractMatrix,
 )::AbstractVector
-    grad = [zero(type) for type in Parameters.types(device)]
+    grad = [zero(value) for value in Parameters.values(device)]
 
     # CALCULATE GRADIENT FOR SIGNAL PARAMETERS
     offset = 0
     for (i, Ω) in enumerate(device.Ω̄)
-        j = 2*(i-1) + 1         # If Julia indexed from 0, this could just be 2i...
+        j = 2*(i-1) + 1             # If Julia indexed from 0, this could just be 2i...
         L = Parameters.count(Ω)
         for k in 1:L
             ∂̄ = Signals.partial(k, Ω, t̄)
@@ -200,7 +200,7 @@ function Devices.gradient(
 
     # CALCULATE GRADIENT FOR FREQUENCY PARAMETERS
     for (i, Ω) in enumerate(device.Ω̄)
-        j = 2*(i-1) + 1         # If Julia indexed from 0, this could just be 2i...
+        j = 2*(i-1) + 1             # If Julia indexed from 0, this could just be 2i...
         Ω̄ = Ω(t̄)
         grad[offset + i] += sum(τ̄ .* t̄ .* real.(Ω̄) .* ϕ̄[:,j+1])
         grad[offset + i] -= sum(τ̄ .* t̄ .* imag.(Ω̄) .* ϕ̄[:,j])
@@ -234,17 +234,17 @@ function Parameters.names(device::TransmonDevice)
     return names
 end
 
-function Parameters.types(device::TransmonDevice)
-    types = []
+function Parameters.values(device::TransmonDevice)
+    values = []
 
-    # STRING TOGETHER PARAMETER TYPES FOR EACH SIGNAL Ω̄[i]
+    # STRING TOGETHER PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in eachindex(device.Ω̄)
-        append!(types, (type for type in Parameters.types(device.Ω̄[i])))
+        append!(values, (value for value in Parameters.values(device.Ω̄[i])))
     end
 
-    # TACK ON PARAMETER NAMES FOR EACH ν̄[i]
-    append!(types, (eltype(ν) for ν in eachindex(device.ν̄)))
-    return types
+    # TACK ON PARAMETERS FOR EACH ν̄[i]
+    append!(values, device.ν̄)
+    return values
 end
 
 function Parameters.bind(device::TransmonDevice, x̄::AbstractVector)

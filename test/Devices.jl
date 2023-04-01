@@ -11,8 +11,8 @@ using CtrlVQE.Operators: Uncoupled, Static, Drive, Hamiltonian
 @testset "Devices" begin
     # DEFINE THE TEST DEVICE AND OTHER VARIABLES
     Ω̄ = [
-        Signals.Constant( 0.020),
-        Signals.Constant(-0.020),
+        Signals.Constant( 0.020*2π),
+        Signals.Constant(-0.020*2π),
     ]
 
     device = TransmonDevice(
@@ -44,10 +44,11 @@ using CtrlVQE.Operators: Uncoupled, Static, Drive, Hamiltonian
     ϕ̄ = zeros(length(τ̄), Devices.ngrades(device))   # not testing correctness right now.
     grad = Devices.gradient(device, τ̄, cumsum(τ̄), ϕ̄)
     @test length(grad) == Parameters.count(device) == 4
+    @test Parameters.values(device) == 2π*[0.020, -0.020, 4.30, 4.80]
 
-    Parameters.bind(device, [-0.020, 0.020, 2π * 4.35, 2π * 4.75])
-    @test device.Ω̄[1](t) == -0.020
-    @test device.Ω̄[2](t) == 0.020
+    Parameters.bind(device, 2π*[-0.020, 0.020, 4.35, 4.75])
+    @test device.Ω̄[1](t) == -0.020 * 2π
+    @test device.Ω̄[2](t) ==  0.020 * 2π
     @test device.ν̄[1] == 2π * 4.35
     @test device.ν̄[2] == 2π * 4.75
 

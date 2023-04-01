@@ -13,6 +13,7 @@ using CtrlVQE: Parameters, Signals
     @test ∂(1,c,1) == 1.0
 
     @test Parameters.count(c) == 1
+    @test Parameters.values(c) == [5.0]
     Parameters.bind(c, [2.0])
     @test c.A == 2.0
 
@@ -28,6 +29,7 @@ using CtrlVQE: Parameters, Signals
     @test ∂(2,Θ,1) == 0.0
 
     @test Parameters.count(Θ) == 2
+    @test Parameters.values(Θ) == [3.0, 0.5]
     Parameters.bind(Θ, [2.0, 0.7])
     @test Θ.A == 2.0
     @test Θ.s == 0.7
@@ -41,6 +43,7 @@ using CtrlVQE: Parameters, Signals
     @test ∂(1,θ,1) == 1.0
 
     @test Parameters.count(θ) == 1
+    @test Parameters.values(θ) == [2.0]
     Parameters.bind(θ, [3.0])
     @test θ.constrained.A == 3.0
     @test θ.constrained.s == 0.7
@@ -57,6 +60,7 @@ using CtrlVQE: Parameters, Signals
     @test ∂(2,f,1) == 1.0
 
     @test Parameters.count(f) == 2
+    @test Parameters.values(f) == [2.0, 3.0]
     Parameters.bind(f, [1.0, 6.0])
     @test f.components[1].A == 1.0
     @test f.components[2].constrained.A == 6.0
@@ -74,6 +78,7 @@ using CtrlVQE: Parameters, Signals
     @test ∂(2,F,1) == 1.0
 
     @test Parameters.count(F) == 2
+    @test Parameters.values(F) == [1.0, 6.0]
     Parameters.bind(F, [3.0, 2.0])
     @test F.components[1].A == 3.0
     @test F.components[2].constrained.A == 2.0
