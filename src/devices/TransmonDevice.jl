@@ -4,28 +4,29 @@ using ..LinearAlgebraTools: List
 import ..Parameters, ..Signals, ..Devices
 
 
-struct TransmonDevice{F<:AbstractFloat} <: Devices.LocallyDrivenDevice
-    ω̄::Tuple{Vararg{F}}     # length is number of qubits
-    δ̄::Tuple{Vararg{F}}     # length is number of qubits
-    ḡ::Tuple{Vararg{F}}     # length is number of quples
-    quples::Tuple{Vararg{Devices.Quple}}
+struct TransmonDevice{F<:AbstractFloat,S<:Signals.AbstractSignal} <: Devices.LocallyDrivenDevice
+    ω̄::ReadOnlyArray{F, 1, Vector{F}}     # length is number of qubits
+    δ̄::ReadOnlyArray{F, 1, Vector{F}}     # length is number of qubits
 
-    q̄::Tuple{Vararg{Int}}   # length is number of drives
+    ḡ::ReadOnlyArray{F, 1, Vector{F}}     # length is number of quples
+    quples::ReadOnlyArray{Devices.Quple, 1, Vector{Devices.Quple}}
+
+    q̄::ReadOnlyArray{Int, 1, Vector{Int}}   # length is number of drives
     ν̄::Vector{F}
-    Ω̄::Tuple{Vararg{Signals.AbstractSignal}}
+    Ω̄::ReadOnlyArray{S, 1, Vector{S}}
 
     m::Int
 
     function TransmonDevice(
-        ω̄::List{<:Real},
-        δ̄::List{<:Real},
-        ḡ::List{<:Real},
-        quples::List{Devices.Quple},
-        q̄::List{Int},
-        ν̄::List{<:AbstractFloat},
-        Ω̄::List{<:Signals.AbstractSignal},
+        ω̄::AbstractVector{<:Real},
+        δ̄::AbstractVector{<:Real},
+        ḡ::AbstractVector{<:Real},
+        quples::AbstractVector{Devices.Quple},
+        q̄::AbstractVector{Int},
+        ν̄::AbstractVector{<:AbstractFloat},
+        Ω̄::AbstractVector{S},
         m::Int,
-    )
+    ) where {S<:Signals.AbstractSignal}
         # VALIDATE PARALLEL LISTS ARE CONSISTENT SIZE
         @assert length(ω̄) == length(δ̄)                  # NUMBER OF QUBITS
         @assert length(ḡ) == length(quples)             # NUMBER OF COUPLINGS
@@ -45,14 +46,14 @@ struct TransmonDevice{F<:AbstractFloat} <: Devices.LocallyDrivenDevice
 
         # STANDARDIZE TYPING AND CONVERT ALL LISTS TO IMMUTABLE TUPLE (except ν)
         F = promote_type(eltype(ω̄), eltype(δ̄), eltype(ḡ), eltype(ν̄))
-        return new{F}(
-            Tuple(F(ω) for ω in ω̄),
-            Tuple(F(δ) for δ in δ̄),
-            Tuple(F(g) for g in ḡ),
-            Tuple(quples),
-            Tuple(q̄),
+        return new{F,S}(
+            ReadOnlyArray(convert(Vector{F}, ω̄)),
+            ReadOnlyArray(convert(Vector{F}, δ̄)),
+            ReadOnlyArray(convert(Vector{F}, ḡ)),
+            ReadOnlyArray(quples),
+            ReadOnlyArray(q̄),
             convert(Vector{F}, ν̄),
-            Tuple(Ω̄),
+            ReadOnlyArray(Ω̄),
             m,
         )
     end
@@ -104,16 +105,23 @@ Devices.gradequbit(device::TransmonDevice, j::Int) = device.q̄[((j-1) >> 1) + 1
 
 #= IMPLEMENT OPERATORS =#
 
-@memoize function Devices.localloweringoperator(
-    device::TransmonDevice{F},
+@memoize function localloweringoperator(
+    device::TransmonDevice{F,S},
     q::Int,
-) where {F}
+) where {F,S}
     m = Devices.nstates(device,q)
     a = zeros(F, m, m)
     for i ∈ 1:m-1
         a[i,i+1] = √i
     end
     return ReadOnlyArray(a)
+end
+
+function Devices.localloweringoperator(
+    device::TransmonDevice,
+    q::Int,
+)
+    return localloweringoperator(device,q)
 end
 
 function Devices.qubithamiltonian(

@@ -275,9 +275,9 @@ end
     src::Type{<:Bases.LocalBasis},
     device::Device,
 )
-    return Tuple(
+    return ReadOnlyArray([
         ReadOnlyArray(basisrotation(tgt, src, device, q)) for q in 1:nqubits(device)
-    )
+    ])
 end
 
 
@@ -303,7 +303,7 @@ end
         a = LinearAlgebraTools.rotate!(U, a)
         push!(ā, ReadOnlyArray(a))
     end
-    return Tuple(ā)
+    return ReadOnlyArray(identity.(ā))
 end
 
 @memoize function localalgebra(
@@ -322,7 +322,7 @@ end
         a = LinearAlgebraTools.rotate!(U, a0)
         push!(ā, ReadOnlyArray(a))
     end
-    return Tuple(ā)
+    return ReadOnlyArray(identity.(ā))
 end
 
 
@@ -429,9 +429,9 @@ end
     basis::Type{<:Bases.LocalBasis},
 )
     ā = localalgebra(device, basis)
-    return Tuple(
+    return ReadOnlyArray([
         ReadOnlyArray(qubithamiltonian(device, ā, q)) for q in 1:nqubits(device)
-    )
+    ])
 end
 
 
@@ -510,7 +510,7 @@ end
         u = LinearAlgebraTools.cis!(h, -τ)
         push!(ū, ReadOnlyArray(u))
     end
-    return Tuple(ū)
+    return ReadOnlyArray(identity.(ū))
 end
 
 
@@ -627,7 +627,7 @@ function localqubitevolvers(
         u = LinearAlgebraTools.cis!(h, -t)
         push!(ū, u)
     end
-    return Tuple(ū)
+    return ReadOnlyArray(identity.(ū))
 end
 
 
@@ -755,12 +755,12 @@ function localdriveoperators(
     # SINGLE OPERATOR TO FETCH THE CORRECT TYPING
     F = ndrives(device) > 0 ? eltype(Devices.driveoperator(device, ā, 1, t)) : eltype(ā)
 
-    v̄ = Tuple(zeros(F, size(ā[q])) for q in 1:nqubits(device))
+    v̄ = [zeros(F, size(ā[q])) for q in 1:nqubits(device)]
     for i in 1:ndrives(device)
         q = drivequbit(device, i)
         v̄[q] .+= Devices.driveoperator(device, ā, i, t)
     end
-    return v̄
+    return ReadOnlyArray(v̄)
 end
 
 function localdrivepropagators(device::LocallyDrivenDevice, τ::Real, t::Real)
@@ -780,7 +780,7 @@ function localdrivepropagators(
         u = LinearAlgebraTools.cis!(v, -τ)
         push!(ū, u)
     end
-    return Tuple(ū)
+    return ReadOnlyArray(identity.(ū))
 end
 
 function Devices.propagator(::Type{Operators.Drive},
