@@ -1,12 +1,17 @@
 using LinearAlgebra: kron!, eigen, Diagonal, Hermitian, mul!
 using Memoization: @memoize
 
-@memoize function _TEMPARRAY(T::Type, shape::Tuple, index=nothing)
+@memoize function _TEMPARRAY(::F, shape::Tuple, index=nothing) where {F<:Number}
     # NOTE: `index` just gives a means of making distinct arrays of the same type and shape
-    return Array{T}(undef, shape)
+    return Array{F}(undef, shape)
 end
 
-List{T} = Union{AbstractVector{T}, Tuple{Vararg{T}}}
+function _TEMPARRAY(F::Type{<:Number}, shape::Tuple, index=nothing)
+    return _TEMPARRAY(zero(F), shape, index)
+end
+
+# List{T} = Union{AbstractVector{T}, Tuple{Vararg{T}}}
+List{T} = AbstractVector{T}
 
 function kron(v̄::List{<:AbstractVector{F}}) where {F}
     op  = _TEMPARRAY(F, (1,)); op[1] = one(F)

@@ -1,20 +1,23 @@
 using Memoization: @memoize
-using ReadOnlyArrays: ReadOnlyArray
 using ..LinearAlgebraTools: List
-import ..Parameters, ..Signals, ..Devices
+import ..Parameters, ..LinearAlgebraTools, ..Signals, ..Devices
 
 
-struct TransmonDevice{F<:AbstractFloat,S<:Signals.AbstractSignal} <: Devices.LocallyDrivenDevice
-    ω̄::ReadOnlyArray{F, 1, Vector{F}}     # length is number of qubits
-    δ̄::ReadOnlyArray{F, 1, Vector{F}}     # length is number of qubits
-
-    ḡ::ReadOnlyArray{F, 1, Vector{F}}     # length is number of quples
-    quples::ReadOnlyArray{Devices.Quple, 1, Vector{Devices.Quple}}
-
-    q̄::ReadOnlyArray{Int, 1, Vector{Int}}   # length is number of drives
+struct TransmonDevice{
+    F<:AbstractFloat,
+    S<:Signals.AbstractSignal,
+} <: Devices.LocallyDrivenDevice
+    # QUBIT LISTS
+    ω̄::Vector{F}
+    δ̄::Vector{F}
+    # COUPLING LISTS
+    ḡ::Vector{F}
+    quples::Vector{Devices.Quple}
+    # DRIVE LISTS
+    q̄::Vector{Int}
     ν̄::Vector{F}
-    Ω̄::ReadOnlyArray{S, 1, Vector{S}}
-
+    Ω̄::Vector{S}
+    # OTHER PARAMETERS
     m::Int
 
     function TransmonDevice(
@@ -47,13 +50,13 @@ struct TransmonDevice{F<:AbstractFloat,S<:Signals.AbstractSignal} <: Devices.Loc
         # STANDARDIZE TYPING AND CONVERT ALL LISTS TO IMMUTABLE TUPLE (except ν)
         F = promote_type(eltype(ω̄), eltype(δ̄), eltype(ḡ), eltype(ν̄))
         return new{F,S}(
-            ReadOnlyArray(convert(Vector{F}, ω̄)),
-            ReadOnlyArray(convert(Vector{F}, δ̄)),
-            ReadOnlyArray(convert(Vector{F}, ḡ)),
-            ReadOnlyArray(quples),
-            ReadOnlyArray(q̄),
+            convert(Vector{F}, ω̄),
+            convert(Vector{F}, δ̄),
+            convert(Vector{F}, ḡ),
+            quples,
+            q̄,
             convert(Vector{F}, ν̄),
-            ReadOnlyArray(Ω̄),
+            Ω̄,
             m,
         )
     end
@@ -105,7 +108,7 @@ Devices.gradequbit(device::TransmonDevice, j::Int) = device.q̄[((j-1) >> 1) + 1
 
 #= IMPLEMENT OPERATORS =#
 
-@memoize function localloweringoperator(
+@memoize Dict function localloweringoperator(
     device::TransmonDevice{F,S},
     q::Int,
 ) where {F,S}
@@ -114,7 +117,7 @@ Devices.gradequbit(device::TransmonDevice, j::Int) = device.q̄[((j-1) >> 1) + 1
     for i ∈ 1:m-1
         a[i,i+1] = √i
     end
-    return ReadOnlyArray(a)
+    return a
 end
 
 function Devices.localloweringoperator(
@@ -130,9 +133,12 @@ function Devices.qubithamiltonian(
     q::Int,
 )
     a = ā[q]
+    I = one(a)
     h = zero(a)
-    h .+=   device.ω̄[q]    .* (    a'* a    )
-    h .+= (-device.δ̄[q]/2) .* (a'* a'* a * a)
+    h .+= (-device.δ̄[q] / 2) .* I               #       - δ/2    I
+    h = LinearAlgebraTools.rotate!(a', h)       #       - δ/2   a'a
+    h .+= ( device.ω̄[q]    ) .* I               # ω     - δ/2   a'a
+    h = LinearAlgebraTools.rotate!(a', h)       # ω a'a - δ/2 a'a'aa
     return h
 end
 

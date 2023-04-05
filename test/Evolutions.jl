@@ -6,7 +6,7 @@ include("../pkgs/AnalyticSquarePulse/src/AnalyticSquarePulse.jl")
 using .AnalyticSquarePulse
 using CtrlVQE: Parameters, Signals, Devices, Evolutions
 using CtrlVQE.TransmonDevices: TransmonDevice
-using CtrlVQE.Bases: Occupation, Dressed
+using CtrlVQE.Bases: OCCUPATION, DRESSED
 
 @testset "Devices" begin
 
@@ -29,12 +29,12 @@ using CtrlVQE.Bases: Occupation, Dressed
 
     # VALIDATE `evolve!`: rotate/direct algorithms
     res = convert(Array{ComplexF64}, ψ0)
-    res_ = Evolutions.evolve!(Evolutions.Rotate, device, T, res; r=1000)
+    res_ = Evolutions.evolve!(Evolutions.ROTATE, device, T, res; r=1000)
     @test res === res_
     @test abs(1 - abs(res'*ψT)^2) < 1e-8
 
     res = convert(Array{ComplexF64}, ψ0)
-    res_ = Evolutions.evolve!(Evolutions.Direct, device, T, res; r=1000)
+    res_ = Evolutions.evolve!(Evolutions.DIRECT, device, T, res; r=1000)
     @test res === res_
     @test abs(1 - abs(res'*ψT)^2) < 1e-8
 
@@ -58,12 +58,12 @@ using CtrlVQE.Bases: Occupation, Dressed
 
     # VALIDATE `evolve!`: rotate/direct algorithms
     res = convert(Array{ComplexF64}, ψ0)
-    res_ = Evolutions.evolve!(Evolutions.Rotate, device, T, res; r=1000)
+    res_ = Evolutions.evolve!(Evolutions.ROTATE, device, T, res; r=1000)
     @test res === res_
     @test abs(1 - abs(res'*ψT)^2) < 1e-8
 
     res = convert(Array{ComplexF64}, ψ0)
-    res_ = Evolutions.evolve!(Evolutions.Direct, device, T, res; r=1000)
+    res_ = Evolutions.evolve!(Evolutions.DIRECT, device, T, res; r=1000)
     @test res === res_
     @test abs(1 - abs(res'*ψT)^2) < 1e-8
 
@@ -92,16 +92,16 @@ using CtrlVQE.Bases: Occupation, Dressed
 
     # REFERENCE SOLUTION, BASED ON ALREADY-TESTED CODE
     res = convert(Array{ComplexF64}, ψ0)
-    ψ = Evolutions.evolve!(Evolutions.Rotate, device, T, res; r=1000)
+    ψ = Evolutions.evolve!(Evolutions.ROTATE, device, T, res; r=1000)
 
     # TEST NON-MUTATING `evolve` IN OCCUPATION BASIS
-    @test Evolutions.evolve(Evolutions.Rotate, device, T, ψ0; r=1000) ≈ ψ
-    @test Evolutions.evolve(Evolutions.Direct, device, Occupation, T, ψ0; r=1000) ≈ ψ
+    @test Evolutions.evolve(Evolutions.ROTATE, device, T, ψ0; r=1000) ≈ ψ
+    @test Evolutions.evolve(Evolutions.DIRECT, device, OCCUPATION, T, ψ0; r=1000) ≈ ψ
 
     # TEST NON-MUTATING `evolve` IN DRESSED BASIS
-    U = Devices.basisrotation(Dressed, Occupation, device)
-    @test Evolutions.evolve(Evolutions.Rotate, device, Dressed, T, U*ψ0; r=1000) ≈ U*ψ
-    @test Evolutions.evolve(Evolutions.Direct, device, T, U*ψ0; r=1000) ≈ U*ψ
+    U = Devices.basisrotation(DRESSED, OCCUPATION, device)
+    @test Evolutions.evolve(Evolutions.ROTATE, device, DRESSED, T, U*ψ0; r=1000) ≈ U*ψ
+    @test Evolutions.evolve(Evolutions.DIRECT, device, T, U*ψ0; r=1000) ≈ U*ψ
 
     # RUN THE GRADIENT CALCULATION
     O = Matrix([i*j for i in 1:Devices.nstates(device), j in 1:Devices.nstates(device)])

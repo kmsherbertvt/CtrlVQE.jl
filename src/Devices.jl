@@ -43,8 +43,7 @@ If it can be done, it would require obtaining the actual `IdDict`
 
 =#
 
-using LinearAlgebra: I, Diagonal, Eigen, eigen
-using ReadOnlyArrays: ReadOnlyArray
+using LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen
 using ..LinearAlgebraTools: List
 import ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals
 
@@ -63,7 +62,7 @@ Base.iterate(quple::Quple, state) = state ? (quple.q2, false) : nothing
 # TODO: Generalize to n qubits (call sort on input arguments) and hopefully subtype Tuple
 
 
-
+# TODO: Try to wrap @memoized function results in ReadOnlyArrays, after fixing type instabilities.
 
 
 """
@@ -133,15 +132,16 @@ end
 # UTILITIES
 
 function globalize(device::Device, op::AbstractMatrix, q::Int)
-    ops = AbstractMatrix{eltype(op)}[]
+    F = eltype(op)
+    ops = Matrix{F}[]
     for p in 1:nqubits(device)
         if p == q
-            push!(ops, op)
+            push!(ops, convert(Matrix{F}, op))
             continue
         end
 
         m = nstates(device, p)
-        push!(ops, Matrix{eltype(op)}(I, m, m))
+        push!(ops, Matrix{F}(I, m, m))
     end
     return LinearAlgebraTools.kron(ops)
 end
@@ -194,7 +194,7 @@ end
 
 
 
-@memoize nstates(device::Device) = prod(nstates(device,q) for q in 1:nqubits(device))
+@memoize Dict nstates(device::Device) = prod(nstates(device,q) for q in 1:nqubits(device))
 
 
 
@@ -203,63 +203,61 @@ end
 
 # BASIS ROTATIONS
 
-@memoize function diagonalize(::Type{Bases.Dressed}, device::Device)
-    H0 = operator(Operators.Static, device)
-    return eigen(H0)
+@memoize Dict function diagonalize(::Bases.Dressed, device::Device)
+    H0 = operator(Operators.STATIC, device)
+    return eigen(Hermitian(H0))
     # TODO: Move code for Utils.dressedbasis to here.
 end
 
-@memoize function diagonalize(basis::Type{<:Bases.LocalBasis}, device::Device)
+@memoize Dict function diagonalize(basis::Bases.LocalBasis, device::Device)
     ΛU = [diagonalize(basis, device, q) for q in 1:nqubits(device)]
     Λ = LinearAlgebraTools.kron([ΛU[q].values  for q in 1:nqubits(device)])
     U = LinearAlgebraTools.kron([ΛU[q].vectors for q in 1:nqubits(device)])
     return Eigen(Λ, U)
 end
 
-@memoize function diagonalize(::Type{Bases.Occupation}, device::Device, q::Int)
+@memoize Dict function diagonalize(::Bases.Occupation, device::Device, q::Int)
     a = localloweringoperator(device, q)
     I = one(a)
-    return eigen(I)
+    return eigen(Hermitian(I))
 end
 
-@memoize function diagonalize(::Type{Bases.Coordinate}, device::Device, q::Int)
+@memoize Dict function diagonalize(::Bases.Coordinate, device::Device, q::Int)
     a = localloweringoperator(device, q)
     Q = (a + a') / eltype(a)(√2)
-    return eigen(Q)
+    return eigen(Hermitian(Q))
 end
 
-@memoize function diagonalize(::Type{Bases.Momentum}, device::Device, q::Int)
+@memoize Dict function diagonalize(::Bases.Momentum, device::Device, q::Int)
     a = localloweringoperator(device, q)
     P = (a - a') / eltype(a)(√2)
-    return eigen(P)
+    return eigen(Hermitian(P))
 end
 
-
-
-@memoize function basisrotation(
-    tgt::Type{<:Bases.BasisType},
-    src::Type{<:Bases.BasisType},
+@memoize Dict function basisrotation(
+    tgt::Bases.BasisType,
+    src::Bases.BasisType,
     device::Device,
 )
     Λ0, U0 = diagonalize(src, device)
     Λ1, U1 = diagonalize(tgt, device)
     # |ψ'⟩ ≡ U0|ψ⟩ rotates |ψ⟩ OUT of `src` Bases.
     # U1'|ψ'⟩ rotates |ψ'⟩ INTO `tgt` Bases.
-    return ReadOnlyArray(U1' * U0)
+    return U1' * U0
 end
 
-@memoize function basisrotation(
-    tgt::Type{<:Bases.LocalBasis},
-    src::Type{<:Bases.LocalBasis},
+@memoize Dict function basisrotation(
+    tgt::Bases.LocalBasis,
+    src::Bases.LocalBasis,
     device::Device,
 )
-    ū = localbasisrotations(src, tgt, device)
-    return ReadOnlyArray(LinearAlgebraTools.kron(ū))
+    ū = localbasisrotations(tgt, src, device)
+    return LinearAlgebraTools.kron(ū)
 end
 
-@memoize function basisrotation(
-    tgt::Type{<:Bases.LocalBasis},
-    src::Type{<:Bases.LocalBasis},
+@memoize Dict function basisrotation(
+    tgt::Bases.LocalBasis,
+    src::Bases.LocalBasis,
     device::Device,
     q::Int,
 )
@@ -267,17 +265,15 @@ end
     Λ1, U1 = diagonalize(tgt, device, q)
     # |ψ'⟩ ≡ U0|ψ⟩ rotates |ψ⟩ OUT of `src` Bases.
     # U1'|ψ'⟩ rotates |ψ'⟩ INTO `tgt` Bases.
-    return ReadOnlyArray(U1' * U0)
+    return U1' * U0
 end
 
-@memoize function localbasisrotations(
-    tgt::Type{<:Bases.LocalBasis},
-    src::Type{<:Bases.LocalBasis},
+@memoize Dict function localbasisrotations(
+    tgt::Bases.LocalBasis,
+    src::Bases.LocalBasis,
     device::Device,
 )
-    return ReadOnlyArray([
-        ReadOnlyArray(basisrotation(tgt, src, device, q)) for q in 1:nqubits(device)
-    ])
+    return [basisrotation(tgt, src, device, q) for q in 1:nqubits(device)]
 end
 
 
@@ -286,72 +282,75 @@ end
 
 #= ALGEBRAS =#
 
-@memoize function algebra(
+@memoize Dict function algebra(
     device::Device,
-    basis::Type{<:Bases.BasisType}=Bases.Occupation,
+    basis::Bases.BasisType=Bases.OCCUPATION,
 )
-    U = basisrotation(basis, Bases.Occupation, device)
-    ā = []
+    U = basisrotation(basis, Bases.OCCUPATION, device)
+    a0 = localloweringoperator(device, 1)   # NOTE: Raises error if device has no qubits.
+    F = promote_type(eltype(U), eltype(a0)) # NUMBER TYPE COMPATIBLE WITH ROTATION
+
+    ā = Matrix{F}[]
     for q in 1:nqubits(device)
         a0 = localloweringoperator(device, q)
+        aF = convert(Matrix{F}, copy(a0))
 
-        # CONVERT TO A NUMBER TYPE COMPATIBLE WITH ROTATION
-        F = promote_type(eltype(U), eltype(a0))
-        a0 = convert(Matrix{F}, a0)
-
-        a = globalize(device, a0, q)
+        a = globalize(device, aF, q)
         a = LinearAlgebraTools.rotate!(U, a)
-        push!(ā, ReadOnlyArray(a))
+        push!(ā, a)
     end
-    return ReadOnlyArray(identity.(ā))
+    return ā
 end
 
-@memoize function localalgebra(
+@memoize Dict function localalgebra(
     device::Device,
-    basis::Type{<:Bases.LocalBasis}=Bases.Occupation,
+    basis::Bases.BasisType=Bases.OCCUPATION,
 )
-    ā = []
+    # DETERMINE THE NUMBER TYPE COMPATIBLE WITH ROTATION
+    # NOTE: Raises error if device has no qubits.
+    U = basisrotation(basis, Bases.OCCUPATION, device, 1)
+    a0 = localloweringoperator(device, 1)
+    F = promote_type(eltype(U), eltype(a0))
+
+    ā = Matrix{F}[]
     for q in 1:nqubits(device)
-        U = basisrotation(basis, Bases.Occupation, device, q)
+        U = basisrotation(basis, Bases.OCCUPATION, device, q)
         a0 = localloweringoperator(device, q)
+        aF = convert(Matrix{F}, copy(a0))
 
-        # CONVERT TO A NUMBER TYPE COMPATIBLE WITH ROTATION
-        F = promote_type(eltype(U), eltype(a0))
-        a0 = convert(Matrix{F}, a0)
-
-        a = LinearAlgebraTools.rotate!(U, a0)
-        push!(ā, ReadOnlyArray(a))
+        a = LinearAlgebraTools.rotate!(U, aF)
+        push!(ā, a)
     end
-    return ReadOnlyArray(identity.(ā))
+    return ā
 end
 
 
 #= HERMITIAN OPERATORS =#
 
-function operator(mode::Type{<:Operators.OperatorType}, device::Device, args...)
-    return operator(mode, device, Bases.Occupation, args...)
+function operator(mode::Operators.OperatorType, device::Device, args...)
+    return operator(mode, device, Bases.OCCUPATION, args...)
 end
 
-@memoize function operator(::Type{Operators.Qubit},
+@memoize Dict function operator(::Operators.Qubit,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     q::Int,
 )
     ā = algebra(device, basis)
-    return ReadOnlyArray(qubithamiltonian(device, ā, q))
+    return qubithamiltonian(device, ā, q)
 end
 
-@memoize function operator(::Type{Operators.Coupling},
+@memoize Dict function operator(::Operators.Coupling,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
 )
     ā = algebra(device, basis)
-    return ReadOnlyArray(staticcoupling(device, ā))
+    return staticcoupling(device, ā)
 end
 
-function operator(::Type{Operators.Channel},
+function operator(::Operators.Channel,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     i::Int,
     t::Real,
 )
@@ -359,9 +358,9 @@ function operator(::Type{Operators.Channel},
     return driveoperator(device, ā, i, t)
 end
 
-function operator(::Type{Operators.Gradient},
+function operator(::Operators.Gradient,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     j::Int,
     t::Real,
 )
@@ -369,69 +368,64 @@ function operator(::Type{Operators.Gradient},
     return gradeoperator(device, ā, j, t)
 end
 
-@memoize function operator(::Type{Operators.Uncoupled},
+@memoize Dict function operator(::Operators.Uncoupled,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
 )
-    return ReadOnlyArray(sum((
-        operator(Operators.Qubit, device, basis, q)
-            for q in 1:nqubits(device)
-    )))
+    return sum(operator(Operators.QUBIT, device, basis, q) for q in 1:nqubits(device))
 end
 
-@memoize function operator(::Type{Operators.Static},
+@memoize Dict function operator(::Operators.Static,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
 )
-    return ReadOnlyArray(sum((
-        operator(Operators.Uncoupled, device, basis),
-        operator(Operators.Coupling,  device, basis),
-    )))
+    return sum((
+        operator(Operators.UNCOUPLED, device, basis),
+        operator(Operators.COUPLING,  device, basis),
+    ))
 end
 
-@memoize function operator(::Type{Operators.Static},
+@memoize Dict function operator(::Operators.Static,
     device::Device,
-    ::Type{Bases.Dressed},
+    ::Bases.Dressed,
 )
-    Λ, U = diagonalize(Bases.Dressed, device)
-    return Diagonal(ReadOnlyArray(Λ))
+    Λ, U = diagonalize(Bases.DRESSED, device)
+    return Diagonal(Λ)
 end
 
-function operator(::Type{Operators.Drive},
+function operator(::Operators.Drive,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     t::Real,
 )
     return sum((
-        operator(Operators.Channel, device, basis, i, t)
+        operator(Operators.CHANNEL, device, basis, i, t)
             for i in 1:ndrives(device)
     ))
 end
 
-function operator(::Type{Operators.Hamiltonian},
+function operator(::Operators.Hamiltonian,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     t::Real,
 )
     return sum((
-        operator(Operators.Static, device, basis),
-        operator(Operators.Drive,  device, basis, t),
+        operator(Operators.STATIC, device, basis),
+        operator(Operators.DRIVE,  device, basis, t),
     ))
 end
 
 
 function localqubitoperators(device::Device)
-    return localqubitoperators(device, Bases.Occupation)
+    return localqubitoperators(device, Bases.OCCUPATION)
 end
 
-@memoize function localqubitoperators(
+@memoize Dict function localqubitoperators(
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
 )
     ā = localalgebra(device, basis)
-    return ReadOnlyArray([
-        ReadOnlyArray(qubithamiltonian(device, ā, q)) for q in 1:nqubits(device)
-    ])
+    return [qubithamiltonian(device, ā, q) for q in 1:nqubits(device)]
 end
 
 
@@ -441,76 +435,79 @@ end
 
 
 
-function propagator(mode::Type{<:Operators.OperatorType}, device::Device, args...)
-    return propagator(mode, device, Bases.Occupation, args...)
+function propagator(mode::Operators.OperatorType, device::Device, args...)
+    return propagator(mode, device, Bases.OCCUPATION, args...)
 end
 
-function propagator(mode::Type{<:Operators.OperatorType},
+function propagator(mode::Operators.OperatorType,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     τ::Real,
     args...,
 )
     H = operator(mode, device, basis, args...)
-    H = convert(Array{LinearAlgebraTools.cis_type(H)}, H)
-    return LinearAlgebraTools.cis!(H, -τ)
+    U = convert(Array{LinearAlgebraTools.cis_type(H)}, copy(H))
+    return LinearAlgebraTools.cis!(U, -τ)
 end
 
-@memoize function propagator(mode::Type{<:Operators.StaticOperator},
+@memoize Dict function propagator(mode::Operators.StaticOperator,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     τ::Real,
     args...,
 )
     # NOTE: This is a carbon copy of the above method, except with caching.
     H = operator(mode, device, basis, args...)
-    H = convert(Array{LinearAlgebraTools.cis_type(H)}, H)
-    return ReadOnlyArray(LinearAlgebraTools.cis!(H, -τ))
+    U = convert(Array{LinearAlgebraTools.cis_type(H)}, copy(H))
+    return LinearAlgebraTools.cis!(U, -τ)
 end
 
-@memoize function propagator(::Type{Operators.Uncoupled},
+@memoize Dict function propagator(::Operators.Uncoupled,
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
 )
     ū = localqubitpropagators(device, basis, τ)
-    return ReadOnlyArray(LinearAlgebraTools.kron(ū))
+    return LinearAlgebraTools.kron(ū)
 end
 
-@memoize function propagator(::Type{Operators.Qubit},
+@memoize Dict function propagator(::Operators.Qubit,
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
     q::Int,
 )
     ā = localalgebra(device, basis)
 
     h = qubithamiltonian(device, ā, q)
-    h = convert(Array{LinearAlgebraTools.cis_type(h)}, h)
-    u = LinearAlgebraTools.cis!(h, -τ)
-    return ReadOnlyArray(globalize(device, u, q))
+    u = convert(Array{LinearAlgebraTools.cis_type(h)}, copy(h))
+    u = LinearAlgebraTools.cis!(u, -τ)
+    return globalize(device, u, q)
 end
 
 
 
 
 function localqubitpropagators(device::Device, τ::Real)
-    return localqubitpropagators(device, Bases.Occupation, τ)
+    return localqubitpropagators(device, Bases.OCCUPATION, τ)
 end
 
-@memoize function localqubitpropagators(
+@memoize Dict function localqubitpropagators(
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
 )
     h̄ = localqubitoperators(device, basis)
-    ū = []
+    h = h̄[1]        # NOTE: Raises error if device has no qubits.
+    F = LinearAlgebraTools.cis_type(h)
+
+    ū = Matrix{F}[]
     for h in h̄
-        h = convert(Array{LinearAlgebraTools.cis_type(h)}, h)
-        u = LinearAlgebraTools.cis!(h, -τ)
-        push!(ū, ReadOnlyArray(u))
+        u = convert(Matrix{F}, copy(h))
+        u = LinearAlgebraTools.cis!(u, -τ)
+        push!(ū, u)
     end
-    return ReadOnlyArray(identity.(ū))
+    return ū
 end
 
 
@@ -518,13 +515,13 @@ end
 
 #= MUTATING PROPAGATION =#
 
-function propagate!(mode::Type{<:Operators.OperatorType}, device::Device, args...)
-    return propagate!(mode, device, Bases.Occupation, args...)
+function propagate!(mode::Operators.OperatorType, device::Device, args...)
+    return propagate!(mode, device, Bases.OCCUPATION, args...)
 end
 
-function propagate!(mode::Type{<:Operators.OperatorType},
+function propagate!(mode::Operators.OperatorType,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     τ::Real,
     ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     args...,
@@ -533,9 +530,9 @@ function propagate!(mode::Type{<:Operators.OperatorType},
     return LinearAlgebraTools.rotate!(U, ψ)
 end
 
-function propagate!(::Type{Operators.Uncoupled},
+function propagate!(::Operators.Uncoupled,
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
     ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
 )
@@ -543,18 +540,18 @@ function propagate!(::Type{Operators.Uncoupled},
     return LinearAlgebraTools.rotate!(ū, ψ)
 end
 
-function propagate!(::Type{Operators.Qubit},
+function propagate!(::Operators.Qubit,
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
     ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     q::Int,
 )
     ā = localalgebra(device, basis)
     h = qubithamiltonian(device, ā, q)
-    h = convert(Array{LinearAlgebraTools.cis_type(h)}, h)
-    u = LinearAlgebraTools.cis!(h, -τ)
-    ops = [p == q ? u : one(u) for p in 1:nqubits(n)]
+    u = convert(Array{LinearAlgebraTools.cis_type(h)}, copy(h))
+    u = LinearAlgebraTools.cis!(u, -τ)
+    ops = [p == q ? u : one(u) for p in 1:nqubits(device)]
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
@@ -563,83 +560,86 @@ end
 #= PROPAGATORS FOR ARBITRARY TIME (static only) =#
 
 
-function evolver(mode::Type{<:Operators.OperatorType}, device::Device, args...)
-    return evolver(mode, device, Bases.Occupation, args...)
+function evolver(mode::Operators.OperatorType, device::Device, args...)
+    return evolver(mode, device, Bases.OCCUPATION, args...)
 end
 
-function evolver(mode::Type{<:Operators.OperatorType},
+function evolver(mode::Operators.OperatorType,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     t::Real,
     args...,
 )
     error("Not implemented for non-static operator.")
 end
 
-function evolver(mode::Type{<:Operators.StaticOperator},
+function evolver(mode::Operators.StaticOperator,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     t::Real,
     args...,
 )
     H = operator(mode, device, basis, args...)
-    H = convert(Array{LinearAlgebraTools.cis_type(H)}, H)
-    return LinearAlgebraTools.cis!(H, -t)
+    U = convert(Array{LinearAlgebraTools.cis_type(H)}, copy(H))
+    return LinearAlgebraTools.cis!(U, -t)
 end
 
-function evolver(::Type{Operators.Uncoupled},
+function evolver(::Operators.Uncoupled,
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     t::Real,
 )
     ū = localqubitevolvers(device, basis, t)
     return LinearAlgebraTools.kron(ū)
 end
 
-function evolver(::Type{Operators.Qubit},
+function evolver(::Operators.Qubit,
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     t::Real,
     q::Int,
 )
     ā = localalgebra(device, basis)
     h = qubithamiltonian(device, ā, q)
-    h = convert(Array{LinearAlgebraTools.cis_type(h)}, h)
-    u = LinearAlgebraTools.cis!(h, -τ)
+    u = convert(Array{LinearAlgebraTools.cis_type(h)}, copy(h))
+    u = LinearAlgebraTools.cis!(u, -τ)
     return globalize(device, u, q)
 end
 
 
 
 function localqubitevolvers(device::Device, t::Real)
-    return localqubitevolvers(device, Bases.Occupation, t)
+    return localqubitevolvers(device, Bases.OCCUPATION, t)
 end
 
 function localqubitevolvers(
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     t::Real,
 )
     h̄ = localqubitoperators(device, basis)
-    ū = []
+    h = h̄[1]        # NOTE: Raises error if device has no qubits.
+    F = LinearAlgebraTools.cis_type(h)
+
+    ū = Matrix{F}[]
     for h in h̄
-        h = convert(Array{LinearAlgebraTools.cis_type(h)}, h)
-        u = LinearAlgebraTools.cis!(h, -t)
+        u = convert(Matrix{F}, copy(h))
+        u = LinearAlgebraTools.cis!(u, -t)
         push!(ū, u)
     end
-    return ReadOnlyArray(identity.(ū))
+    return ū
 end
 
 
 #= MUTATING EVOLUTION FOR ARBITRARY TIME (static only) =#
 
-function evolve!(mode::Type{<:Operators.OperatorType}, device::Device, args...)
-    return evolve!(mode, device, Bases.Occupation, args...)
+function evolve!(mode::Operators.OperatorType, device::Device, args...)
+    return evolve!(mode, device, Bases.OCCUPATION, args...)
 end
 
-function evolve!(mode::Type{<:Operators.OperatorType},
+function evolve!(mode::Operators.OperatorType,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     t::Real,
     ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     args...,
@@ -647,9 +647,9 @@ function evolve!(mode::Type{<:Operators.OperatorType},
     error("Not implemented for non-static operator.")
 end
 
-function evolve!(mode::Type{<:Operators.StaticOperator},
+function evolve!(mode::Operators.StaticOperator,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     t::Real,
     ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     args...,
@@ -658,9 +658,9 @@ function evolve!(mode::Type{<:Operators.StaticOperator},
     return LinearAlgebraTools.rotate!(U, ψ)
 end
 
-function evolve!(::Type{Operators.Uncoupled},
+function evolve!(::Operators.Uncoupled,
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     t::Real,
     ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
 )
@@ -668,18 +668,18 @@ function evolve!(::Type{Operators.Uncoupled},
     return LinearAlgebraTools.rotate!(ū, ψ)
 end
 
-function evolve!(::Type{Operators.Qubit},
+function evolve!(::Operators.Qubit,
     device::Device,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     t::Real,
     ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     q::Int,
 )
     ā = localalgebra(device, basis)
     h = qubithamiltonian(device, ā, q)
-    h = convert(Array{LinearAlgebraTools.cis_type(h)}, h)
-    u = LinearAlgebraTools.cis!(h, -t)
-    ops = [p == q ? u : one(u) for p in 1:nqubits(n)]
+    u = convert(Array{LinearAlgebraTools.cis_type(h)}, copy(h))
+    u = LinearAlgebraTools.cis!(u, -t)
+    ops = [p == q ? u : one(u) for p in 1:nqubits(device)]
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
@@ -689,13 +689,13 @@ end
 
 #= SCALAR MATRIX OPERATIONS =#
 
-function expectation(mode::Type{<:Operators.OperatorType}, device::Device, args...)
-    return expectation(mode, device, Bases.Occupation, args...)
+function expectation(mode::Operators.OperatorType, device::Device, args...)
+    return expectation(mode, device, Bases.OCCUPATION, args...)
 end
 
-function expectation(mode::Type{<:Operators.OperatorType},
+function expectation(mode::Operators.OperatorType,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     ψ::AbstractVector,
     args...,
 )
@@ -703,13 +703,13 @@ function expectation(mode::Type{<:Operators.OperatorType},
     return LinearAlgebraTools.expectation(H, ψ)
 end
 
-function braket(mode::Type{<:Operators.OperatorType}, device::Device, args...)
-    return braket(mode, device, Bases.Occupation, args...)
+function braket(mode::Operators.OperatorType, device::Device, args...)
+    return braket(mode, device, Bases.OCCUPATION, args...)
 end
 
-function braket(mode::Type{<:Operators.OperatorType},
+function braket(mode::Operators.OperatorType,
     device::Device,
-    basis::Type{<:Bases.BasisType},
+    basis::Bases.BasisType,
     ψ1::AbstractVector,
     ψ2::AbstractVector,
     args...,
@@ -742,12 +742,12 @@ gradequbit(::LocallyDrivenDevice, j::Int)::Int = error("Not Implemented")
 # LOCALIZING DRIVE OPERATORS
 
 function localdriveoperators(device::LocallyDrivenDevice, t::Real)
-    return localdriveoperators(device, Basis.Occupation, t)
+    return localdriveoperators(device, Basis.OCCUPATION, t)
 end
 
 function localdriveoperators(
     device::LocallyDrivenDevice,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     t::Real,
 )
     ā = Devices.localalgebra(device, basis)
@@ -760,32 +760,35 @@ function localdriveoperators(
         q = drivequbit(device, i)
         v̄[q] .+= Devices.driveoperator(device, ā, i, t)
     end
-    return ReadOnlyArray(v̄)
+    return v̄
 end
 
 function localdrivepropagators(device::LocallyDrivenDevice, τ::Real, t::Real)
-    return localdrivepropagators(device, Basis.Occupation, τ, t)
+    return localdrivepropagators(device, Bases.OCCUPATION, τ, t)
 end
 
 function localdrivepropagators(
     device::LocallyDrivenDevice,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
     t::Real,
 )
     v̄ = localdriveoperators(device, basis, t)
-    ū = []
+    v = v̄[1]        # NOTE: Raises error if device has no drives.
+    F = LinearAlgebraTools.cis_type(v)
+
+    ū = Matrix{F}[]
     for v in v̄
-        v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
-        u = LinearAlgebraTools.cis!(v, -τ)
+        u = convert(Matrix{F}, copy(v))
+        u = LinearAlgebraTools.cis!(u, -τ)
         push!(ū, u)
     end
-    return ReadOnlyArray(identity.(ū))
+    return ū
 end
 
-function Devices.propagator(::Type{Operators.Drive},
+function Devices.propagator(::Operators.Drive,
     device::LocallyDrivenDevice,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
     t::Real,
 )
@@ -793,24 +796,24 @@ function Devices.propagator(::Type{Operators.Drive},
     return LinearAlgebraTools.kron(ū)
 end
 
-function Devices.propagator(::Type{Operators.Channel},
+function Devices.propagator(::Operators.Channel,
     device::LocallyDrivenDevice,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
     i::Int,
     t::Real,
 )
     ā = Devices.localalgebra(device, basis)
     v = Devices.driveoperator(device, ā, i, t)
-    v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
-    u = LinearAlgebraTools.cis!(v, -τ)
+    u = convert(Array{LinearAlgebraTools.cis_type(v)}, copy(v))
+    u = LinearAlgebraTools.cis!(u, -τ)
     q = drivequbit(device, i)
     return globalize(device, u, q)
 end
 
-function Devices.propagate!(::Type{Operators.Drive},
+function Devices.propagate!(::Operators.Drive,
     device::LocallyDrivenDevice,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
     ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     t::Real,
@@ -819,9 +822,9 @@ function Devices.propagate!(::Type{Operators.Drive},
     return LinearAlgebraTools.rotate!(ū, ψ)
 end
 
-function Devices.propagate!(::Type{Operators.Channel},
+function Devices.propagate!(::Operators.Channel,
     device::LocallyDrivenDevice,
-    basis::Type{<:Bases.LocalBasis},
+    basis::Bases.LocalBasis,
     τ::Real,
     ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
     i::Int,
@@ -829,8 +832,8 @@ function Devices.propagate!(::Type{Operators.Channel},
 )
     ā = Devices.localalgebra(device, basis)
     v = Devices.driveoperator(device, ā, i, t)
-    v = convert(Array{LinearAlgebraTools.cis_type(v)}, v)
-    u = LinearAlgebraTools.cis!(v, -τ)
+    u = convert(Array{LinearAlgebraTools.cis_type(v)}, copy(v))
+    u = LinearAlgebraTools.cis!(u, -τ)
     q = drivequbit(device, i)
     ops = [p == q ? u : one(u) for p in 1:nqubits(device)]
     return LinearAlgebraTools.rotate!(ops, ψ)
@@ -839,9 +842,9 @@ end
 # LOCALIZING GRADIENT OPERATORS
 
 # # TODO: Uncomment when we have localized versions of braket and expectation.
-# function Devices.braket(::Type{Operators.Gradient},
+# function Devices.braket(::Operators.Gradient,
 #     device::LocallyDrivenDevice,
-#     basis::Type{<:Bases.LocalBasis},
+#     basis::Bases.LocalBasis,
 #     ψ1::AbstractVector,
 #     ψ2::AbstractVector,
 #     j::Int,
