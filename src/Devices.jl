@@ -59,10 +59,7 @@ end
 Base.iterate(quple::Quple) = quple.q1, true
 Base.iterate(quple::Quple, state) = state ? (quple.q2, false) : nothing
 
-# TODO: Generalize to n qubits (call sort on input arguments) and hopefully subtype Tuple
-
-
-# TODO: Try to wrap @memoized function results in ReadOnlyArrays, after fixing type instabilities.
+# TODO (mid): Generalize to n qubits (call sort on input arguments) and hopefully subtype Tuple
 
 
 """
@@ -205,8 +202,38 @@ end
 
 @memoize Dict function diagonalize(::Bases.Dressed, device::Device)
     H0 = operator(Operators.STATIC, device)
-    return eigen(Hermitian(H0))
-    # TODO: Move code for Utils.dressedbasis to here.
+
+    N = size(H0)[1]
+    Λ, U = eigen(Hermitian(H0))
+
+    # IMPOSE PERMUTATION
+    σ = Vector{Int}(undef,N)
+    for i in 1:N
+        perm = sortperm(abs.(U[i,:]), rev=true) # STABLE SORT BY "ith" COMPONENT
+        perm_ix = 1                             # CAREFULLY HANDLE TIES
+        while perm[perm_ix] ∈ σ[1:i-1]
+            perm_ix += 1
+        end
+        σ[i] = perm[perm_ix]
+    end
+    Λ .= Λ[  σ]
+    U .= U[:,σ]
+
+    # IMPOSE PHASE
+    for i in 1:N
+        U[:,i] .*= U[i,i] < 0 ? -1 : 1          # ASSUMES REAL TYPE
+        # U[:,i] .*= exp(-im*angle(U[i,i]))        # ASSUMES COMPLEX TYPE
+    end
+
+    # IMPOSE ZEROS
+    Λ[abs.(Λ) .< eps(eltype(Λ))] .= zero(eltype(Λ))
+    U[abs.(U) .< eps(eltype(U))] .= zero(eltype(U))
+
+    return Eigen(Λ,U)
+
+    # TODO (mid): Each imposition really ought to be a separate function.
+    # TODO (mid): Phase imposition should accommodate real or complex H0.
+    # TODO (mid): Strongly consider imposing phase on the local bases also.
 end
 
 @memoize Dict function diagonalize(basis::Bases.LocalBasis, device::Device)

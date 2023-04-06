@@ -46,20 +46,48 @@ module Evolutions
 end
 
 
-
-
-
 #= SPECIFIC DEVICES =#
 
 module TransmonDevices
     include("devices/TransmonDevice.jl")
 end
 
-#= TODO: Convenience constructor for transmon device with n qubits all at m levels.
-            Use constant δ, g, and increment ω at reasonable fixed spacing.
-=#
 
-#= TODO: Convenience constructor for a channel with square pulses.
-=#
+#= RECIPES =#
+
+function SystematicTransmonDevice(m, n, pulsetemplate)
+    ω̄ = 2π * collect(4.8 .+ (.02 * (1:n)))
+    δ̄ = fill(2π * 0.30, n)
+    ḡ = fill(2π * 0.02, n-1)
+    quples = [Devices.Quple(q,q+1) for q in 1:n-1]
+    q̄ = 1:n
+    ν̄ = copy(ω̄)
+    Ω̄ = [deepcopy(pulsetemplate) for _ in 1:n]
+    return TransmonDevices.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
+end
+SystematicTransmonDevice(n, pulsetemplate) = SystematicTransmonDevice(2, n, pulsetemplate)
+
+function FullyTrotterizedSignal(F, T, r)
+    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)
+    return Signals.Composite([
+        Signals.Constrained(
+            Signals.Interval(zero(F), t-τ/2, t+τ/2),
+            :s1, :s2,
+        ) for t in t̄
+    ]...)
+end
+FullyTrotterizedSignal(T, r) = FullyTrotterizedSignal(Float64, T, r)
+
+function WindowedSquarePulse(F, T, W)
+    t̄ = collect(range(0, T, W+1))
+    t̄[end] += 10*eps(eltype(T))     # CLOSE THE RIGHT BOUNDARY
+    return Signals.Composite([
+        Signals.Constrained(
+            Signals.Interval(zero(F), t̄[i], t̄[i+1]),
+            :s1, :s2,
+        ) for i in 1:W
+    ]...)
+end
+WindowedSquarePulse(T, W) = WindowedSquarePulse(Float64, T, W)
 
 end # module CtrlVQE

@@ -86,6 +86,6 @@ using CtrlVQE: Parameters, Signals
 
 
 
-    # TODO: Cosine, Gaussian
+    # TODO (mid): Cosine, Gaussian
 
 end

@@ -1,6 +1,15 @@
 import ..Bases, ..Operators, ..LinearAlgebraTools, ..Devices
 
 
+function trapezoidaltimegrid(T::Real, r::Int)
+    # NOTE: Negative values of T give reversed time grid.
+    τ = T / r
+    τ̄ = fill(τ, r+1); τ̄[[begin, end]] ./= 2
+    t̄ = abs(τ) * (T ≥ 0 ? (0:r) : reverse(0:r))
+    return τ, τ̄, t̄
+end
+
+
 
 abstract type EvolutionAlgorithm end
 
@@ -75,17 +84,7 @@ function evolve!(::Rotate,
     r::Int=1000,
     callback=nothing
 )
-    # CONSTRUCT TIME GRID
-    τ = T / r
-    τ̄ = fill(τ, r + 1)
-    τ̄[[begin, end]] ./= 2
-    t̄ = τ * (0:r)
-
-    # TEMP: -T reverses relative time correctly, but not absolute time.
-    if T < 0
-        t̄ = abs(τ) * reverse(0:r)
-    end
-    # TODO: τ, τ̄, t̄ should be gotten from an `trapezoidalrule(T,r)`. Handle -T here.
+    τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
     # FIRST STEP: NO NEED TO APPLY STATIC OPERATOR
     callback !== nothing && callback(0, t̄[1], ψ)
@@ -120,11 +119,7 @@ function evolve!(::Direct,
     r::Int=1000,
     callback=nothing
 )
-    # CONSTRUCT TIME GRID
-    τ = T / r
-    τ̄ = fill(τ, r + 1)
-    τ̄[[begin, end]] ./= 2
-    t̄ = τ * (0:r)
+    τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
     # ALLOCATE MEMORY FOR INTERACTION HAMILTONIAN
     U = Devices.evolver(Operators.STATIC, device, basis, 0)
@@ -165,11 +160,7 @@ function gradientsignals(
     Ō::AbstractVector{<:AbstractMatrix};
     callback=nothing
 )
-    # CONSTRUCT TIME GRID
-    τ = T / r
-    τ̄ = fill(τ, r + 1)
-    τ̄[[begin, end]] ./= 2
-    t̄ = τ * (0:r)
+    τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
     # PREPARE SIGNAL ARRAYS ϕ̄[k,j,i]
     F = real(LinearAlgebraTools.cis_type(ψ0))

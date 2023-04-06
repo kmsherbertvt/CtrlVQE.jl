@@ -46,7 +46,7 @@ function cis!(A::AbstractMatrix{<:Complex{<:AbstractFloat}}, x::Number=1)
     # NOTE: calculates exp(𝑖xA), aka Cos(xA) + I Sin(xA), hence cis
     # NOTE: A must not be a restrictive view
     # NOTE: A must be Hermitian (in character, not in type)
-    Λ, U = eigen(Hermitian(A))              # TODO: UNNECESSARY ALLOCATIONS
+    Λ, U = eigen(Hermitian(A))              # TODO (mid): UNNECESSARY ALLOCATIONS
 
     F = Complex{real(eltype(Λ))}
     diag = _TEMPARRAY(F, size(Λ))
@@ -61,7 +61,7 @@ end
 
 function rotate!(R::AbstractMatrix, x::AbstractVector)
     if eltype(x) !== promote_type(eltype(R), eltype(x))
-        # TODO: I'd prefer to enforce this by dispatch, but I can't think of how.
+        # TODO (hi): I'd prefer to enforce this by dispatch, but I can't think of how.
         error("Type of `x` does not support rotation by `R`.")
     end
 
@@ -72,7 +72,7 @@ end
 
 function rotate!(R::AbstractMatrix, A::AbstractMatrix)
     if eltype(A) !== promote_type(eltype(R), eltype(A))
-        # TODO: I'd prefer to enforce this by dispatch, but I can't think of how.
+        # TODO (hi): I'd prefer to enforce this by dispatch, but I can't think of how.
         error("Type of `A` does not support rotation by `R`.")
     end
 
@@ -83,7 +83,7 @@ end
 
 function rotate!(r̄::List{<:AbstractMatrix{F}}, x::AbstractVector) where {F}
     if eltype(x) !== promote_type(F, eltype(x))
-        # TODO: I'd prefer to enforce this by dispatch, but I can't think of how.
+        # TODO (hi): I'd prefer to enforce this by dispatch, but I can't think of how.
         error("Type of `x` does not support rotation by `R`.")
     end
 
@@ -101,11 +101,11 @@ end
 
 function rotate!(r̄::List{<:AbstractMatrix{F}}, A::AbstractMatrix) where {F}
     if eltype(A) !== promote_type(F, eltype(A))
-        # TODO: I'd prefer to enforce this by dispatch, but I can't think of how.
+        # TODO (hi): I'd prefer to enforce this by dispatch, but I can't think of how.
         error("Type of `x` does not support rotation by `R`.")
     end
 
-    # TODO: Write this with tensor algebra
+    # TODO (mid): Write this with tensor algebra
     return rotate!(kron(r̄), A)
 end
 
@@ -122,5 +122,5 @@ end
 
 expectation(A::AbstractMatrix, x::AbstractVector) = braket(x, A, x)
 
-# TODO: Tensor implementations for expectation, braket.
+# TODO (mid): Tensor implementations for expectation, braket.
 

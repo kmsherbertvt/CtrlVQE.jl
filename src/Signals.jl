@@ -15,6 +15,7 @@ abstract type AbstractSignal end
 # In addition to `Parameters` interface:
 (::AbstractSignal)(t::Real)::Number = error("Not Implemented")
 partial(i::Int, ::AbstractSignal, t::Real)::Number = error("Not Implemented")
+Base.string(::AbstractSignal, ::AbstractVector{String})::String = error("Not Implemented")
 
 # VECTORIZED METHODS
 (signal::AbstractSignal)(t̄::AbstractVector{<:Real}) = [signal(t) for t in t̄]
@@ -22,17 +23,10 @@ function partial(i::Int, signal::AbstractSignal, t̄::AbstractVector{<:Real})
     return [partial(i, signal, t) for t in t̄]
 end
 
-#= TODO: I kinda want to override string(⋅), but I'd want it to accept parameter names,
-            so it would be a little bit fancy.
-Like, string(⋅) = string(⋅, parameters(⋅)),
-    but parametric signals must implement string(⋅,⋅)?
-
-`Constrained` inserts actual number instead of parameter name for contrained values.
-`Composite` surrounds each component with parentheses and joins with " + "
-`Modulated` does same but joins with " ⋅ ".
-
-That feels doable.
-=#
+# CONVENIENCE FUNCTIONS
+function Base.string(signal::AbstractSignal)
+    return string(signal, Parameters.names(signal))
+end
 
 
 """
@@ -74,6 +68,7 @@ end
 #= TO BE IMPLEMENTED BY SUB-CLASSES:
     (::S)(t::Real)::Number
     partial(i::Int, ::S, t::Real)::Number
+    Base.string(::S, ::AbstractVector{String})::String
 =#
 
 
@@ -112,7 +107,7 @@ function Parameters.names(signal::Constrained)
     return Parameters.names(signal.constrained)[collect(signal._map)]
 end
 
-function Parameters.values(signal::S) where {S<:Constrained}
+function Parameters.values(signal::Constrained)
     return Parameters.values(signal.constrained)[collect(signal._map)]
 end
 
@@ -128,6 +123,13 @@ function partial(i::Int, signal::Constrained, t::Real)
     return partial(signal._map[i], signal.constrained, t)
 end
 
+function Base.string(signal::Constrained, names::AbstractVector{String})
+    newnames = string.(Parameters.values(signal.constrained))
+    for i in eachindex(names)
+        newnames[signal._map[i]] = names[i]
+    end
+    return Base.string(signal.constrained, newnames)
+end
 
 
 
@@ -135,6 +137,7 @@ end
 
 struct Composite <: AbstractSignal
     components::Tuple{Vararg{AbstractSignal}}
+    # components::Vector{AbstractSignal}
 end
 
 Composite(components::AbstractSignal...) = Composite(components)
@@ -171,6 +174,19 @@ function partial(i::Int, signal::Composite, t::Real)
         end
         i -= L
     end
+end
+
+function Base.string(signal::Composite, names::AbstractVector{String})
+    texts = String[]
+    offset = 0
+    for component in signal.components
+        L = Parameters.count(component)
+        text = string(component, names[offset+1:offset+L])
+        push!(texts, "($text)")
+        offset += L
+    end
+
+    return join(texts, " + ")
 end
 
 
@@ -223,6 +239,19 @@ function partial(i::Int, signal::Modulated, t::Real)
     return ∂f
 end
 
+function Base.string(signal::Modulated, names::AbstractVector{String})
+    texts = String[]
+    offset = 0
+    for component in signal.components
+        L = Parameters.count(component)
+        text = string(component, names[offset+1:offset+L])
+        push!(texts, "($text)")
+        offset += L
+    end
+
+    return join(texts, " ⋅ ")
+end
+
 
 ##########################################################################################
 #=                              COMMON PARAMETRIC SIGNALS
@@ -237,7 +266,7 @@ end
 (signal::Constant)(t::Real) = signal.A
 partial(i::Int, ::Constant{F}, t::Real) where {F} = one(F)
 
-
+Base.string(::Constant, names::AbstractVector{String}) = names[1]
 
 
 
@@ -282,8 +311,44 @@ end
 
     =#
 
+function Base.string(::StepFunction, names::AbstractVector{String})
+    A, s = names
+    return "$A Θ(t-$s)"
+end
 
-# TODO: Cosine, Gaussian
+
+
+#= INTERVAL =#
+
+mutable struct Interval{F,R} <: Signals.ParametricSignal
+    A::F
+    s1::R
+    s2::R
+end
+
+function (signal::Interval{F,R})(t::Real) where {F,R}
+    return signal.s1 ≤ t < signal.s2 ? signal.A : zero(F)
+end
+
+function Signals.partial(i::Int, signal::Interval, t::Real)
+    field = Signals.parameters(signal)[i]
+    return field == :A ? partial_A(signal, t) : error("Not Implemented")
+end
+
+function partial_A(signal::Interval{F,R}, t::Real) where {F,R}
+    return signal.s1 ≤ t < signal.s2 ? one(F) : zero(F)
+end
+
+function Base.string(::Interval, names::AbstractVector{String})
+    A, s1, s2 = names
+    return "$A | t∊[$s1,$s2)"
+end
+
+
+
+
+
+# TODO (mid): Cosine, Gaussian
 
 
 

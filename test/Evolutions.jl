@@ -3,14 +3,14 @@ using Test
 using FiniteDifferences: grad, central_fdm
 
 include("../pkgs/AnalyticSquarePulse/src/AnalyticSquarePulse.jl")
+# TODO (hi): Figure out test dependencies
+
 using .AnalyticSquarePulse
 using CtrlVQE: Parameters, Signals, Devices, Evolutions
 using CtrlVQE.TransmonDevices: TransmonDevice
 using CtrlVQE.Bases: OCCUPATION, DRESSED
 
 @testset "Devices" begin
-
-    # TODO: Reformulate AnalyticSquarePulse interface, esp. I/O in lab frame.
 
     #= SINGLE QUBIT TESTS =#
 
@@ -23,20 +23,21 @@ using CtrlVQE.Bases: OCCUPATION, DRESSED
     ν = 4.30 * 2π
     ψT = AnalyticSquarePulse.evolve_transmon(ω, δ, Ω, ν, 2, T, ψ0)
 
-    # CONVERT STATEVECTORS TO DRESSED BASIS
+    # TEST DEVICE
     Ω̄ = [Signals.Constant(Ω)]
     device = TransmonDevice([ω], [0], Int[], Devices.Quple[], [1], [ν], Ω̄, 2)
 
     # VALIDATE `evolve!`: rotate/direct algorithms
-    res = convert(Array{ComplexF64}, ψ0)
+    res = convert(Array{ComplexF64}, copy(ψ0))
     res_ = Evolutions.evolve!(Evolutions.ROTATE, device, T, res; r=1000)
     @test res === res_
     @test abs(1 - abs(res'*ψT)^2) < 1e-8
 
-    res = convert(Array{ComplexF64}, ψ0)
+    U = Devices.basisrotation(DRESSED, OCCUPATION, device)
+    res = convert(Array{ComplexF64}, copy(U*ψ0))
     res_ = Evolutions.evolve!(Evolutions.DIRECT, device, T, res; r=1000)
     @test res === res_
-    @test abs(1 - abs(res'*ψT)^2) < 1e-8
+    @test abs(1 - abs(res'*(U*ψT))^2) < 1e-8
 
 
 
@@ -57,15 +58,16 @@ using CtrlVQE.Bases: OCCUPATION, DRESSED
     device = TransmonDevice([ω], [δ], Int[], Devices.Quple[], [1], [ν], Ω̄, 3)
 
     # VALIDATE `evolve!`: rotate/direct algorithms
-    res = convert(Array{ComplexF64}, ψ0)
+    res = convert(Array{ComplexF64}, copy(ψ0))
     res_ = Evolutions.evolve!(Evolutions.ROTATE, device, T, res; r=1000)
     @test res === res_
     @test abs(1 - abs(res'*ψT)^2) < 1e-8
 
-    res = convert(Array{ComplexF64}, ψ0)
+    U = Devices.basisrotation(DRESSED, OCCUPATION, device)
+    res = convert(Array{ComplexF64}, copy(U*ψ0))
     res_ = Evolutions.evolve!(Evolutions.DIRECT, device, T, res; r=1000)
     @test res === res_
-    @test abs(1 - abs(res'*ψT)^2) < 1e-8
+    @test abs(1 - abs(res'*(U*ψT))^2) < 1e-8
 
 
 
@@ -91,7 +93,7 @@ using CtrlVQE.Bases: OCCUPATION, DRESSED
     ψ0 = [0, 1, 0, 0, 0, 0, 0, 0 ,0]    # |01⟩
 
     # REFERENCE SOLUTION, BASED ON ALREADY-TESTED CODE
-    res = convert(Array{ComplexF64}, ψ0)
+    res = convert(Array{ComplexF64}, copy(ψ0))
     ψ = Evolutions.evolve!(Evolutions.ROTATE, device, T, res; r=1000)
 
     # TEST NON-MUTATING `evolve` IN OCCUPATION BASIS
@@ -111,10 +113,7 @@ using CtrlVQE.Bases: OCCUPATION, DRESSED
 
     r = 1000
     ϕ̄ = Evolutions.gradientsignals(device, T, ψ0, r, [O])
-    τ = T / r
-    τ̄ = fill(τ, r + 1)
-    τ̄[[begin, end]] ./= 2
-    t̄ = τ * (0:r)
+    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T, r)
     g0 = Devices.gradient(device, τ̄, t̄, ϕ̄[:,:,1])
 
     # TEST AGAINST THE FINITE DIFFERENCE
