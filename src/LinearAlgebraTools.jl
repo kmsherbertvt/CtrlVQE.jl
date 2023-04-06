@@ -65,13 +65,13 @@ function rotate!(R::AbstractMatrix{F_}, x::AbstractArray{F}) where {F_, F}
 end
 
 function rotate!(::Type{F}, R::AbstractMatrix{F_}, x::AbstractVector{F}) where {F_, F}
-    temp = _TEMPARRAY(eltype(x), size(x))
+    temp = _TEMPARRAY(F, size(x))
     x .= mul!(temp, R, x)
     return x
 end
 
 function rotate!(::Type{F}, R::AbstractMatrix{F_}, A::AbstractMatrix{F}) where {F_, F}
-    left = _TEMPARRAY(eltype(A), size(A))
+    left = _TEMPARRAY(F, size(A))
     left = mul!(left, R, A)
     return mul!(A, left, R')
 end
@@ -90,7 +90,7 @@ function rotate!(::Type{F},
     for r in r̄
         m = size(r,1)
         x_ = transpose(reshape(x, (N÷m,m)))     # CREATE A PERMUTED VIEW
-        temp = _TEMPARRAY(eltype(x), (m,N÷m))
+        temp = _TEMPARRAY(F, (m,N÷m))
         temp = mul!(temp, r, x_)                # APPLY THE CURRENT OPERATOR
         x .= vec(temp)                          # COPY RESULT TO ORIGINAL STATE
     end
@@ -99,7 +99,7 @@ end
 
 function rotate!(::Type{F},
     r̄::List{<:AbstractMatrix{F_}},
-    x::AbstractMatrix{F}
+    A::AbstractMatrix{F}
 ) where {F_, F}
     # TODO (mid): Write this with tensor algebra
     return rotate!(kron(r̄), A)
