@@ -59,34 +59,33 @@ function cis!(A::AbstractMatrix{<:Complex{<:AbstractFloat}}, x::Number=1)
 end
 
 
-function rotate!(R::AbstractMatrix, x::AbstractVector)
-    if eltype(x) !== promote_type(eltype(R), eltype(x))
-        # TODO (hi): I'd prefer to enforce this by dispatch, but I can't think of how.
-        error("Type of `x` does not support rotation by `R`.")
-    end
+function rotate!(R::AbstractMatrix{F_}, x::AbstractArray{F}) where {F_, F}
+    # NOTE: Throws method-not-found error if x is not at least as rich as R.
+    return rotate!(promote_type(F_, F), R, x)
+end
 
+function rotate!(::Type{F}, R::AbstractMatrix{F_}, x::AbstractVector{F}) where {F_, F}
     temp = _TEMPARRAY(eltype(x), size(x))
     x .= mul!(temp, R, x)
     return x
 end
 
-function rotate!(R::AbstractMatrix, A::AbstractMatrix)
-    if eltype(A) !== promote_type(eltype(R), eltype(A))
-        # TODO (hi): I'd prefer to enforce this by dispatch, but I can't think of how.
-        error("Type of `A` does not support rotation by `R`.")
-    end
-
+function rotate!(::Type{F}, R::AbstractMatrix{F_}, A::AbstractMatrix{F}) where {F_, F}
     left = _TEMPARRAY(eltype(A), size(A))
     left = mul!(left, R, A)
     return mul!(A, left, R')
 end
 
-function rotate!(r̄::List{<:AbstractMatrix{F}}, x::AbstractVector) where {F}
-    if eltype(x) !== promote_type(F, eltype(x))
-        # TODO (hi): I'd prefer to enforce this by dispatch, but I can't think of how.
-        error("Type of `x` does not support rotation by `R`.")
-    end
 
+function rotate!(r̄::List{<:AbstractMatrix{F_}}, x::AbstractArray{F}) where {F_, F}
+    # NOTE: Throws method-not-found error if x is not at least as rich as R.
+    return rotate!(promote_type(F_, F), r̄, x)
+end
+
+function rotate!(::Type{F},
+    r̄::List{<:AbstractMatrix{F_}},
+    x::AbstractVector{F}
+) where {F_, F}
     N = length(x)
     for r in r̄
         m = size(r,1)
@@ -98,13 +97,10 @@ function rotate!(r̄::List{<:AbstractMatrix{F}}, x::AbstractVector) where {F}
     return x
 end
 
-
-function rotate!(r̄::List{<:AbstractMatrix{F}}, A::AbstractMatrix) where {F}
-    if eltype(A) !== promote_type(F, eltype(A))
-        # TODO (hi): I'd prefer to enforce this by dispatch, but I can't think of how.
-        error("Type of `x` does not support rotation by `R`.")
-    end
-
+function rotate!(::Type{F},
+    r̄::List{<:AbstractMatrix{F_}},
+    x::AbstractMatrix{F}
+) where {F_, F}
     # TODO (mid): Write this with tensor algebra
     return rotate!(kron(r̄), A)
 end
