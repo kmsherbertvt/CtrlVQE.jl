@@ -39,17 +39,15 @@ end
 
 module Devices
     include("Devices.jl")
+
+    module TransmonDevices
+        include("devices/TransmonDevice.jl")
+    end
+    import .TransmonDevices: TransmonDevice
 end
 
 module Evolutions
     include("Evolutions.jl")
-end
-
-
-#= SPECIFIC DEVICES =#
-
-module TransmonDevices
-    include("devices/TransmonDevice.jl")
 end
 
 
@@ -63,7 +61,7 @@ function SystematicTransmonDevice(m, n, pulsetemplate)
     q̄ = 1:n
     ν̄ = copy(ω̄)
     Ω̄ = [deepcopy(pulsetemplate) for _ in 1:n]
-    return TransmonDevices.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
+    return Devices.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
 end
 SystematicTransmonDevice(n, pulsetemplate) = SystematicTransmonDevice(2, n, pulsetemplate)
 

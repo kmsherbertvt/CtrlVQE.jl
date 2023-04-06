@@ -7,7 +7,6 @@ include("../pkgs/AnalyticSquarePulse/src/AnalyticSquarePulse.jl")
 
 using .AnalyticSquarePulse
 using CtrlVQE: Parameters, Signals, Devices, Evolutions
-using CtrlVQE.TransmonDevices: TransmonDevice
 using CtrlVQE.Bases: OCCUPATION, DRESSED
 
 @testset "Devices" begin
@@ -25,7 +24,7 @@ using CtrlVQE.Bases: OCCUPATION, DRESSED
 
     # TEST DEVICE
     Ω̄ = [Signals.Constant(Ω)]
-    device = TransmonDevice([ω], [0], Int[], Devices.Quple[], [1], [ν], Ω̄, 2)
+    device = Devices.TransmonDevice([ω], [0], Int[], Devices.Quple[], [1], [ν], Ω̄, 2)
 
     # VALIDATE `evolve!`: rotate/direct algorithms
     res = convert(Array{ComplexF64}, copy(ψ0))
@@ -55,7 +54,7 @@ using CtrlVQE.Bases: OCCUPATION, DRESSED
 
     # CONVERT STATEVECTORS TO DRESSED BASIS
     Ω̄ = [Signals.Constant(Ω)]
-    device = TransmonDevice([ω], [δ], Int[], Devices.Quple[], [1], [ν], Ω̄, 3)
+    device = Devices.TransmonDevice([ω], [δ], Int[], Devices.Quple[], [1], [ν], Ω̄, 3)
 
     # VALIDATE `evolve!`: rotate/direct algorithms
     res = convert(Array{ComplexF64}, copy(ψ0))
@@ -78,7 +77,7 @@ using CtrlVQE.Bases: OCCUPATION, DRESSED
         Signals.Constant(-0.020*2π),
     ]
 
-    device = TransmonDevice(
+    device = Devices.TransmonDevice(
         2π * [4.50, 4.52],      # ω̄
         2π * [0.33, 0.34],      # δ̄
         2π * [0.020],           # ḡ

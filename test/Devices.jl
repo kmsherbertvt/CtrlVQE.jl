@@ -2,8 +2,6 @@ using Test
 using LinearAlgebra: diagm, norm
 using CtrlVQE: Parameters, Signals, Devices
 
-using CtrlVQE.TransmonDevices: TransmonDevice
-
 using CtrlVQE.Bases: OCCUPATION, DRESSED
 using CtrlVQE.Operators: QUBIT, COUPLING, CHANNEL, GRADIENT
 using CtrlVQE.Operators: UNCOUPLED, STATIC, DRIVE, HAMILTONIAN
@@ -15,7 +13,7 @@ using CtrlVQE.Operators: UNCOUPLED, STATIC, DRIVE, HAMILTONIAN
         Signals.Constant(-0.020*2π),
     ]
 
-    device = TransmonDevice(
+    device = Devices.TransmonDevice(
         2π * [4.50, 4.52],      # ω̄
         2π * [0.33, 0.34],      # δ̄
         2π * [0.020],           # ḡ
