@@ -61,6 +61,6 @@ import CtrlVQE: LinearAlgebraTools
 
     # TEST `expectation` AND `braket`
     @test LinearAlgebraTools.expectation(X, e⁺) ≈ 1.0
-    @test LinearAlgebraTools.braket(e⁻, X, e⁺) ≈ 0.0
+    @test abs(LinearAlgebraTools.braket(e⁻, X, e⁺)) < eps(Float64)
 
 end
