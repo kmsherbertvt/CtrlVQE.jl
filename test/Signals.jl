@@ -1,5 +1,5 @@
 using Test
-using CtrlVQE: Parameters, Signals
+import CtrlVQE: Parameters, Signals
 
 @testset "Signals" begin
     ∂ = Signals.partial
@@ -83,9 +83,5 @@ using CtrlVQE: Parameters, Signals
     @test F.components[1].A == 3.0
     @test F.components[2].constrained.A == 2.0
     @test F.components[2].constrained.s == 0.7
-
-
-
-    # TODO (mid): Cosine, Gaussian
 
 end

@@ -211,7 +211,6 @@ end
 
 struct TransmonDevice{
     F<:AbstractFloat,
-    S<:Signals.AbstractSignal,
 } <: AbstractTransmonDevice{F}
     # QUBIT LISTS
     ω̄::Vector{F}
@@ -222,7 +221,7 @@ struct TransmonDevice{
     # DRIVE LISTS
     q̄::Vector{Int}
     ν̄::Vector{F}
-    Ω̄::Vector{S}
+    Ω̄::Vector{Signals.ArbitrarySignal}
     # OTHER PARAMETERS
     m::Int
 
@@ -233,9 +232,9 @@ struct TransmonDevice{
         quples::AbstractVector{Devices.Quple},
         q̄::AbstractVector{Int},
         ν̄::AbstractVector{<:AbstractFloat},
-        Ω̄::AbstractVector{S},
+        Ω̄::AbstractVector{<:Signals.AbstractSignal},
         m::Int,
-    ) where {S<:Signals.AbstractSignal}
+    )
         # VALIDATE PARALLEL LISTS ARE CONSISTENT SIZE
         @assert length(ω̄) == length(δ̄) ≥ 1              # NUMBER OF QUBITS
         @assert length(ḡ) == length(quples)             # NUMBER OF COUPLINGS
@@ -255,14 +254,14 @@ struct TransmonDevice{
 
         # STANDARDIZE TYPING AND CONVERT ALL LISTS TO IMMUTABLE TUPLE (except ν)
         F = promote_type(eltype(ω̄), eltype(δ̄), eltype(ḡ), eltype(ν̄))
-        return new{F,S}(
+        return new{F}(
             convert(Vector{F}, ω̄),
             convert(Vector{F}, δ̄),
             convert(Vector{F}, ḡ),
             quples,
             q̄,
             convert(Vector{F}, ν̄),
-            Ω̄,
+            [Signals.ArbitrarySignal(Ω) for Ω in Ω̄],
             m,
         )
     end
@@ -284,17 +283,11 @@ drivefrequency(device::TransmonDevice, i::Int) = device.ν̄[i]
 drivesignal(device::TransmonDevice, i::Int) = device.Ω̄[i]
 
 bindfrequencies(device::TransmonDevice, ν̄::AbstractVector) = (device.ν̄ .= ν̄)
-#= TODO (hi): a reliable way to bind new signals.
-
-The problem is the typing.
-We don't want any struct to have to have abstract fields,
-    but we don't want to have to specify the type of the signal.
-
- =#
 
 
 #= TODO (low): Other types
 
+LegacyTransmonDevice: assume Ω(t) is real, no analytical gradient for ν, half as many grade operators.
 FixedFrequencyTransmonDevice: ν is tuple and not included in parameters.
 LinearTransmonDevice: quples and ḡ replaced by n-length tuple ḡ, efficient static propagate.
 TransmonDeviceSansRWA: implicitly one channel per qubit, different drive

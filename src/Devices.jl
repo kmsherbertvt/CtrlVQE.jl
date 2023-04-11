@@ -44,9 +44,10 @@ If it can be done, it would require obtaining the actual `IdDict`
 =#
 
 using LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen
-using ..LinearAlgebraTools: List
 import ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals
 
+using ..LinearAlgebraTools: List
+Evolvable = AbstractVecOrMat{<:Complex{<:AbstractFloat}}
 
 struct Quple
     q1::Int
@@ -354,20 +355,21 @@ end
 
 #= HERMITIAN OPERATORS =#
 
-function operator(mode::Operators.OperatorType, device::Device, args...)
-    return operator(mode, device, Bases.OCCUPATION, args...)
+function operator(op::Operators.OperatorType, device::Device)
+    return operator(op, device, Bases.OCCUPATION)
 end
 
-@memoize Dict function operator(::Operators.Qubit,
+@memoize Dict function operator(
+    op::Operators.Qubit,
     device::Device,
-    basis::Bases.BasisType,
-    q::Int,
+    basis::Bases.BasisType
 )
     ā = algebra(device, basis)
-    return qubithamiltonian(device, ā, q)
+    return qubithamiltonian(device, ā, op.q)
 end
 
-@memoize Dict function operator(::Operators.Coupling,
+@memoize Dict function operator(
+    op::Operators.Coupling,
     device::Device,
     basis::Bases.BasisType,
 )
@@ -375,34 +377,34 @@ end
     return staticcoupling(device, ā)
 end
 
-function operator(::Operators.Channel,
+function operator(
+    op::Operators.Channel,
     device::Device,
     basis::Bases.BasisType,
-    i::Int,
-    t::Real,
 )
     ā = algebra(device, basis)
-    return driveoperator(device, ā, i, t)
+    return driveoperator(device, ā, op.i, op.t)
 end
 
-function operator(::Operators.Gradient,
+function operator(
+    op::Operators.Gradient,
     device::Device,
     basis::Bases.BasisType,
-    j::Int,
-    t::Real,
 )
     ā = algebra(device, basis)
-    return gradeoperator(device, ā, j, t)
+    return gradeoperator(device, ā, op.j, op.t)
 end
 
-@memoize Dict function operator(::Operators.Uncoupled,
+@memoize Dict function operator(
+    op::Operators.Uncoupled,
     device::Device,
     basis::Bases.BasisType,
 )
-    return sum(operator(Operators.QUBIT, device, basis, q) for q in 1:nqubits(device))
+    return sum(operator(Operators.Qubit(q), device, basis) for q in 1:nqubits(device))
 end
 
-@memoize Dict function operator(::Operators.Static,
+@memoize Dict function operator(
+    op::Operators.Static,
     device::Device,
     basis::Bases.BasisType,
 )
@@ -412,7 +414,8 @@ end
     ))
 end
 
-@memoize Dict function operator(::Operators.Static,
+@memoize Dict function operator(
+    op::Operators.Static,
     device::Device,
     ::Bases.Dressed,
 )
@@ -420,25 +423,25 @@ end
     return Diagonal(Λ)
 end
 
-function operator(::Operators.Drive,
+function operator(
+    op::Operators.Drive,
     device::Device,
     basis::Bases.BasisType,
-    t::Real,
 )
     return sum((
-        operator(Operators.CHANNEL, device, basis, i, t)
+        operator(Operators.Channel(i, op.t), device, basis)
             for i in 1:ndrives(device)
     ))
 end
 
-function operator(::Operators.Hamiltonian,
+function operator(
+    op::Operators.Hamiltonian,
     device::Device,
     basis::Bases.BasisType,
-    t::Real,
 )
     return sum((
         operator(Operators.STATIC, device, basis),
-        operator(Operators.DRIVE,  device, basis, t),
+        operator(Operators.Drive(op.t), device, basis),
     ))
 end
 
@@ -462,34 +465,35 @@ end
 
 
 
-function propagator(mode::Operators.OperatorType, device::Device, args...)
-    return propagator(mode, device, Bases.OCCUPATION, args...)
+function propagator(op::Operators.OperatorType, device::Device, τ::Real)
+    return propagator(op, device, Bases.OCCUPATION, τ)
 end
 
-function propagator(mode::Operators.OperatorType,
+function propagator(
+    op::Operators.OperatorType,
     device::Device,
     basis::Bases.BasisType,
     τ::Real,
-    args...,
 )
-    H = operator(mode, device, basis, args...)
+    H = operator(op, device, basis)
     U = convert(Array{LinearAlgebraTools.cis_type(H)}, copy(H))
     return LinearAlgebraTools.cis!(U, -τ)
 end
 
-@memoize Dict function propagator(mode::Operators.StaticOperator,
+@memoize Dict function propagator(
+    op::Operators.StaticOperator,
     device::Device,
     basis::Bases.BasisType,
     τ::Real,
-    args...,
 )
     # NOTE: This is a carbon copy of the above method, except with caching.
-    H = operator(mode, device, basis, args...)
+    H = operator(op, device, basis)
     U = convert(Array{LinearAlgebraTools.cis_type(H)}, copy(H))
     return LinearAlgebraTools.cis!(U, -τ)
 end
 
-@memoize Dict function propagator(::Operators.Uncoupled,
+@memoize Dict function propagator(
+    op::Operators.Uncoupled,
     device::Device,
     basis::Bases.LocalBasis,
     τ::Real,
@@ -498,18 +502,18 @@ end
     return LinearAlgebraTools.kron(ū)
 end
 
-@memoize Dict function propagator(::Operators.Qubit,
+@memoize Dict function propagator(
+    op::Operators.Qubit,
     device::Device,
     basis::Bases.LocalBasis,
     τ::Real,
-    q::Int,
 )
     ā = localalgebra(device, basis)
 
-    h = qubithamiltonian(device, ā, q)
+    h = qubithamiltonian(device, ā, op.q)
     u = convert(Array{LinearAlgebraTools.cis_type(h)}, copy(h))
     u = LinearAlgebraTools.cis!(u, -τ)
-    return globalize(device, u, q)
+    return globalize(device, u, op.q)
 end
 
 
@@ -542,43 +546,44 @@ end
 
 #= MUTATING PROPAGATION =#
 
-function propagate!(mode::Operators.OperatorType, device::Device, args...)
-    return propagate!(mode, device, Bases.OCCUPATION, args...)
+function propagate!(op::Operators.OperatorType, device::Device, τ::Real, ψ::Evolvable)
+    return propagate!(op, device, Bases.OCCUPATION, τ, ψ)
 end
 
-function propagate!(mode::Operators.OperatorType,
+function propagate!(
+    op::Operators.OperatorType,
     device::Device,
     basis::Bases.BasisType,
     τ::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
-    args...,
+    ψ::Evolvable,
 )
-    U = propagator(mode, device, basis, τ, args...)
+    U = propagator(op, device, basis, τ)
     return LinearAlgebraTools.rotate!(U, ψ)
 end
 
-function propagate!(::Operators.Uncoupled,
+function propagate!(
+    op::Operators.Uncoupled,
     device::Device,
     basis::Bases.LocalBasis,
     τ::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
+    ψ::Evolvable,
 )
     ū = localqubitpropagators(device, basis, τ)
     return LinearAlgebraTools.rotate!(ū, ψ)
 end
 
-function propagate!(::Operators.Qubit,
+function propagate!(
+    op::Operators.Qubit,
     device::Device,
     basis::Bases.LocalBasis,
     τ::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
-    q::Int,
+    ψ::Evolvable,
 )
     ā = localalgebra(device, basis)
-    h = qubithamiltonian(device, ā, q)
+    h = qubithamiltonian(device, ā, op.q)
     u = convert(Array{LinearAlgebraTools.cis_type(h)}, copy(h))
     u = LinearAlgebraTools.cis!(u, -τ)
-    ops = [p == q ? u : one(u) for p in 1:nqubits(device)]
+    ops = [p == op.q ? u : one(u) for p in 1:nqubits(device)]
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
@@ -587,31 +592,32 @@ end
 #= PROPAGATORS FOR ARBITRARY TIME (static only) =#
 
 
-function evolver(mode::Operators.OperatorType, device::Device, args...)
-    return evolver(mode, device, Bases.OCCUPATION, args...)
+function evolver(op::Operators.OperatorType, device::Device, t::Real)
+    return evolver(op, device, Bases.OCCUPATION, t)
 end
 
-function evolver(mode::Operators.OperatorType,
+function evolver(
+    op::Operators.OperatorType,
     device::Device,
     basis::Bases.BasisType,
     t::Real,
-    args...,
 )
     error("Not implemented for non-static operator.")
 end
 
-function evolver(mode::Operators.StaticOperator,
+function evolver(
+    op::Operators.StaticOperator,
     device::Device,
     basis::Bases.BasisType,
     t::Real,
-    args...,
 )
-    H = operator(mode, device, basis, args...)
+    H = operator(op, device, basis)
     U = convert(Array{LinearAlgebraTools.cis_type(H)}, copy(H))
     return LinearAlgebraTools.cis!(U, -t)
 end
 
-function evolver(::Operators.Uncoupled,
+function evolver(
+    op::Operators.Uncoupled,
     device::Device,
     basis::Bases.LocalBasis,
     t::Real,
@@ -620,17 +626,17 @@ function evolver(::Operators.Uncoupled,
     return LinearAlgebraTools.kron(ū)
 end
 
-function evolver(::Operators.Qubit,
+function evolver(
+    op::Operators.Qubit,
     device::Device,
     basis::Bases.LocalBasis,
     t::Real,
-    q::Int,
 )
     ā = localalgebra(device, basis)
-    h = qubithamiltonian(device, ā, q)
+    h = qubithamiltonian(device, ā, op.q)
     u = convert(Array{LinearAlgebraTools.cis_type(h)}, copy(h))
-    u = LinearAlgebraTools.cis!(u, -τ)
-    return globalize(device, u, q)
+    u = LinearAlgebraTools.cis!(u, -t)
+    return globalize(device, u, op.q)
 end
 
 
@@ -660,53 +666,53 @@ end
 
 #= MUTATING EVOLUTION FOR ARBITRARY TIME (static only) =#
 
-function evolve!(mode::Operators.OperatorType, device::Device, args...)
-    return evolve!(mode, device, Bases.OCCUPATION, args...)
+function evolve!(op::Operators.OperatorType, device::Device, t::Real, ψ::Evolvable)
+    return evolve!(op, device, Bases.OCCUPATION, t, ψ)
 end
 
-function evolve!(mode::Operators.OperatorType,
+function evolve!(op::Operators.OperatorType,
     device::Device,
     basis::Bases.BasisType,
     t::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
-    args...,
+    ψ::Evolvable,
 )
     error("Not implemented for non-static operator.")
 end
 
-function evolve!(mode::Operators.StaticOperator,
+function evolve!(
+    op::Operators.StaticOperator,
     device::Device,
     basis::Bases.BasisType,
     t::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
-    args...,
+    ψ::Evolvable,
 )
-    U = evolver(mode, device, basis, t, args...)
+    U = evolver(op, device, basis, t)
     return LinearAlgebraTools.rotate!(U, ψ)
 end
 
-function evolve!(::Operators.Uncoupled,
+function evolve!(
+    op::Operators.Uncoupled,
     device::Device,
     basis::Bases.LocalBasis,
     t::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
+    ψ::Evolvable,
 )
     ū = localqubitevolvers(device, basis, t)
     return LinearAlgebraTools.rotate!(ū, ψ)
 end
 
-function evolve!(::Operators.Qubit,
+function evolve!(
+    op::Operators.Qubit,
     device::Device,
     basis::Bases.LocalBasis,
     t::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
-    q::Int,
+    ψ::Evolvable,
 )
     ā = localalgebra(device, basis)
-    h = qubithamiltonian(device, ā, q)
+    h = qubithamiltonian(device, ā, op.q)
     u = convert(Array{LinearAlgebraTools.cis_type(h)}, copy(h))
     u = LinearAlgebraTools.cis!(u, -t)
-    ops = [p == q ? u : one(u) for p in 1:nqubits(device)]
+    ops = [p == op.q ? u : one(u) for p in 1:nqubits(device)]
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
@@ -716,36 +722,40 @@ end
 
 #= SCALAR MATRIX OPERATIONS =#
 
-function expectation(mode::Operators.OperatorType, device::Device, args...)
-    return expectation(mode, device, Bases.OCCUPATION, args...)
+function expectation(op::Operators.OperatorType, device::Device, ψ::AbstractVector)
+    return expectation(op, device, Bases.OCCUPATION, ψ)
 end
 
-function expectation(mode::Operators.OperatorType,
+function expectation(
+    op::Operators.OperatorType,
     device::Device,
     basis::Bases.BasisType,
     ψ::AbstractVector,
-    args...,
 )
-    H = operator(mode, device, basis, args...)
+    H = operator(op, device, basis)
     return LinearAlgebraTools.expectation(H, ψ)
 end
 
-function braket(mode::Operators.OperatorType, device::Device, args...)
-    return braket(mode, device, Bases.OCCUPATION, args...)
+function braket(
+    op::Operators.OperatorType,
+    device::Device,
+    ψ1::AbstractVector,
+    ψ2::AbstractVector,
+)
+    return braket(op, device, Bases.OCCUPATION, ψ1, ψ2)
 end
 
-function braket(mode::Operators.OperatorType,
+function braket(op::Operators.OperatorType,
     device::Device,
     basis::Bases.BasisType,
     ψ1::AbstractVector,
     ψ2::AbstractVector,
-    args...,
 )
-    H = operator(mode, device, basis, args...)
+    H = operator(op, device, basis)
     return LinearAlgebraTools.braket(ψ1, H, ψ2)
 end
 
-#= TODO: Localize expectation and braket, I suppose. =#
+#= TODO (mid): Localize expectation and braket, I suppose. =#
 
 
 
@@ -813,73 +823,70 @@ function localdrivepropagators(
     return ū
 end
 
-function Devices.propagator(::Operators.Drive,
+function Devices.propagator(
+    op::Operators.Drive,
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
     τ::Real,
-    t::Real,
 )
-    ū = localdrivepropagators(device, basis, τ, t)
+    ū = localdrivepropagators(device, basis, τ, op.t)
     return LinearAlgebraTools.kron(ū)
 end
 
-function Devices.propagator(::Operators.Channel,
+function Devices.propagator(
+    op::Operators.Channel,
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
     τ::Real,
-    i::Int,
-    t::Real,
 )
     ā = Devices.localalgebra(device, basis)
-    v = Devices.driveoperator(device, ā, i, t)
+    v = Devices.driveoperator(device, ā, op.i, op.t)
     u = convert(Array{LinearAlgebraTools.cis_type(v)}, copy(v))
     u = LinearAlgebraTools.cis!(u, -τ)
-    q = drivequbit(device, i)
+    q = drivequbit(device, op.i)
     return globalize(device, u, q)
 end
 
-function Devices.propagate!(::Operators.Drive,
+function Devices.propagate!(
+    op::Operators.Drive,
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
     τ::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
-    t::Real,
+    ψ::Evolvable,
 )
-    ū = localdrivepropagators(device, basis, τ, t)
+    ū = localdrivepropagators(device, basis, τ, op.t)
     return LinearAlgebraTools.rotate!(ū, ψ)
 end
 
-function Devices.propagate!(::Operators.Channel,
+function Devices.propagate!(
+    op::Operators.Channel,
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
     τ::Real,
-    ψ::AbstractVecOrMat{<:Complex{<:AbstractFloat}},
-    i::Int,
-    t::Real,
+    ψ::Evolvable,
 )
     ā = Devices.localalgebra(device, basis)
-    v = Devices.driveoperator(device, ā, i, t)
+    v = Devices.driveoperator(device, ā, op.i, op.t)
     u = convert(Array{LinearAlgebraTools.cis_type(v)}, copy(v))
     u = LinearAlgebraTools.cis!(u, -τ)
-    q = drivequbit(device, i)
+    q = drivequbit(device, op.i)
     ops = [p == q ? u : one(u) for p in 1:nqubits(device)]
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
 # LOCALIZING GRADIENT OPERATORS
 
-# # TODO: Uncomment when we have localized versions of braket and expectation.
-# function Devices.braket(::Operators.Gradient,
+# # TODO (mid): Uncomment when we have localized versions of braket and expectation.
+# function Devices.braket(
+#     op::Operators.Gradient,
 #     device::LocallyDrivenDevice,
 #     basis::Bases.LocalBasis,
 #     ψ1::AbstractVector,
 #     ψ2::AbstractVector,
-#     j::Int,
-#     t::Real,
 # )
 #     ā = Devices.localalgebra(device, basis)
-#     A = Devices.gradeoperator(device, ā, j, t)
-#     q = gradequbit(device, j)
+#     A = Devices.gradeoperator(device, ā, op.j, op.t)
+#     q = gradequbit(device, op.j)
 #     ops = [p == q ? A : one(A) for p in 1:nqubits(device)]
 #     return LinearAlgebraTools.braket(ψ1, ops, ψ2)
 # end

@@ -1,6 +1,8 @@
 import LinearAlgebra: norm
-import ..Bases, ..Operators, ..LinearAlgebraTools, ..Devices
+import ..Bases, ..LinearAlgebraTools, ..Devices
+import ..Operators: STATIC, Drive, Gradient
 
+using ..LinearAlgebraTools: List
 
 function trapezoidaltimegrid(T::Real, r::Int)
     # NOTE: Negative values of T give reversed time grid.
@@ -64,25 +66,27 @@ end
 
 
 
-
-struct Rotate <: EvolutionAlgorithm end; const ROTATE = Rotate()
+struct Rotate <: EvolutionAlgorithm
+    r::Int
+end
 
 function evolve!(args...; kwargs...)
-    return evolve!(ROTATE, args...; kwargs...)
+    return evolve!(Rotate(1000), args...; kwargs...)
 end
 
-function evolve!(::Rotate, device::Devices.Device, args...; kwargs...)
-    return evolve!(ROTATE, device, Bases.OCCUPATION, args...; kwargs...)
+function evolve!(algorithm::Rotate, device::Devices.Device, args...; kwargs...)
+    return evolve!(algorithm, device, Bases.OCCUPATION, args...; kwargs...)
 end
 
-function evolve!(::Rotate,
+function evolve!(
+    algorithm::Rotate,
     device::Devices.Device,
     basis::Bases.BasisType,
     T::Real,
     ψ::AbstractVector{<:Complex{<:AbstractFloat}};
-    r::Int=1000,
     callback=nothing
 )
+    r = algorithm.r
     τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
     # REMEMBER NORM FOR NORM-PRESERVING STEP
@@ -90,13 +94,13 @@ function evolve!(::Rotate,
 
     # FIRST STEP: NO NEED TO APPLY STATIC OPERATOR
     callback !== nothing && callback(0, t̄[1], ψ)
-    ψ = Devices.propagate!(Operators.DRIVE,  device, basis, τ̄[1], ψ, t̄[1])
+    ψ = Devices.propagate!(Drive(t̄[1]),  device, basis, τ̄[1], ψ)
 
     # RUN EVOLUTION
     for i in 2:r+1
         callback !== nothing && callback(i, t̄[i], ψ)
-        ψ = Devices.propagate!(Operators.STATIC, device, basis, τ, ψ)
-        ψ = Devices.propagate!(Operators.DRIVE,  device, basis, τ̄[i], ψ, t̄[i])
+        ψ = Devices.propagate!(STATIC, device, basis, τ, ψ)
+        ψ = Devices.propagate!(Drive(t̄[i]),  device, basis, τ̄[i], ψ)
     end
 
     # ENFORCE NORM-PRESERVING TIME EVOLUTION
@@ -110,28 +114,31 @@ end
 
 
 
-struct Direct <: EvolutionAlgorithm end; const DIRECT = Direct()
-
-function evolve!(::Direct, device::Devices.Device, args...; kwargs...)
-    return evolve!(DIRECT, device, Bases.DRESSED, args...; kwargs...)
+struct Direct <: EvolutionAlgorithm
+    r::Int
 end
 
-function evolve!(::Direct,
+function evolve!(algorithm::Direct, device::Devices.Device, args...; kwargs...)
+    return evolve!(algorithm, device, Bases.DRESSED, args...; kwargs...)
+end
+
+function evolve!(
+    algorithm::Direct,
     device::Devices.Device,
     basis::Bases.BasisType,
     T::Real,
     ψ::AbstractVector{<:Complex{<:AbstractFloat}};
-    r::Int=1000,
     callback=nothing
 )
+    r = algorithm.r
     τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
     # REMEMBER NORM FOR NORM-PRESERVING STEP
     A = norm(ψ)
 
     # ALLOCATE MEMORY FOR INTERACTION HAMILTONIAN
-    U = Devices.evolver(Operators.STATIC, device, basis, 0)
-    V = Devices.operator(Operators.DRIVE, device, basis, 0)
+    U = Devices.evolver(STATIC, device, basis, 0)
+    V = Devices.operator(Drive(0), device, basis)
     # PROMOTE `V` SO THAT IT CAN BE ROTATED IN PLACE AND EXPONENTIATED
     F = Complex{real(promote_type(eltype(U), eltype(V)))}
     V = convert(Matrix{F}, copy(V))
@@ -139,15 +146,15 @@ function evolve!(::Direct,
     # RUN EVOLUTION
     for i in 1:r+1
         callback !== nothing && callback(i, t̄[i], ψ)
-        U .= Devices.evolver(Operators.STATIC, device, basis, t̄[i])
-        V .= Devices.operator(Operators.DRIVE, device, basis, t̄[i])
+        U .= Devices.evolver(STATIC, device, basis, t̄[i])
+        V .= Devices.operator(Drive(t̄[i]), device, basis)
         V = LinearAlgebraTools.rotate!(U', V)
         V = LinearAlgebraTools.cis!(V, -τ̄[i])
         ψ = LinearAlgebraTools.rotate!(V, ψ)
     end
 
     # ROTATE OUT OF INTERACTION PICTURE
-    ψ = Devices.evolve!(Operators.STATIC, device, basis, T, ψ)
+    ψ = Devices.evolve!(STATIC, device, basis, T, ψ)
 
     # ENFORCE NORM-PRESERVING TIME EVOLUTION
     ψ .*= A / norm(ψ)
@@ -162,7 +169,17 @@ function gradientsignals(device::Devices.Device, args...; kwargs...)
     return gradientsignals(device, Bases.OCCUPATION, args...; kwargs...)
 end
 
-# TODO (hi): Accept a single observable, to return a matrix rather than 3-array
+function gradientsignals(
+    device::Devices.Device,
+    basis::Bases.BasisType,
+    T::Real,
+    ψ0::AbstractVector,
+    r::Int,
+    O::AbstractMatrix;
+    kwargs...
+)
+    return gradientsignals(device, basis, T, ψ0, r, [O]; kwargs...)[:,:,1]
+end
 
 function gradientsignals(
     device::Devices.Device,
@@ -170,80 +187,69 @@ function gradientsignals(
     T::Real,
     ψ0::AbstractVector,
     r::Int,
-    Ō::AbstractVector{<:AbstractMatrix};
-    callback=nothing
+    Ō::List{<:AbstractMatrix};
+    evolution=Rotate(r),
+    callback=nothing,
 )
     τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
-    # PREPARE SIGNAL ARRAYS ϕ̄[k,j,i]
+    # PREPARE SIGNAL ARRAYS Φ̄[i,j,k]
     F = real(LinearAlgebraTools.cis_type(ψ0))
-    ϕ̄ = Array{F}(undef, r+1, Devices.ngrades(device), length(Ō))
+    Φ̄ = Array{F}(undef, r+1, Devices.ngrades(device), length(Ō))
 
     # PREPARE STATE AND CO-STATES
     ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, copy(ψ0))
-    λ̄ = [convert(Array{LinearAlgebraTools.cis_type(ψ0)}, copy(ψ0)) for k in eachindex(Ō)]
-    for k in eachindex(Ō)
-        λ̄[k] = evolve!(ROTATE, device, basis,  T, λ̄[k]; r=r)
-        λ̄[k] = LinearAlgebraTools.rotate!(Ō[k], λ̄[k])    # NOTE: O is not unitary.
-        λ̄[k] = evolve!(ROTATE, device, basis, -T, λ̄[k]; r=r)
-    end
+    ψ = evolve!(evolution, device, basis, T, ψ)
+    λ̄ = [LinearAlgebraTools.rotate!(O, copy(ψ)) for O in Ō]
 
-    # TODO (hi): D'oh! We can fill in ϕ backwards to shave off one of the time evolutions.
+    #= TODO (mid): Check closely the accuracy of first and last Φ values.
 
-    # # MEASURE λ NORMS
-    # Ā = [norm(λ) for λ in λ̄]
+        Do we need to half-evolve V here?
+        There is something beautifully symmetric about *not* doing so.
+        Every drive propagation has exactly τ/2.
+        And the first and last gradient points correspond
+            to the true beginning and end of time evolution,
+            which feels right.
 
-    # START THE FIRST STEP
-    ψ = Devices.propagate!(Operators.DRIVE, device, basis, τ̄[1]/2, ψ, t̄[1])
-    for λ in λ̄
-        Devices.propagate!(Operators.DRIVE, device, basis, τ̄[1]/2, λ, t̄[1])
-    end
+        BUT I was doing half-evolution before,
+            and the first/last Φ seemed to match finite difference exactly.
+        So, it might be objectively wrong to change that...
 
-    # # CONSTRAIN NORMS
-    # ψ .*= 1 / norm(ψ)
-    # for k in eachindex(Ō)
-    #     λ̄[k] .*= Ā[k] / norm(λ̄[k])
-    # end
+        If so, must use τ̄[i]/2 instead of τ/2 below, for all Device propagation.
+        (And also add in a half-evolution before the first gradient point.)
+    =#
 
-    # FIRST GRADIENT SIGNALS
-    callback !== nothing && callback(1, t̄[1], ψ)
+    # LAST GRADIENT SIGNALS
+    callback !== nothing && callback(r+1, t̄[r+1], ψ)
     for (k, λ) in enumerate(λ̄)
         for j in 1:Devices.ngrades(device)
-            z = Devices.braket(Operators.GRADIENT, device, basis, λ, ψ, j, t̄[1])
-            ϕ̄[1,j,k] = 2 * imag(z)  # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
+            z = Devices.braket(Gradient(j, t̄[end]), device, basis, λ, ψ)
+            Φ̄[r+1,j,k] = 2 * imag(z)    # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
         end
     end
 
     # ITERATE OVER TIME
-    for i in 2:r+1
+    for i in reverse(1:r)
         # COMPLETE THE PREVIOUS TIME-STEP AND START THE NEXT
-        ψ = Devices.propagate!(Operators.DRIVE,  device, basis, τ̄[i-1]/2, ψ, t̄[i-1])
-        ψ = Devices.propagate!(Operators.STATIC, device, basis, τ, ψ)
-        ψ = Devices.propagate!(Operators.DRIVE,  device, basis, τ̄[i]/2, ψ, t̄[i])
+        ψ = Devices.propagate!(Drive(t̄[i+1]), device, basis, -τ/2, ψ)
+        ψ = Devices.propagate!(STATIC, device, basis, -τ, ψ)
+        ψ = Devices.propagate!(Drive(t̄[i]),   device, basis, -τ/2, ψ)
         for λ in λ̄
-            Devices.propagate!(Operators.DRIVE,  device, basis, τ̄[i-1]/2, λ, t̄[i-1])
-            Devices.propagate!(Operators.STATIC, device, basis, τ, λ)
-            Devices.propagate!(Operators.DRIVE,  device, basis, τ̄[i]/2, λ, t̄[i])
+            Devices.propagate!(Drive(t̄[i+1]), device, basis, -τ/2, λ)
+            Devices.propagate!(STATIC, device, basis, -τ, λ)
+            Devices.propagate!(Drive(t̄[i]),   device, basis, -τ/2, λ)
         end
-
-        # # CONSTRAIN NORMS
-        # ψ .*= 1 / norm(ψ)
-        # for k in eachindex(Ō)
-        #     λ̄[k] .*= Ā[k] / norm(λ̄[k])
-        # end
 
         # CALCULATE GRADIENT SIGNAL BRAKETS
         callback !== nothing && callback(i, t̄[i], ψ)
         for (k, λ) in enumerate(λ̄)
             for j in 1:Devices.ngrades(device)
-                z = Devices.braket(Operators.GRADIENT, device, basis, λ, ψ, j, t̄[i])
-                ϕ̄[i,j,k] = 2 * imag(z)  # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
+                z = Devices.braket(Gradient(j, t̄[i]), device, basis, λ, ψ)
+                Φ̄[i,j,k] = 2 * imag(z)  # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
             end
         end
     end
 
-    # NOTE: I'd like to finish the last time-step, but there's no reason to.
-
-    return ϕ̄
+    return Φ̄
 end
 

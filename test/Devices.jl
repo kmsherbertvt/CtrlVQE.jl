@@ -1,10 +1,10 @@
 using Test
-using LinearAlgebra: diagm, norm
-using CtrlVQE: Parameters, Signals, Devices
+import LinearAlgebra: diagm, norm
+import CtrlVQE: Parameters, Signals, Devices
 
-using CtrlVQE.Bases: OCCUPATION, DRESSED
-using CtrlVQE.Operators: QUBIT, COUPLING, CHANNEL, GRADIENT
-using CtrlVQE.Operators: UNCOUPLED, STATIC, DRIVE, HAMILTONIAN
+import CtrlVQE.Bases: OCCUPATION, DRESSED
+import CtrlVQE.Operators: Qubit, COUPLING, Channel, Gradient
+import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
 
 @testset "Devices" begin
     # DEFINE THE TEST DEVICE AND OTHER VARIABLES
@@ -107,29 +107,31 @@ using CtrlVQE.Operators: UNCOUPLED, STATIC, DRIVE, HAMILTONIAN
     @test collect(Devices.localalgebra(device)) ≈ [a, a]
 
     # OPERATORS
-    @test Devices.operator(QUBIT, device, 1) ≈ kron(h1, one(h1))
+    DRIVE = Drive(t)
+
+    @test Devices.operator(Qubit(1), device) ≈ kron(h1, one(h1))
     @test Devices.operator(COUPLING, device) ≈ G
-    @test Devices.operator(CHANNEL, device, 1, t) ≈ kron(v1, one(v1))
-    @test Devices.operator(GRADIENT, device, 1, t) ≈ kron(Aα1, one(Aα1))
-    @test Devices.operator(GRADIENT, device, 2, t) ≈ kron(Aβ1, one(Aβ1))
+    @test Devices.operator(Channel(1,t), device) ≈ kron(v1, one(v1))
+    @test Devices.operator(Gradient(1,t), device) ≈ kron(Aα1, one(Aα1))
+    @test Devices.operator(Gradient(2,t), device) ≈ kron(Aβ1, one(Aβ1))
 
     @test Devices.operator(UNCOUPLED, device) ≈ h
     @test Devices.operator(STATIC, device) ≈ H0
-    @test Devices.operator(DRIVE, device, t) ≈ V
-    @test Devices.operator(HAMILTONIAN, device, t) ≈ H
+    @test Devices.operator(DRIVE, device) ≈ V
+    @test Devices.operator(Hamiltonian(t), device) ≈ H
 
     @test collect(Devices.localqubitoperators(device)) ≈ [h1, h2]
 
     # EVOLVERS - don't bother testing every single operator at this point
     @test Devices.propagator(UNCOUPLED, device, τ) ≈ exp(-im*τ*h)
     @test Devices.propagator(STATIC, device, τ) ≈ exp(-im*τ*H0)
-    @test Devices.propagator(DRIVE, device, τ, t) ≈ exp(-im*τ*V)
+    @test Devices.propagator(DRIVE, device, τ) ≈ exp(-im*τ*V)
 
     @test collect(Devices.localqubitpropagators(device, τ))≈ [exp(-im*τ*h1),exp(-im*τ*h2)]
 
     @test Devices.evolver(UNCOUPLED, device, t) ≈ exp(-im*t*h)
     @test Devices.evolver(STATIC, device, t) ≈ exp(-im*t*H0)
-    @test_throws ErrorException Devices.evolver(DRIVE, device, τ, t)
+    @test_throws ErrorException Devices.evolver(DRIVE, device, τ)
 
     @test collect(Devices.localqubitevolvers(device, t)) ≈ [exp(-im*t*h1), exp(-im*t*h2)]
 
@@ -145,7 +147,7 @@ using CtrlVQE.Operators: UNCOUPLED, STATIC, DRIVE, HAMILTONIAN
     @test res ≈ exp(-im*τ*H0) * ψ
 
     res = convert(Array{ComplexF64}, ψ)
-    res_ = Devices.propagate!(DRIVE, device, τ, res, t)
+    res_ = Devices.propagate!(DRIVE, device, τ, res)
     @test res === res_
     @test res ≈ exp(-im*τ*V) * ψ
 
@@ -162,10 +164,10 @@ using CtrlVQE.Operators: UNCOUPLED, STATIC, DRIVE, HAMILTONIAN
     # BRAKET AND EXPECTATION
     @test Devices.braket(UNCOUPLED, device, ψ, φ) ≈ ψ' * h * φ
     @test Devices.braket(STATIC, device, ψ, φ) ≈ ψ' * H0 * φ
-    @test Devices.braket(DRIVE, device, ψ, φ, t) ≈ ψ' * V * φ
+    @test Devices.braket(DRIVE, device, ψ, φ) ≈ ψ' * V * φ
 
     @test Devices.expectation(UNCOUPLED, device, ψ) ≈ ψ' * h * ψ
     @test Devices.expectation(STATIC, device, ψ) ≈ ψ' * H0 * ψ
-    @test Devices.expectation(DRIVE, device, ψ, t) ≈ ψ' * V * ψ
+    @test Devices.expectation(DRIVE, device, ψ) ≈ ψ' * V * ψ
 
 end

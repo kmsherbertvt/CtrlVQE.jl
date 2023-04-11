@@ -1,5 +1,5 @@
 using Test
-using CtrlVQE: LinearAlgebraTools
+import CtrlVQE: LinearAlgebraTools
 
 @testset "LinearAlgebraTools" begin
     i = im

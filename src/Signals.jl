@@ -253,163 +253,27 @@ function Base.string(signal::Modulated, names::AbstractVector{String})
 end
 
 
-##########################################################################################
-#=                              COMMON PARAMETRIC SIGNALS
+#= ARBITRARY SIGNAL =#
 
-TODO: Split each one off to its own file, just like Devices.
+#= NOTE: This is a hack.
 
-(That is, each one lives inside its own sub-module within Signals,
-    injected in the CtrlVQE file itself,
-    and also imported there so that they can be accessed with eg. Signals.Constant, etc.)
+Devices need to have some signal type.
+But we should be able to adaptively CHANGE the signal, without having to change the device.
+Thus, this wrapper.
 
+This struct is by itself ill-designed; its field is an abstract type.
+But, all its methods should nevertheless be type-stable,
+    because we've explicitly declared return types in our "abstract" methods.
 =#
-
-#= CONSTANT SIGNAL =#
-
-mutable struct Constant{F} <: ParametricSignal
-    A::F    # CONSTANT VALUE
+struct ArbitrarySignal <: AbstractSignal
+    S::AbstractSignal
 end
 
-(signal::Constant)(t::Real) = signal.A
-partial(i::Int, ::Constant{F}, t::Real) where {F} = one(F)
+Parameters.count(S::ArbitrarySignal) = Parameters.count(S.S)
+Parameters.names(S::ArbitrarySignal) = Parameters.names(S.S)
+Parameters.values(S::ArbitrarySignal) = Parameters.values(S.S)
+Parameters.bind(S::ArbitrarySignal, x̄::AbstractVector) = Parameters.bind(S.S, x̄)
 
-Base.string(::Constant, names::AbstractVector{String}) = names[1]
-
-#= COMPLEX CONSTANT SIGNAL =#
-
-mutable struct ComplexConstant{F} <: ParametricSignal
-    A::F    # REAL PART
-    B::F    # IMAGINARY PART
-end
-
-(signal::ComplexConstant)(t::Real) = Complex(signal.A, signal.B)
-function partial(i::Int, ::ComplexConstant{F}, t::Real) where {F}
-    return i == 0 ? Complex(one(F),0) : Complex(0,one(F))
-end
-
-function Base.string(::ComplexConstant, names::AbstractVector{String})
-    A, B = names
-    return "$A + i $B"
-end
-
-
-
-#= STEP FUNCTION =#
-
-mutable struct StepFunction{F} <: ParametricSignal
-    A::F    # CONSTANT VALUE AFTER STEP
-    s::F    # TIME COORDINATE OF STEP
-end
-
-function (signal::StepFunction{F})(t::Real) where {F}
-    return (t < signal.s ?  zero(F)
-        :   t > signal.s ?  signal.A
-        :                   signal.A / 2)
-end
-
-function partial(i::Int, signal::StepFunction, t::Real)
-    field = parameters(signal)[i]
-    return (field == :A ?   partial_A(signal, t)
-        :   field == :s ?   partial_s(signal, t)
-        :                   error("Not Implemented"))
-end
-
-function partial_A(signal::StepFunction{F}, t::Real) where {F}
-    return (t < signal.s ?  zero(F)
-        :   t > signal.s ?  one(F)
-        :                   one(F) / 2)
-end
-
-function partial_s(signal::StepFunction{F}, t::Real) where {F}
-    return - signal.A * (t ≈ signal.s)
-end
-    #= NOTE: This method is not numerically stable, so you should usually constrain `s`.
-
-    Properly speaking, the gradient is ``-A⋅δ(t-s)``
-        This is NOT well-defined in float arithmetic,
-            and is especially ill-defined in time-discretization.
-        The best I could do is ``δ(t) → Θ(τ/2+t)⋅Θ(τ/2-t) / τ`` where τ is time-step.
-        This would require an additional parameter τ, which is *doable* but tedious,
-            and empirically it doesn't really function any better
-            than the lazy definition ``δ(t) → t ≈ 0``.
-
-    =#
-
-function Base.string(::StepFunction, names::AbstractVector{String})
-    A, s = names
-    return "$A Θ(t-$s)"
-end
-
-
-
-#= INTERVAL =#
-
-mutable struct Interval{F,R} <: Signals.ParametricSignal
-    A::F
-    s1::R
-    s2::R
-end
-
-function (signal::Interval{F,R})(t::Real) where {F,R}
-    return signal.s1 ≤ t < signal.s2 ? signal.A : zero(F)
-end
-
-function Signals.partial(i::Int, signal::Interval, t::Real)
-    field = Signals.parameters(signal)[i]
-    return field == :A ? partial_A(signal, t) : error("Not Implemented")
-end
-
-function partial_A(signal::Interval{F,R}, t::Real) where {F,R}
-    return signal.s1 ≤ t < signal.s2 ? one(F) : zero(F)
-end
-
-function Base.string(::Interval, names::AbstractVector{String})
-    A, s1, s2 = names
-    return "$A | t∊[$s1,$s2)"
-end
-
-
-#= COMPLEX INTERVAL =#
-
-mutable struct ComplexInterval{F} <: Signals.ParametricSignal
-    A::F
-    B::F
-    s1::F
-    s2::F
-end
-
-function (signal::ComplexInterval{F})(t::Real) where {F}
-    return signal.s1 ≤ t < signal.s2 ? Complex(signal.A, signal.B) : zero(F)
-end
-
-function Signals.partial(i::Int, signal::ComplexInterval{F}, t::Real) where {F}
-    field = Signals.parameters(signal)[i]
-    return (field == :A ?   partial_A(signal, t)
-        :   field == :B ?   partial_B(signal, t)
-        :                   error("Not Implemented"))
-end
-
-function partial_A(signal::ComplexInterval{F}, t::Real) where {F}
-    return Complex(signal.s1 ≤ t < signal.s2 ? one(F) : zero(F), zero(F))
-end
-
-function partial_B(signal::ComplexInterval{F}, t::Real) where {F}
-    return Complex(zero(F), signal.s1 ≤ t < signal.s2 ? one(F) : zero(F))
-end
-
-function Base.string(::ComplexInterval, names::AbstractVector{String})
-    A, s1, s2 = names
-    return "$A + i $B | t∊[$s1,$s2)"
-end
-
-
-
-# TODO (mid): Cosine, Gaussian
-
-
-
-
-
-
-
-
+(S::ArbitrarySignal)(t::Real) = S.S(t)
+partial(i::Int, S::ArbitrarySignal, t::Real) = partial(i, S.S, t)
+Base.string(S::ArbitrarySignal, names::AbstractVector{String}) = Base.string(S.S, names)

@@ -19,14 +19,37 @@ end
 module Operators
     abstract type OperatorType end
     abstract type StaticOperator <: OperatorType end
-    struct Qubit        <: StaticOperator end;  const QUBIT       = Qubit()
-    struct Coupling     <: StaticOperator end;  const COUPLING    = Coupling()
-    struct Channel      <: OperatorType end;    const CHANNEL     = Channel()
-    struct Gradient     <: OperatorType end;    const GRADIENT    = Gradient()
-    struct Uncoupled    <: StaticOperator end;  const UNCOUPLED   = Uncoupled()
-    struct Static       <: StaticOperator end;  const STATIC      = Static()
-    struct Drive        <: OperatorType end;    const DRIVE       = Drive()
-    struct Hamiltonian  <: OperatorType end;    const HAMILTONIAN = Hamiltonian()
+
+    struct Qubit <: StaticOperator
+        q::Int
+    end
+
+    struct Coupling <: StaticOperator end
+    const COUPLING = Coupling()
+
+    struct Uncoupled <: StaticOperator end
+    const UNCOUPLED = Uncoupled()
+
+    struct Static <: StaticOperator end
+    const STATIC = Static()
+
+    struct Channel{R<:Real} <: OperatorType
+        i::Int
+        t::R
+    end
+
+    struct Drive{R<:Real} <: OperatorType
+        t::R
+    end
+
+    struct Hamiltonian{R<:Real} <: OperatorType
+        t::R
+    end
+
+    struct Gradient{R<:Real} <: OperatorType
+        j::Int
+        t::R
+    end
 end
 
 module LinearAlgebraTools
@@ -35,6 +58,22 @@ end
 
 module Signals
     include("Signals.jl")
+
+    module ConstantSignals
+        include("signals/ConstantSignals.jl")
+    end
+    import .ConstantSignals: Constant, ComplexConstant
+
+    module IntervalSignals
+        include("signals/IntervalSignals.jl")
+    end
+    import .IntervalSignals: Interval, ComplexInterval
+
+    module StepFunctionSignals
+        include("signals/StepFunctionSignals.jl")
+    end
+    import .StepFunctionSignals: StepFunction
+
 end
 
 module Devices
