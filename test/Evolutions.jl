@@ -1,6 +1,11 @@
 using Test
 
 import FiniteDifferences: grad, central_fdm
+
+# TEMP: Julia package testing framework evidently can't handle url-packages in manifest.
+import Pkg; Pkg.add(url="https://github.com/kmsherbertvt/AnalyticPulses.jl")
+# TODO (lo): When fixed, replace "Pkg" dependency with "AnalyticPulses"...
+
 import AnalyticPulses: OneQubitSquarePulses
 
 import CtrlVQE: Parameters, Signals, Devices, Evolutions
