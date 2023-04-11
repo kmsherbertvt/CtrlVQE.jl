@@ -6,7 +6,6 @@ version = "0.1.0"
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Memoization = "6fafb56a-5788-4b4e-91ca-c0cea6611c73"
-ReadOnlyArrays = "988b38a3-91fc-5605-94a2-ee2116b3bd83"
 
 [compat]
 julia = "1"

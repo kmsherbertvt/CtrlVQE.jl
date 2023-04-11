@@ -284,7 +284,13 @@ drivefrequency(device::TransmonDevice, i::Int) = device.ν̄[i]
 drivesignal(device::TransmonDevice, i::Int) = device.Ω̄[i]
 
 bindfrequencies(device::TransmonDevice, ν̄::AbstractVector) = (device.ν̄ .= ν̄)
+#= TODO (hi): a reliable way to bind new signals.
 
+The problem is the typing.
+We don't want any struct to have to have abstract fields,
+    but we don't want to have to specify the type of the signal.
+
+ =#
 
 
 #= TODO (low): Other types

@@ -53,17 +53,29 @@ end
 
 #= RECIPES =#
 
-function SystematicTransmonDevice(m, n, pulsetemplate)
-    ω̄ = 2π * collect(4.8 .+ (.02 * (1:n)))
-    δ̄ = fill(2π * 0.30, n)
-    ḡ = fill(2π * 0.02, n-1)
+function SystematicTransmonDevice(F, m, n, pulsetemplate)
+    ω0 = F(2π * 4.80)
+    Δω = F(2π * 0.02)
+    δ0 = F(2π * 0.30)
+    g0 = F(2π * 0.02)
+
+    ω̄ = collect(ω0 .+ (Δω * (1:n)))
+    δ̄ = fill(δ0, n)
+    ḡ = fill(g0, n-1)
     quples = [Devices.Quple(q,q+1) for q in 1:n-1]
     q̄ = 1:n
     ν̄ = copy(ω̄)
     Ω̄ = [deepcopy(pulsetemplate) for _ in 1:n]
     return Devices.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
 end
-SystematicTransmonDevice(n, pulsetemplate) = SystematicTransmonDevice(2, n, pulsetemplate)
+
+function SystematicTransmonDevice(m, n, pulsetemplate)
+    return SystematicTransmonDevice(Float64, m, n, pulsetemplate)
+end
+
+function SystematicTransmonDevice(n, pulsetemplate)
+    return SystematicTransmonDevice(2, n, pulsetemplate)
+end
 
 function FullyTrotterizedSignal(F, T, r)
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)

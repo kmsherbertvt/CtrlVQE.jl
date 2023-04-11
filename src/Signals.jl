@@ -255,6 +255,13 @@ end
 
 ##########################################################################################
 #=                              COMMON PARAMETRIC SIGNALS
+
+TODO: Split each one off to its own file, just like Devices.
+
+(That is, each one lives inside its own sub-module within Signals,
+    injected in the CtrlVQE file itself,
+    and also imported there so that they can be accessed with eg. Signals.Constant, etc.)
+
 =#
 
 #= CONSTANT SIGNAL =#
@@ -267,6 +274,23 @@ end
 partial(i::Int, ::Constant{F}, t::Real) where {F} = one(F)
 
 Base.string(::Constant, names::AbstractVector{String}) = names[1]
+
+#= COMPLEX CONSTANT SIGNAL =#
+
+mutable struct ComplexConstant{F} <: ParametricSignal
+    A::F    # REAL PART
+    B::F    # IMAGINARY PART
+end
+
+(signal::ComplexConstant)(t::Real) = Complex(signal.A, signal.B)
+function partial(i::Int, ::ComplexConstant{F}, t::Real) where {F}
+    return i == 0 ? Complex(one(F),0) : Complex(0,one(F))
+end
+
+function Base.string(::ComplexConstant, names::AbstractVector{String})
+    A, B = names
+    return "$A + i $B"
+end
 
 
 
@@ -345,6 +369,38 @@ function Base.string(::Interval, names::AbstractVector{String})
 end
 
 
+#= COMPLEX INTERVAL =#
+
+mutable struct ComplexInterval{F} <: Signals.ParametricSignal
+    A::F
+    B::F
+    s1::F
+    s2::F
+end
+
+function (signal::ComplexInterval{F})(t::Real) where {F}
+    return signal.s1 ≤ t < signal.s2 ? Complex(signal.A, signal.B) : zero(F)
+end
+
+function Signals.partial(i::Int, signal::ComplexInterval{F}, t::Real) where {F}
+    field = Signals.parameters(signal)[i]
+    return (field == :A ?   partial_A(signal, t)
+        :   field == :B ?   partial_B(signal, t)
+        :                   error("Not Implemented"))
+end
+
+function partial_A(signal::ComplexInterval{F}, t::Real) where {F}
+    return Complex(signal.s1 ≤ t < signal.s2 ? one(F) : zero(F), zero(F))
+end
+
+function partial_B(signal::ComplexInterval{F}, t::Real) where {F}
+    return Complex(zero(F), signal.s1 ≤ t < signal.s2 ? one(F) : zero(F))
+end
+
+function Base.string(::ComplexInterval, names::AbstractVector{String})
+    A, s1, s2 = names
+    return "$A + i $B | t∊[$s1,$s2)"
+end
 
 
 

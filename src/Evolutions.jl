@@ -1,3 +1,4 @@
+import LinearAlgebra: norm
 import ..Bases, ..Operators, ..LinearAlgebraTools, ..Devices
 
 
@@ -8,8 +9,6 @@ function trapezoidaltimegrid(T::Real, r::Int)
     t̄ = abs(τ) * (T ≥ 0 ? (0:r) : reverse(0:r))
     return τ, τ̄, t̄
 end
-
-
 
 abstract type EvolutionAlgorithm end
 
@@ -86,6 +85,9 @@ function evolve!(::Rotate,
 )
     τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
+    # REMEMBER NORM FOR NORM-PRESERVING STEP
+    A = norm(ψ)
+
     # FIRST STEP: NO NEED TO APPLY STATIC OPERATOR
     callback !== nothing && callback(0, t̄[1], ψ)
     ψ = Devices.propagate!(Operators.DRIVE,  device, basis, τ̄[1], ψ, t̄[1])
@@ -96,6 +98,9 @@ function evolve!(::Rotate,
         ψ = Devices.propagate!(Operators.STATIC, device, basis, τ, ψ)
         ψ = Devices.propagate!(Operators.DRIVE,  device, basis, τ̄[i], ψ, t̄[i])
     end
+
+    # ENFORCE NORM-PRESERVING TIME EVOLUTION
+    ψ .*= A / norm(ψ)
 
     return ψ
 end
@@ -121,6 +126,9 @@ function evolve!(::Direct,
 )
     τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
+    # REMEMBER NORM FOR NORM-PRESERVING STEP
+    A = norm(ψ)
+
     # ALLOCATE MEMORY FOR INTERACTION HAMILTONIAN
     U = Devices.evolver(Operators.STATIC, device, basis, 0)
     V = Devices.operator(Operators.DRIVE, device, basis, 0)
@@ -141,6 +149,9 @@ function evolve!(::Direct,
     # ROTATE OUT OF INTERACTION PICTURE
     ψ = Devices.evolve!(Operators.STATIC, device, basis, T, ψ)
 
+    # ENFORCE NORM-PRESERVING TIME EVOLUTION
+    ψ .*= A / norm(ψ)
+
     return ψ
 end
 
@@ -150,6 +161,8 @@ end
 function gradientsignals(device::Devices.Device, args...; kwargs...)
     return gradientsignals(device, Bases.OCCUPATION, args...; kwargs...)
 end
+
+# TODO (hi): Accept a single observable, to return a matrix rather than 3-array
 
 function gradientsignals(
     device::Devices.Device,
@@ -175,11 +188,22 @@ function gradientsignals(
         λ̄[k] = evolve!(ROTATE, device, basis, -T, λ̄[k]; r=r)
     end
 
+    # TODO (hi): D'oh! We can fill in ϕ backwards to shave off one of the time evolutions.
+
+    # # MEASURE λ NORMS
+    # Ā = [norm(λ) for λ in λ̄]
+
     # START THE FIRST STEP
     ψ = Devices.propagate!(Operators.DRIVE, device, basis, τ̄[1]/2, ψ, t̄[1])
     for λ in λ̄
         Devices.propagate!(Operators.DRIVE, device, basis, τ̄[1]/2, λ, t̄[1])
     end
+
+    # # CONSTRAIN NORMS
+    # ψ .*= 1 / norm(ψ)
+    # for k in eachindex(Ō)
+    #     λ̄[k] .*= Ā[k] / norm(λ̄[k])
+    # end
 
     # FIRST GRADIENT SIGNALS
     callback !== nothing && callback(1, t̄[1], ψ)
@@ -201,6 +225,12 @@ function gradientsignals(
             Devices.propagate!(Operators.STATIC, device, basis, τ, λ)
             Devices.propagate!(Operators.DRIVE,  device, basis, τ̄[i]/2, λ, t̄[i])
         end
+
+        # # CONSTRAIN NORMS
+        # ψ .*= 1 / norm(ψ)
+        # for k in eachindex(Ō)
+        #     λ̄[k] .*= Ā[k] / norm(λ̄[k])
+        # end
 
         # CALCULATE GRADIENT SIGNAL BRAKETS
         callback !== nothing && callback(i, t̄[i], ψ)
