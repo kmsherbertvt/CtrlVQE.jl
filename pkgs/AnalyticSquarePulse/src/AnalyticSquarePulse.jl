@@ -40,21 +40,38 @@ function onequbitsquarepulse(
     ω₀,             # DEVICE RESONANCE FREQUENCY
 )
     # HELPFUL CONSTANTS
-    Δ  = ω₀ - ν     # DETUNING
-    ξ  = 2Ω₀/Δ      # RELATIVE STRENGTH OF PULSE
-    η  = √(1 + ξ^2) # SCALING FACTOR
+    Δ  = ω₀ - ν             # DETUNING
+    ξ  = 2Ω₀/Δ              # RELATIVE STRENGTH OF PULSE
+    η  = √(1 + abs(ξ)^2)    # SCALING FACTOR
 
     # IMPOSE BOUNDARY CONSTRAINTS (these are coefficients for solutions to each diff eq)
     A₀ = ψI[1] *(η-1)/2η + ψI[2] * ξ/2η
     B₀ = ψI[1] *(η+1)/2η - ψI[2] * ξ/2η
-    A₁ = ψI[2] *(η-1)/2η - ψI[1] * ξ/2η
-    B₁ = ψI[2] *(η+1)/2η + ψI[1] * ξ/2η
+    A₁ = ψI[2] *(η-1)/2η - ψI[1] * ξ'/2η
+    B₁ = ψI[2] *(η+1)/2η + ψI[1] * ξ'/2η
 
     # WRITE OUT GENERAL SOLUTIONS TO THE DIFFERENTIAL EQUATIONS
     ψT = [
         A₀*exp(-im*Δ * (η+1)/2 * T) + B₀*exp( im*Δ * (η-1)/2 * T),
         A₁*exp( im*Δ * (η+1)/2 * T) + B₁*exp(-im*Δ * (η-1)/2 * T),
     ]
+
+    # ROBUSTLY HANDLE lim Δ→0
+    if abs(Δ) < eps(typeof(Δ))
+        # Δη        → √(Δ² + |2Ω₀|²)
+        # ξ/2η      → Ω₀ / Δη
+        # (η±1)/2η  → (1 ± 1/η)/2
+        Δη = √(Δ^2 + abs(2Ω₀)^2)
+        A₀ = ψI[1] *(1 - 1/η)/2 + ψI[2] * Ω₀/Δη
+        B₀ = ψI[1] *(1 + 1/η)/2 - ψI[2] * Ω₀/Δη
+        A₁ = ψI[2] *(1 - 1/η)/2 - ψI[1] * Ω₀'/Δη
+        B₁ = ψI[2] *(1 + 1/η)/2 + ψI[1] * Ω₀'/Δη
+
+        ψT = [
+            A₀*exp(-im* (Δη+Δ)/2 * T) + B₀*exp( im* (Δη-Δ)/2 * T),
+            A₁*exp( im* (Δη+Δ)/2 * T) + B₁*exp(-im* (Δη-Δ)/2 * T),
+        ]
+    end
 
     # RE-NORMALIZE THIS STATE
     ψT .= ψT / norm(ψT)
@@ -78,43 +95,43 @@ function onequtritsquarepulse(
     D₂₁ = im *(Δ-δ) # DERIVATIVE MULITPLE OF INTERACTION HAMILTONIAN ELEMENT ⟨2|V|1⟩
 
     # HELPFUL ALIASES
-    A₁₀²= A₁₀^2
-    A₂₁²= A₂₁^2
+    A₁₀²= abs(A₁₀)^2
+    A₂₁²= abs(A₂₁)^2
     D̄₁₀ = conj(D₁₀)
     D̄₂₁ = conj(D₂₁)
 
     ψT = [          # FINAL WAVEFUNCTION
         # |0⟩ COEFFICIENT
         _solve_diffeq([                 # CONSTANT COEFFICIENTS IN LINEAR DIFF EQ
-            -A₁₀² * (D̄₁₀ + D̄₂₁),                        # c COEFFICIENT
-            A₁₀² + A₂₁² + D̄₁₀*(D̄₁₀ + D̄₂₁),              # ċ COEFFICIENT
-            -(2D̄₁₀ + D̄₂₁),                              # c̈ COEFFICIENT
+            -A₁₀² * (D̄₁₀ + D̄₂₁),                            # c COEFFICIENT
+            A₁₀² + A₂₁² + D̄₁₀*(D̄₁₀ + D̄₂₁),                  # ċ COEFFICIENT
+            -(2D̄₁₀ + D̄₂₁),                                  # c̈ COEFFICIENT
         ],[                             # BOUNDARY CONDITIONS AT START OF THE PULSE
-            ψI[1],                                      # c(t=0)
-            ψI[2] * -im*A₁₀,                            # ċ(t=0)
-            -A₁₀*(A₁₀*ψI[1] + im*D̄₁₀*ψI[2] + A₂₁*ψI[3]) # c̈(t=0)
+            ψI[1],                                          # c(t=0)
+            ψI[2] * -im*A₁₀',                               # ċ(t=0)
+            -A₁₀'*(A₁₀*ψI[1] + im*D̄₁₀*ψI[2] + A₂₁'*ψI[3])   # c̈(t=0)
         ])(T),                          # EVALUATE SOLUTION AT END OF THE PULSE
 
         # |1⟩ COEFFICIENT
         _solve_diffeq([                 # CONSTANT COEFFICIENTS IN LINEAR DIFF EQ
-            -(D̄₂₁*A₁₀² + D₁₀*A₂₁²),                     # c COEFFICIENT
-            A₁₀² + A₂₁² + D₁₀*D̄₂₁,                      # ċ COEFFICIENT
-            -(D₁₀ + D̄₂₁),                               # c̈ COEFFICIENT
+            -(D̄₂₁*A₁₀² + D₁₀*A₂₁²),                         # c COEFFICIENT
+            A₁₀² + A₂₁² + D₁₀*D̄₂₁,                          # ċ COEFFICIENT
+            -(D₁₀ + D̄₂₁),                                   # c̈ COEFFICIENT
         ],[                             # BOUNDARY CONDITIONS AT START OF THE PULSE
             ψI[2],                                                      # c(t=0)
-            -im*(A₁₀*ψI[1] + A₂₁*ψI[3]),                                # ċ(t=0)
-            -(im*D₁₀*A₁₀*ψI[1] + (A₁₀²+A₂₁²)*ψI[2] + im*D̄₂₁*A₂₁*ψI[3])  # c̈(t=0)
+            -im*(A₁₀*ψI[1] + A₂₁'*ψI[3]),                               # ċ(t=0)
+            -(im*D₁₀*A₁₀*ψI[1] + (A₁₀²+A₂₁²)*ψI[2] + im*D̄₂₁*A₂₁'*ψI[3]) # c̈(t=0)
         ])(T),                          # EVALUATE SOLUTION AT END OF THE PULSE
 
         # |2⟩ COEFFICIENT
         _solve_diffeq([                 # CONSTANT COEFFICIENTS IN LINEAR DIFF EQ
-            -A₂₁² * (D₁₀ + D₂₁),                        # c COEFFICIENT
-            A₁₀² + A₂₁² + D₂₁*(D₁₀ + D₂₁),              # ċ COEFFICIENT
-            -(D₁₀ + 2D₂₁),                              # c̈ COEFFICIENT
+            -A₂₁² * (D₁₀ + D₂₁),                            # c COEFFICIENT
+            A₁₀² + A₂₁² + D₂₁*(D₁₀ + D₂₁),                  # ċ COEFFICIENT
+            -(D₁₀ + 2D₂₁),                                  # c̈ COEFFICIENT
         ],[                             # BOUNDARY CONDITIONS AT START OF THE PULSE
-            ψI[3],                                      # c(t=0)
-            ψI[2] * -im*A₂₁,                            # ċ(t=0)
-            -A₂₁*(A₁₀*ψI[1] + im*D₂₁*ψI[2] + A₂₁*ψI[3]) # c̈(t=0)
+            ψI[3],                                          # c(t=0)
+            ψI[2] * -im*A₂₁,                                # ċ(t=0)
+            -A₂₁*(A₁₀*ψI[1] + im*D₂₁*ψI[2] + A₂₁'*ψI[3])    # c̈(t=0)
         ])(T),                          # EVALUATE SOLUTION AT END OF THE PULSE
     ]
 
