@@ -1,40 +1,44 @@
 using LinearAlgebra: kron!, eigen, Diagonal, Hermitian, mul!
-using Memoization: @memoize
 
-@memoize function _TEMPARRAY(::F, shape::Tuple, index=nothing) where {F<:Number}
-    # NOTE: `index` just gives a means of making distinct arrays of the same type and shape
-    return Array{F}(undef, shape)
-end
+import ..TempArrays: array
+const LABEL = :LinearAlgebraTools
 
-function _TEMPARRAY(F::Type{<:Number}, shape::Tuple, index=nothing)
-    return _TEMPARRAY(zero(F), shape, index)
-end
+# const List{T} = Union{AbstractVector{T}, Tuple{Vararg{T}}}
+const List{T} = AbstractVector{T}
 
-# List{T} = Union{AbstractVector{T}, Tuple{Vararg{T}}}
-List{T} = AbstractVector{T}
+function kron(v̄::List{<:AbstractVector{F}}; result=nothing) where {F}
+    result === nothing && (result = Vector{F}(undef, prod(length.(v̄))))
 
-function kron(v̄::List{<:AbstractVector{F}}) where {F}
-    op  = _TEMPARRAY(F, (1,)); op[1] = one(F)
+    op  = array(F, (1,), LABEL); op[1] = one(F)
     tgt = nothing
     for i in eachindex(v̄)
         shape = (length(op)*length(v̄[i]),)
-        tgt = _TEMPARRAY(F, shape)
+        tgt = array(F, shape, LABEL)
         kron!(tgt, op, v̄[i])
         op = tgt
     end
-    return copy(tgt)
+    result .= tgt
+
+    return result
 end
 
-function kron(Ā::List{<:AbstractMatrix{F}}) where {F}
-    op  = _TEMPARRAY(F, (1,1)); op[1] = one(F)
+function kron(Ā::List{<:AbstractMatrix{F}}; result=nothing) where {F}
+    if result === nothing
+        shapes = transpose(reinterpret(reshape, Int, size.(Ā)))
+        result = Matrix{F}(undef, prod(shapes[:,1]), prod(shapes[:,2]))
+    end
+
+    op  = array(F, (1,1), LABEL); op[1] = one(F)
     tgt = nothing
     for i in eachindex(Ā)
         shape = size(op) .* size(Ā[i])
-        tgt = _TEMPARRAY(F, shape)
+        tgt = array(F, shape, LABEL)
         kron!(tgt, op, Ā[i])
         op = tgt
     end
-    return copy(tgt)
+    result .= tgt
+
+    return result
 end
 
 function cis_type(x)
@@ -49,10 +53,10 @@ function cis!(A::AbstractMatrix{<:Complex{<:AbstractFloat}}, x::Number=1)
     Λ, U = eigen(Hermitian(A))              # TODO (mid): UNNECESSARY ALLOCATIONS
 
     F = Complex{real(eltype(Λ))}
-    diag = _TEMPARRAY(F, size(Λ))
+    diag = array(F, size(Λ), LABEL)
     diag .= exp.((im*x) .* Λ)
 
-    left = _TEMPARRAY(F, size(A))
+    left = array(F, size(A), LABEL)
     left = mul!(left, U, Diagonal(diag))
 
     return mul!(A, left, U')                # NOTE: OVERWRITES INPUT
@@ -65,13 +69,13 @@ function rotate!(R::AbstractMatrix{F_}, x::AbstractArray{F}) where {F_, F}
 end
 
 function rotate!(::Type{F}, R::AbstractMatrix{F_}, x::AbstractVector{F}) where {F_, F}
-    temp = _TEMPARRAY(F, size(x))
+    temp = array(F, size(x), LABEL)
     x .= mul!(temp, R, x)
     return x
 end
 
 function rotate!(::Type{F}, R::AbstractMatrix{F_}, A::AbstractMatrix{F}) where {F_, F}
-    left = _TEMPARRAY(F, size(A))
+    left = array(F, size(A), LABEL)
     left = mul!(left, R, A)
     return mul!(A, left, R')
 end
@@ -90,7 +94,7 @@ function rotate!(::Type{F},
     for r in r̄
         m = size(r,1)
         x_ = transpose(reshape(x, (N÷m,m)))     # CREATE A PERMUTED VIEW
-        temp = _TEMPARRAY(F, (m,N÷m))
+        temp = array(F, (m,N÷m), LABEL)
         temp = mul!(temp, r, x_)                # APPLY THE CURRENT OPERATOR
         x .= vec(temp)                          # COPY RESULT TO ORIGINAL STATE
     end
@@ -111,7 +115,7 @@ end
 
 function braket(x1::AbstractVector, A::AbstractMatrix, x2::AbstractVector)
     F = promote_type(eltype(x1), eltype(A), eltype(x2))
-    covector = _TEMPARRAY(F, size(x2))
+    covector = array(F, size(x2), LABEL)
     covector = mul!(covector, A, x2)
     return x1' * covector
 end

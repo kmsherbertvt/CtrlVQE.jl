@@ -2,6 +2,9 @@ import LinearAlgebra: norm
 import ..Bases, ..LinearAlgebraTools, ..Devices
 import ..Operators: STATIC, Drive, Gradient
 
+import ..TempArrays: array
+const LABEL = :Evolutions
+
 using ..LinearAlgebraTools: List
 
 function trapezoidaltimegrid(T::Real, r::Int)
@@ -21,10 +24,13 @@ function evolve(
     device::Devices.Device,
     T::Real,
     ψ0::AbstractVector;
+    result=nothing,
     kwargs...
 )
-    ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, copy(ψ0))
-    return evolve!(device, T, ψ; kwargs...)
+    F = LinearAlgebraTools.cis_type(ψ0)
+    result === nothing && (result = Vector{F}(undef, length(ψ0)))
+    result .= ψ0
+    return evolve!(device, T, result; kwargs...)
 end
 
 function evolve(
@@ -32,10 +38,13 @@ function evolve(
     basis::Bases.BasisType,
     T::Real,
     ψ0::AbstractVector;
+    result=nothing,
     kwargs...
 )
-    ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, copy(ψ0))
-    return evolve!(device, basis, T, ψ; kwargs...)
+    F = LinearAlgebraTools.cis_type(ψ0)
+    result === nothing && (result = Vector{F}(undef, length(ψ0)))
+    result .= ψ0
+    return evolve!(device, basis, T, result; kwargs...)
 end
 
 function evolve(
@@ -43,10 +52,13 @@ function evolve(
     device::Devices.Device,
     T::Real,
     ψ0::AbstractVector;
+    result=nothing,
     kwargs...
 )
-    ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, copy(ψ0))
-    return evolve!(algorithm, device, T, ψ; kwargs...)
+    F = LinearAlgebraTools.cis_type(ψ0)
+    result === nothing && (result = Vector{F}(undef, length(ψ0)))
+    result .= ψ0
+    return evolve!(algorithm, device, T, result; kwargs...)
 end
 
 function evolve(
@@ -55,10 +67,13 @@ function evolve(
     basis::Bases.BasisType,
     T::Real,
     ψ0::AbstractVector;
+    result=nothing,
     kwargs...
 )
-    ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, copy(ψ0))
-    return evolve!(algorithm, device, basis, T, ψ; kwargs...)
+    F = LinearAlgebraTools.cis_type(ψ0)
+    result === nothing && (result = Vector{F}(undef, length(ψ0)))
+    result .= ψ0
+    return evolve!(algorithm, device, basis, T, result; kwargs...)
 end
 
 
@@ -84,7 +99,7 @@ function evolve!(
     basis::Bases.BasisType,
     T::Real,
     ψ::AbstractVector{<:Complex{<:AbstractFloat}};
-    callback=nothing
+    callback=nothing,
 )
     r = algorithm.r
     τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
@@ -128,7 +143,7 @@ function evolve!(
     basis::Bases.BasisType,
     T::Real,
     ψ::AbstractVector{<:Complex{<:AbstractFloat}};
-    callback=nothing
+    callback=nothing,
 )
     r = algorithm.r
     τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
@@ -136,18 +151,25 @@ function evolve!(
     # REMEMBER NORM FOR NORM-PRESERVING STEP
     A = norm(ψ)
 
+    # # ALLOCATE MEMORY FOR INTERACTION HAMILTONIAN
+    # U = Devices.evolver(STATIC, device, basis, 0)
+    # V = Devices.operator(Drive(0), device, basis)
+    # # PROMOTE `V` SO THAT IT CAN BE ROTATED IN PLACE AND EXPONENTIATED
+    # F = Complex{real(promote_type(eltype(U), eltype(V)))}
+    # V = convert(Matrix{F}, copy(V))
+
     # ALLOCATE MEMORY FOR INTERACTION HAMILTONIAN
-    U = Devices.evolver(STATIC, device, basis, 0)
-    V = Devices.operator(Drive(0), device, basis)
-    # PROMOTE `V` SO THAT IT CAN BE ROTATED IN PLACE AND EXPONENTIATED
-    F = Complex{real(promote_type(eltype(U), eltype(V)))}
-    V = convert(Matrix{F}, copy(V))
+    N = Devices.nstates(device)
+    U_TYPE = LinearAlgebraTools.cis_type(eltype(STATIC, device, basis))
+    V_TYPE = LinearAlgebraTools.cis_type(eltype(Drive(0), device, basis))
+    U = array(U_TYPE, (N,N), (LABEL, :intermediate))
+    V = array(V_TYPE, (N,N), LABEL)
 
     # RUN EVOLUTION
     for i in 1:r+1
         callback !== nothing && callback(i, t̄[i], ψ)
-        U .= Devices.evolver(STATIC, device, basis, t̄[i])
-        V .= Devices.operator(Drive(t̄[i]), device, basis)
+        U = Devices.evolver(STATIC, device, basis, t̄[i]; result=U)
+        V = Devices.operator(Drive(t̄[i]), device, basis; result=V)
         V = LinearAlgebraTools.rotate!(U', V)
         V = LinearAlgebraTools.cis!(V, -τ̄[i])
         ψ = LinearAlgebraTools.rotate!(V, ψ)
@@ -176,9 +198,18 @@ function gradientsignals(
     ψ0::AbstractVector,
     r::Int,
     O::AbstractMatrix;
+    result=nothing,
     kwargs...
 )
-    return gradientsignals(device, basis, T, ψ0, r, [O]; kwargs...)[:,:,1]
+    # `result` IS GIVEN AS A 2D ARRAY BUT MUST BE 3D FOR DELEGATION
+    result === nothing && (result = reshape(result, size(result, 1), size(result, 2), 1))
+
+    # PERFORM THE DELEGATION
+    result = gradientsignals(device, basis, T, ψ0, r, [O]; result=result, kwargs...)
+
+    # NOW RESHAPE `result` BACK TO 2D ARRAY
+    result = reshape(result, size(result, 1), size(result, 2))
+    return result
 end
 
 function gradientsignals(
@@ -188,21 +219,25 @@ function gradientsignals(
     ψ0::AbstractVector,
     r::Int,
     Ō::List{<:AbstractMatrix};
+    result=nothing,
     evolution=Rotate(r),
     callback=nothing,
 )
     τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
     # PREPARE SIGNAL ARRAYS Φ̄[i,j,k]
-    F = real(LinearAlgebraTools.cis_type(ψ0))
-    Φ̄ = Array{F}(undef, r+1, Devices.ngrades(device), length(Ō))
+    if result === nothing
+        F = real(LinearAlgebraTools.cis_type(ψ0))
+        result = Array{F}(undef, r+1, Devices.ngrades(device), length(Ō))
+    end
 
     # PREPARE STATE AND CO-STATES
-    ψ = convert(Array{LinearAlgebraTools.cis_type(ψ0)}, copy(ψ0))
+    ψ = Vector{LinearAlgebraTools.cis_type(ψ0)}(undef, length(ψ0))
+    ψ .= ψ0
     ψ = evolve!(evolution, device, basis, T, ψ)
     λ̄ = [LinearAlgebraTools.rotate!(O, copy(ψ)) for O in Ō]
 
-    #= TODO (mid): Check closely the accuracy of first and last Φ values.
+    #= TODO (hi): Check closely the accuracy of first and last Φ values.
 
         Do we need to half-evolve V here?
         There is something beautifully symmetric about *not* doing so.
@@ -224,7 +259,7 @@ function gradientsignals(
     for (k, λ) in enumerate(λ̄)
         for j in 1:Devices.ngrades(device)
             z = Devices.braket(Gradient(j, t̄[end]), device, basis, λ, ψ)
-            Φ̄[r+1,j,k] = 2 * imag(z)    # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
+            result[r+1,j,k] = 2 * imag(z)   # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
         end
     end
 
@@ -245,11 +280,11 @@ function gradientsignals(
         for (k, λ) in enumerate(λ̄)
             for j in 1:Devices.ngrades(device)
                 z = Devices.braket(Gradient(j, t̄[i]), device, basis, λ, ψ)
-                Φ̄[i,j,k] = 2 * imag(z)  # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
+                result[i,j,k] = 2 * imag(z) # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
             end
         end
     end
 
-    return Φ̄
+    return result
 end
 

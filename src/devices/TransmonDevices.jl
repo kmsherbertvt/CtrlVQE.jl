@@ -1,6 +1,10 @@
 using Memoization: @memoize
+import LinearAlgebra: I, mul!
 using ...LinearAlgebraTools: List
 import ...Parameters, ...LinearAlgebraTools, ...Signals, ...Devices
+
+import ...TempArrays: array
+const LABEL = :TransmonDevices
 
 @memoize Dict function bosonic_annihilator(::Type{F}, m::Int) where {F<:AbstractFloat}
     a = zeros(F, m, m)
@@ -43,77 +47,107 @@ function Devices.gradequbit(device::AbstractTransmonDevice, j::Int)
     return Devices.drivequbit(device, ((j-1) >> 1) + 1)
 end
 
+Devices.eltype_localloweringoperator(::AbstractTransmonDevice{F}) where {F} = F
 function Devices.localloweringoperator(
     device::AbstractTransmonDevice{F},
-    q::Int
+    q::Int,
 ) where {F}
     return bosonic_annihilator(F, Devices.nstates(device, q))
 end
 
+Devices.eltype_qubithamiltonian(::AbstractTransmonDevice{F}) where {F} = F
 function Devices.qubithamiltonian(
     device::AbstractTransmonDevice,
     ā::List{<:AbstractMatrix},
-    q::Int,
+    q::Int;
+    result=nothing,
 )
     a = ā[q]
-    I = one(a)
-    h = zero(a)
-    h .-= (anharmonicity(device,q)/2)  .* I     #       - δ/2    I
-    h = LinearAlgebraTools.rotate!(a', h)       #       - δ/2   a'a
-    h .+= resonancefrequency(device,q) .* I     # ω     - δ/2   a'a
-    h = LinearAlgebraTools.rotate!(a', h)       # ω a'a - δ/2 a'a'aa
-    return h
+    Im = Matrix(I, size(a))     # UNAVOIDABLE ALLOCATION?
+
+    result === nothing && (result = Matrix{eltype(a)}(undef, size(a)))
+    result .= 0
+    result .-= (anharmonicity(device,q)/2)  .* Im       #       - δ/2    I
+    result = LinearAlgebraTools.rotate!(a', result)     #       - δ/2   a'a
+    result .+= resonancefrequency(device,q) .* Im       # ω     - δ/2   a'a
+    result = LinearAlgebraTools.rotate!(a', result)     # ω a'a - δ/2 a'a'aa
+    return result
 end
 
+Devices.eltype_staticcoupling(::AbstractTransmonDevice{F}) where {F} = F
 function Devices.staticcoupling(
     device::AbstractTransmonDevice,
-    ā::List{<:AbstractMatrix},
-)
-    G = zero(ā[1])  # NOTE: Raises error if device has no qubits.
+    ā::List{<:AbstractMatrix{F}};
+    result=nothing,
+) where {F}
+    shape = size(ā[1])  # NOTE: Not robust for empty devices.
+    result === nothing && (result = Matrix{F}(undef, shape))
+
+    result .= 0
     for pq in 1:ncouplings(device)
         g = couplingstrength(device, pq)
         p, q = couplingpair(device, pq)
-        G .+= g .* (ā[p]'* ā[q])
-        G .+= g .* (ā[q]'* ā[p])
+
+        aTa = array(F, shape, LABEL)
+        mul!(aTa, ā[p]', ā[q])
+
+        result .+= g .* aTa
+        result .+= g .* aTa'
     end
-    return G
+    return result
 end
 
+Devices.eltype_driveoperator(::AbstractTransmonDevice{F}) where {F} = Complex{F}
 function Devices.driveoperator(
     device::AbstractTransmonDevice,
     ā::List{<:AbstractMatrix},
     i::Int,
-    t::Real,
+    t::Real;
+    result=nothing,
 )
     a = ā[Devices.drivequbit(device, i)]
     e = exp(im * drivefrequency(device, i) * t)
     Ω = drivesignal(device, i)(t)
 
-    V   = (real(Ω) * e ) .* a
-    V .+= (real(Ω) * e') .* a'
+    if result === nothing
+        F = promote_type(eltype(a), eltype(e))  # Ω is no more complex than e.
+        result = Matrix{F}(undef, size(a))
+    end
+    result .= 0
+
+    result .+= (real(Ω) * e ) .* a
+    result .+= (real(Ω) * e') .* a'
 
     if Ω isa Complex
-        V .+= (imag(Ω) * im *e ) .* a
-        V .+= (imag(Ω) * im'*e') .* a'
+        result .+= (imag(Ω) * im *e ) .* a
+        result .+= (imag(Ω) * im'*e') .* a'
     end
 
-    return V
+    return result
 end
 
+Devices.eltype_gradeoperator(::AbstractTransmonDevice{F}) where {F} = Complex{F}
 function Devices.gradeoperator(
     device::AbstractTransmonDevice,
     ā::List{<:AbstractMatrix},
     j::Int,
-    t::Real,
+    t::Real;
+    result=nothing,
 )
     i = ((j-1) >> 1) + 1
     a = ā[Devices.drivequbit(device, i)]
     e = exp(im * drivefrequency(device, i) * t)
 
+    if result === nothing
+        F = promote_type(eltype(a), eltype(e))
+        result = Matrix{F}(undef, size(a))
+    end
+    result .= 0
+
     phase = Bool(j & 1) ? 1 : im    # Odd j -> "real" gradient operator; even j  -> "imag"
-    A   = (phase * e ) .* a
-    A .+= (phase'* e') .* a'
-    return A
+    result .+= (phase * e ) .* a
+    result .+= (phase'* e') .* a'
+    return result
 end
 
 function Devices.gradient(

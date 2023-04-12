@@ -50,6 +50,13 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
     @test device.ν̄[1] == 2π * 4.35
     @test device.ν̄[2] == 2π * 4.75
 
+    # BASIC TYPE METHODS
+    @test Devices.eltype_localloweringoperator(device) === Float64
+    @test Devices.eltype_qubithamiltonian(device) === Float64
+    @test Devices.eltype_staticcoupling(device) === Float64
+    @test Devices.eltype_driveoperator(device) === ComplexF64
+    @test Devices.eltype_gradeoperator(device) === ComplexF64
+
     # BASIC MATRICES - not testing for correctness of particular model, just hermiticity
     a = Devices.localloweringoperator(device, 1)        # LOCAL
     a1 = kron(a, one(a))
@@ -103,12 +110,26 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
 
 
     # ALGEBRA
+    @test Devices.eltype_algebra(device) === Float64
     @test collect(Devices.algebra(device)) ≈ [a1, a2]
     @test collect(Devices.localalgebra(device)) ≈ [a, a]
 
-    # OPERATORS
+
     DRIVE = Drive(t)
 
+    # OPERATOR TYPES
+    @test eltype(Qubit(1), device) === Float64
+    @test eltype(COUPLING, device) === Float64
+    @test eltype(Channel(1,t), device) === ComplexF64
+    @test eltype(Gradient(1,t), device) === ComplexF64
+    @test eltype(Gradient(2,t), device) === ComplexF64
+
+    @test eltype(UNCOUPLED, device) === Float64
+    @test eltype(STATIC, device) === Float64
+    @test eltype(DRIVE, device) === ComplexF64
+    @test eltype(Hamiltonian(t), device) === ComplexF64
+
+    # OPERATORS
     @test Devices.operator(Qubit(1), device) ≈ kron(h1, one(h1))
     @test Devices.operator(COUPLING, device) ≈ G
     @test Devices.operator(Channel(1,t), device) ≈ kron(v1, one(v1))

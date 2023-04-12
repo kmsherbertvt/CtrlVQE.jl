@@ -1,5 +1,21 @@
 module CtrlVQE
 
+module TempArrays
+    using Memoization: @memoize
+
+    @memoize function array(::F, shape::Tuple, index=nothing) where {F<:Number}
+        # NOTE: `index` gives a means of making distinct arrays of the same type and shape
+        #= NOTE: Standard practice is to pass a Symbol(<modulename>) as index,
+            to ensure no unwanted collisions. =#
+        # TODO (lo): Thread-safe and hands-of approach to this.
+        return Array{F}(undef, shape)
+    end
+
+    function array(F::Type{<:Number}, shape::Tuple, index=nothing)
+        return array(zero(F), shape, index)
+    end
+end
+
 module Parameters
     function count(::Any)::Int end
     function names(::Any)::AbstractVector{String} end
@@ -80,7 +96,7 @@ module Devices
     include("Devices.jl")
 
     module TransmonDevices
-        include("devices/TransmonDevice.jl")
+        include("devices/TransmonDevices.jl")
     end
     import .TransmonDevices: TransmonDevice
 end
