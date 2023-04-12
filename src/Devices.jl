@@ -293,46 +293,46 @@ end
 @memoize Dict function basisrotation(
     tgt::Bases.BasisType,
     src::Bases.BasisType,
-    device::Device;
-    result = nothing,
+    device::Device,
 )
     Λ0, U0 = diagonalize(src, device)
     Λ1, U1 = diagonalize(tgt, device)
     # |ψ'⟩ ≡ U0|ψ⟩ rotates |ψ⟩ OUT of `src` Bases.
     # U1'|ψ'⟩ rotates |ψ'⟩ INTO `tgt` Bases.
-    if result === nothing
-        F = promote_type(eltype(U0), eltype(U1))
-        result = Matrix{F}(undef, size(U1',1), size(U0,2))
-    end
+    return U1' * U0
+    # if result === nothing
+    #     F = promote_type(eltype(U0), eltype(U1))
+    #     result = Matrix{F}(undef, size(U1',1), size(U0,2))
+    # end
 
-    return mul!(result, U1', U0)
-end
-
-@memoize Dict function basisrotation(
-    tgt::Bases.LocalBasis,
-    src::Bases.LocalBasis,
-    device::Device;
-    result = nothing,
-)
-    ū = localbasisrotations(tgt, src, device)
-    return LinearAlgebraTools.kron(ū; result=result)
+    # return mul!(result, U1', U0)
 end
 
 @memoize Dict function basisrotation(
     tgt::Bases.LocalBasis,
     src::Bases.LocalBasis,
     device::Device,
-    q::Int;
-    result = nothing,
+)
+    ū = localbasisrotations(tgt, src, device)
+    return LinearAlgebraTools.kron(ū)
+    # return LinearAlgebraTools.kron(ū; result=result)
+end
+
+@memoize Dict function basisrotation(
+    tgt::Bases.LocalBasis,
+    src::Bases.LocalBasis,
+    device::Device,
+    q::Int,
 )
     Λ0, U0 = diagonalize(src, device, q)
     Λ1, U1 = diagonalize(tgt, device, q)
     # |ψ'⟩ ≡ U0|ψ⟩ rotates |ψ⟩ OUT of `src` Bases.
     # U1'|ψ'⟩ rotates |ψ'⟩ INTO `tgt` Bases.
-    if result === nothing
-        F = promote_type(eltype(U0), eltype(U1))
-        result = Matrix{F}(undef, size(U1',1), size(U0,2))
-    end
+    return U1' * U0
+    # if result === nothing
+    #     F = promote_type(eltype(U0), eltype(U1))
+    #     result = Matrix{F}(undef, size(U1',1), size(U0,2))
+    # end
 
     return mul!(result, U1', U0)
 end
@@ -482,21 +482,35 @@ function operator(op::Operators.OperatorType, device::Device; kwargs...)
 end
 
 @memoize Dict function operator(
+    op::Operators.StaticOperator,
+    device::Device,
+    basis::Bases.BasisType,
+    ::Symbol,
+)
+    # NOTE: Use a cache for time-independent operators, if not using pre-allocated result.
+    N = nstates(device)
+    result = Matrix{eltype(op,device,basis)}(undef, N, N)
+    return operator(op, device, basis; result=result)
+end
+
+function operator(
     op::Operators.Qubit,
     device::Device,
     basis::Bases.BasisType;
     result=nothing,
 )
+    result === nothing && return operator(op, device, basis, :cache)
     ā = algebra(device, basis)
     return qubithamiltonian(device, ā, op.q; result=result)
 end
 
-@memoize Dict function operator(
+function operator(
     op::Operators.Coupling,
     device::Device,
     basis::Bases.BasisType;
     result=nothing,
 )
+    result === nothing && return operator(op, device, basis, :cache)
     ā = algebra(device, basis)
     return staticcoupling(device, ā; result=result)
 end
@@ -521,40 +535,34 @@ function operator(
     return gradeoperator(device, ā, op.j, op.t; result=result)
 end
 
-@memoize Dict function operator(
+function operator(
     op::Operators.Uncoupled,
     device::Device,
     basis::Bases.BasisType;
     result=nothing,
 )
-    if result === nothing
-        N = nstates(device)
-        result = Matrix{eltype(op,device,basis)}(undef, N, N)
-    end
+    result === nothing && return operator(op, device, basis, :cache)
     result .= 0
-
     for q in 1:nqubits(device)
         result .+= operator(Operators.Qubit(q), device, basis)
     end
     return result
 end
 
-@memoize Dict function operator(
+function operator(
     op::Operators.Static,
     device::Device,
     basis::Bases.BasisType;
     result=nothing,
 )
-    if result === nothing
-        N = nstates(device)
-        result = Matrix{eltype(op,device,basis)}(undef, N, N)
-    end
+    result === nothing && return operator(op, device, basis, :cache)
     result .= 0
     result .+= operator(Operators.UNCOUPLED, device, basis)
     result .+= operator(Operators.COUPLING, device, basis)
     return result
 end
 
+# TODO (mid): Type instability
 @memoize Dict function operator(
     op::Operators.Static,
     device::Device,
@@ -634,6 +642,20 @@ function propagator(op::Operators.OperatorType, device::Device, τ::Real; kwargs
     return propagator(op, device, Bases.OCCUPATION, τ; kwargs...)
 end
 
+@memoize Dict function propagator(
+    op::Operators.StaticOperator,
+    device::Device,
+    basis::Bases.BasisType,
+    τ::Real,
+    ::Symbol,
+)
+    # NOTE: Use a cache for time-independent operators, if not using pre-allocated result.
+    N = nstates(device)
+    F = LinearAlgebraTools.cis_type(eltype(op,device,basis))
+    result = Matrix{F}(undef, N, N)
+    return propagator(op, device, basis, τ; result=result)
+end
+
 function propagator(
     op::Operators.OperatorType,
     device::Device,
@@ -650,39 +672,39 @@ function propagator(
     return LinearAlgebraTools.cis!(result, -τ)
 end
 
-@memoize Dict function propagator(
+function propagator(
     op::Operators.StaticOperator,
     device::Device,
     basis::Bases.BasisType,
     τ::Real;
     result=nothing,
 )
+    result === nothing && return propagator(op, device, basis, τ, :cache)
     # NOTE: No need to use temp array, since operator is cached.
-    H = operator(op, device, basis)
-
-    result === nothing && (result=Matrix{LinearAlgebraTools.cis_type(H)}(undef, size(H)))
-    result .= H
+    result .= operator(op, device, basis)
     return LinearAlgebraTools.cis!(result, -τ)
 end
 
-@memoize Dict function propagator(
+function propagator(
     op::Operators.Uncoupled,
     device::Device,
     basis::Bases.LocalBasis,
     τ::Real;
     result=nothing,
 )
+    result === nothing && return propagator(op, device, basis, τ, :cache)
     ū = localqubitpropagators(device, basis, τ)
     return LinearAlgebraTools.kron(ū; result=result)
 end
 
-@memoize Dict function propagator(
+function propagator(
     op::Operators.Qubit,
     device::Device,
     basis::Bases.LocalBasis,
     τ::Real;
     result=nothing,
 )
+    result === nothing && return propagator(op, device, basis, τ, :cache)
     ā = localalgebra(device, basis)
 
     h = qubithamiltonian(device, ā, op.q)

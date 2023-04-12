@@ -202,7 +202,7 @@ function gradientsignals(
     kwargs...
 )
     # `result` IS GIVEN AS A 2D ARRAY BUT MUST BE 3D FOR DELEGATION
-    result === nothing && (result = reshape(result, size(result, 1), size(result, 2), 1))
+    result !== nothing && (result = reshape(result, size(result, 1), size(result, 2), 1))
 
     # PERFORM THE DELEGATION
     result = gradientsignals(device, basis, T, ψ0, r, [O]; result=result, kwargs...)

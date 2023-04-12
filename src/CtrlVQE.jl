@@ -3,7 +3,7 @@ module CtrlVQE
 module TempArrays
     using Memoization: @memoize
 
-    @memoize function array(::F, shape::Tuple, index=nothing) where {F<:Number}
+    @memoize Dict function array(::F, shape::Tuple, index=nothing) where {F<:Number}
         # NOTE: `index` gives a means of making distinct arrays of the same type and shape
         #= NOTE: Standard practice is to pass a Symbol(<modulename>) as index,
             to ensure no unwanted collisions. =#
