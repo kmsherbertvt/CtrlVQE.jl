@@ -5,6 +5,7 @@ const LABEL = :LinearAlgebraTools
 
 # const List{T} = Union{AbstractVector{T}, Tuple{Vararg{T}}}
 const List{T} = AbstractVector{T}
+# TODO (hi): Abolish List: use Array{n+1} instead. Enables pre-allocations.
 
 function kron(v̄::List{<:AbstractVector{F}}; result=nothing) where {F}
     result === nothing && (result = Vector{F}(undef, prod(length.(v̄))))
@@ -115,12 +116,24 @@ end
 
 function braket(x1::AbstractVector, A::AbstractMatrix, x2::AbstractVector)
     F = promote_type(eltype(x1), eltype(A), eltype(x2))
-    covector = array(F, size(x2), LABEL)
-    covector = mul!(covector, A, x2)
+    covector = array(F, size(x2), (LABEL, :braket))
+    covector .= x2
+    covector = rotate!(A, covector)
+    return x1' * covector
+end
+
+function braket(
+    x1::AbstractVector,
+    ā::List{<:AbstractMatrix{F_}},
+    x2::AbstractVector,
+) where {F_}
+    F = promote_type(eltype(x1), F_, eltype(x2))
+    covector = array(F, size(x2), (LABEL, :braket))
+    covector .= x2
+    covector = rotate!(ā, covector)
     return x1' * covector
 end
 
 expectation(A::AbstractMatrix, x::AbstractVector) = braket(x, A, x)
-
-# TODO (mid): Tensor implementations for expectation, braket.
+expectation(ā::List{<:AbstractMatrix}, x::AbstractVector) = braket(x, ā, x)
 

@@ -191,4 +191,7 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
     @test Devices.expectation(STATIC, device, ψ) ≈ ψ' * H0 * ψ
     @test Devices.expectation(DRIVE, device, ψ) ≈ ψ' * V * ψ
 
+    @test Devices.braket(Gradient(1,t), device, ψ, φ) ≈ ψ' * kron(Aα1, one(Aα1)) * φ
+    @test Devices.expectation(Gradient(1,t), device, ψ) ≈ ψ' * kron(Aα1, one(Aα1)) * ψ
+
 end

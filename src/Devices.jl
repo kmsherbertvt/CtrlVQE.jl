@@ -300,12 +300,6 @@ end
     # |ψ'⟩ ≡ U0|ψ⟩ rotates |ψ⟩ OUT of `src` Bases.
     # U1'|ψ'⟩ rotates |ψ'⟩ INTO `tgt` Bases.
     return U1' * U0
-    # if result === nothing
-    #     F = promote_type(eltype(U0), eltype(U1))
-    #     result = Matrix{F}(undef, size(U1',1), size(U0,2))
-    # end
-
-    # return mul!(result, U1', U0)
 end
 
 @memoize Dict function basisrotation(
@@ -315,7 +309,6 @@ end
 )
     ū = localbasisrotations(tgt, src, device)
     return LinearAlgebraTools.kron(ū)
-    # return LinearAlgebraTools.kron(ū; result=result)
 end
 
 @memoize Dict function basisrotation(
@@ -329,12 +322,6 @@ end
     # |ψ'⟩ ≡ U0|ψ⟩ rotates |ψ⟩ OUT of `src` Bases.
     # U1'|ψ'⟩ rotates |ψ'⟩ INTO `tgt` Bases.
     return U1' * U0
-    # if result === nothing
-    #     F = promote_type(eltype(U0), eltype(U1))
-    #     result = Matrix{F}(undef, size(U1',1), size(U0,2))
-    # end
-
-    return mul!(result, U1', U0)
 end
 
 @memoize Dict function localbasisrotations(
@@ -964,21 +951,7 @@ function expectation(
     basis::Bases.BasisType,
     ψ::AbstractVector,
 )
-    N = nstates(device)
-    H = array(eltype(op, device, basis), (N,N), LABEL)
-    H = operator(op, device, basis; result=H)
-    return LinearAlgebraTools.expectation(H, ψ)
-end
-
-function expectation(
-    op::Operators.StaticOperator,
-    device::Device,
-    basis::Bases.BasisType,
-    ψ::AbstractVector,
-)
-    # NOTE: no need for temp array since operator is cached
-    H = operator(op, device, basis)
-    return LinearAlgebraTools.expectation(H, ψ)
+    return braket(op, device, basis, ψ, ψ)
 end
 
 function braket(
@@ -1045,7 +1018,7 @@ function localdriveoperators(
     basis::Bases.LocalBasis,
     t::Real,
 )
-    ā = Devices.localalgebra(device, basis)
+    ā = localalgebra(device, basis)
 
     # SINGLE OPERATOR TO FETCH THE CORRECT TYPING
     F = eltype(Operators.Drive(t), device, basis)
@@ -1053,7 +1026,7 @@ function localdriveoperators(
     v̄ = [zeros(F, size(ā[q])) for q in 1:nqubits(device)]
     for i in 1:ndrives(device)
         q = drivequbit(device, i)
-        v̄[q] .+= Devices.driveoperator(device, ā, i, t)
+        v̄[q] .+= driveoperator(device, ā, i, t)
     end
     return v̄
 end
@@ -1082,7 +1055,7 @@ function localdrivepropagators(
     return ū
 end
 
-function Devices.propagator(
+function propagator(
     op::Operators.Drive,
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
@@ -1093,15 +1066,15 @@ function Devices.propagator(
     return LinearAlgebraTools.kron(ū; result=result)
 end
 
-function Devices.propagator(
+function propagator(
     op::Operators.Channel,
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
     τ::Real;
     result=nothing,
 )
-    ā = Devices.localalgebra(device, basis)
-    v = Devices.driveoperator(device, ā, op.i, op.t)
+    ā = localalgebra(device, basis)
+    v = driveoperator(device, ā, op.i, op.t)
 
     u = Matrix{LinearAlgebraTools.cis_type(v)}(undef, size(v))
     u .= v
@@ -1110,7 +1083,7 @@ function Devices.propagator(
     return globalize(device, u, q; result=result)
 end
 
-function Devices.propagate!(
+function propagate!(
     op::Operators.Drive,
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
@@ -1121,15 +1094,15 @@ function Devices.propagate!(
     return LinearAlgebraTools.rotate!(ū, ψ)
 end
 
-function Devices.propagate!(
+function propagate!(
     op::Operators.Channel,
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
     τ::Real,
     ψ::Evolvable,
 )
-    ā = Devices.localalgebra(device, basis)
-    v = Devices.driveoperator(device, ā, op.i, op.t)
+    ā = localalgebra(device, basis)
+    v = driveoperator(device, ā, op.i, op.t)
 
     u = Matrix{LinearAlgebraTools.cis_type(v)}(undef, size(v))
     u .= v
@@ -1141,18 +1114,20 @@ end
 
 # LOCALIZING GRADIENT OPERATORS
 
-# # TODO (mid): Uncomment when we have localized versions of braket and expectation.
-# function Devices.braket(
-#     op::Operators.Gradient,
-#     device::LocallyDrivenDevice,
-#     basis::Bases.LocalBasis,
-#     ψ1::AbstractVector,
-#     ψ2::AbstractVector,
-# )
-#     ā = Devices.localalgebra(device, basis)
-#       # TODO: use temp array for grade operator
-#     A = Devices.gradeoperator(device, ā, op.j, op.t)
-#     q = gradequbit(device, op.j)
-#     ops = [p == q ? A : one(A) for p in 1:nqubits(device)]
-#     return LinearAlgebraTools.braket(ψ1, ops, ψ2)
-# end
+function braket(
+    op::Operators.Gradient,
+    device::LocallyDrivenDevice,
+    basis::Bases.LocalBasis,
+    ψ1::AbstractVector,
+    ψ2::AbstractVector,
+)
+    ā = localalgebra(device, basis)
+    q = gradequbit(device, op.j)
+    a = ā[q]
+
+    A = array(eltype(Operators.Gradient(op.j, op.t), device), size(a), LABEL)
+    A = gradeoperator(device, ā, op.j, op.t; result=A)
+
+    ops = [p == q ? A : one(A) for p in 1:nqubits(device)]
+    return LinearAlgebraTools.braket(ψ1, ops, ψ2)
+end

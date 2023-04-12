@@ -11,7 +11,7 @@ import AnalyticPulses: OneQubitSquarePulses
 import CtrlVQE: Parameters, Signals, Devices, Evolutions
 import CtrlVQE.Bases: OCCUPATION, DRESSED
 
-@testset "Devices" begin
+@testset "Evolutions" begin
     ROTATE = Evolutions.Rotate(1000)
     DIRECT = Evolutions.Direct(1000)
 
