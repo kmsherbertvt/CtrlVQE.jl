@@ -1,11 +1,13 @@
 using LinearAlgebra: kron!, eigen, Diagonal, Hermitian, mul!
 
 import ..TempArrays: array
-const LABEL = :LinearAlgebraTools
+const LABEL = Symbol(@__MODULE__)
 
 # const List{T} = Union{AbstractVector{T}, Tuple{Vararg{T}}}
 const List{T} = AbstractVector{T}
-# TODO (hi): Abolish List: use Array{n+1} instead. Enables pre-allocations.
+#= TODO (mid): Abolish List: use Array{n+1} instead.
+Enables pre-allocations for local operators.
+=#
 
 function kron(v̄::List{<:AbstractVector{F}}; result=nothing) where {F}
     result === nothing && (result = Vector{F}(undef, prod(length.(v̄))))
@@ -137,3 +139,11 @@ end
 expectation(A::AbstractMatrix, x::AbstractVector) = braket(x, A, x)
 expectation(ā::List{<:AbstractMatrix}, x::AbstractVector) = braket(x, ā, x)
 
+
+
+
+function basisvector(N::Int, i::Int)
+    e = zeros(Bool, N)
+    e[i] = 1
+    return e
+end

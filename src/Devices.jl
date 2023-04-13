@@ -47,7 +47,7 @@ using LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen, mul!
 import ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals
 
 import ..TempArrays: array
-const LABEL = :Devices
+const LABEL = Symbol(@__MODULE__)
 
 using ..LinearAlgebraTools: List
 const Evolvable = AbstractVecOrMat{<:Complex{<:AbstractFloat}}
@@ -72,7 +72,22 @@ NOTE: Implements `Parameters` interface.
 abstract type Device end
 
 
+#= TODO (mid):
 
+Sorry, Kyle, but I think we need to abandon the idea of variable-sized transmons.
+The benefit of having arrays instead of lists is just too much.
+
+So: method nlevels(::Device) replaces nstates(::Device, q::Int).
+That alone simplifies a bunch of logic, I think?
+
+Then: all your local methods should give arrays of shape (m,m,n). Okay!
+
+Then: let local methods accept `result`.
+
+At that point, you *should* have more-or-less completely eliminated memory allocations,
+    excepting the darned eigen.
+
+=#
 
 # METHODS NEEDING TO BE IMPLEMENTED
 nqubits(::Device)::Int = error("Not Implemented")
@@ -167,7 +182,7 @@ function globalize(
     return LinearAlgebraTools.kron(ops; result=result)
 end
 
-function _cd_from_ix(i::Int, m̄::List{<:Integer})
+function _cd_from_ix(i::Int, m̄::AbstractVector{<:Integer})
     i = i - 1       # SWITCH TO INDEXING FROM 0
     ī = Vector{Int}(undef, length(m̄))
     for q in eachindex(m̄)
@@ -176,7 +191,7 @@ function _cd_from_ix(i::Int, m̄::List{<:Integer})
     return ī
 end
 
-function _ix_from_cd(ī::AbstractVector{<:Integer}, m̄::List{<:Integer})
+function _ix_from_cd(ī::AbstractVector{<:Integer}, m̄::AbstractVector{<:Integer})
     i = 0
     offset = 1
     for q in eachindex(m̄)
@@ -187,19 +202,19 @@ function _ix_from_cd(ī::AbstractVector{<:Integer}, m̄::List{<:Integer})
 end
 
 function project(
-    device::Device, op::AbstractMatrix{F}, m̄1::List{Int};
+    device::Device, op::AbstractMatrix{F}, m̄1::AbstractVector{<:Integer};
     result=nothing,
 ) where {F}
     if result === nothing
         N = nstates(device)
         result = Matrix{F}(undef, N, N)
     end
+    result .= 0
 
     N1 = size(op, 1)
     m̄2 = [nstates(device,q) for q in 1:nqubits(device)]
     ix_map = Dict(i1 => _ix_from_cd(_cd_from_ix(i1,m̄1),m̄2) for i1 in 1:N1)
 
-    result .= 0
     for i in 1:N1
         for j in 1:N1
             result[ix_map[i],ix_map[j]] = op[i,j]
@@ -789,7 +804,7 @@ function propagate!(
     u = Matrix{LinearAlgebraTools.cis_type(h)}(undef, size(h))
     u .= h
     u = LinearAlgebraTools.cis!(u, -τ)
-    ops = [p == op.q ? u : one(u) for p in 1:nqubits(device)]
+    ops = Matrix{eltype(u)}[p == op.q ? u : one(u) for p in 1:nqubits(device)]
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
@@ -931,7 +946,7 @@ function evolve!(
     u = Matrix{LinearAlgebraTools.cis_type(h)}(undef, size(h))
     u .= h
     u = LinearAlgebraTools.cis!(u, -t)
-    ops = [p == op.q ? u : one(u) for p in 1:nqubits(device)]
+    ops = Matrix{eltype(u)}[p == op.q ? u : one(u) for p in 1:nqubits(device)]
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
@@ -986,7 +1001,30 @@ function braket(op::Operators.StaticOperator,
     return LinearAlgebraTools.braket(ψ1, H, ψ2)
 end
 
-#= TODO (mid): Localize expectation and braket, I suppose. =#
+function braket(
+    op::Operators.Uncoupled,
+    device::Device,
+    basis::Bases.LocalBasis,
+    ψ1::AbstractVector,
+    ψ2::AbstractVector,
+)
+    h̄ = localqubitoperators(device, basis)
+    return LinearAlgebraTools.braket(ψ1, h̄, ψ2)
+end
+
+function braket(
+    op::Operators.Qubit,
+    device::Device,
+    basis::Bases.LocalBasis,
+    ψ1::AbstractVector,
+    ψ2::AbstractVector,
+)
+    ā = localalgebra(device, basis)
+    h = qubithamiltonian(device, ā, op.q)
+
+    ops = Matrix{eltype(h)}[p == op.q ? h : one(h) for p in 1:nqubits(device)]
+    return LinearAlgebraTools.braket(ψ1, ops, ψ2)
+end
 
 
 
@@ -1023,7 +1061,7 @@ function localdriveoperators(
     # SINGLE OPERATOR TO FETCH THE CORRECT TYPING
     F = eltype(Operators.Drive(t), device, basis)
 
-    v̄ = [zeros(F, size(ā[q])) for q in 1:nqubits(device)]
+    v̄ = Matrix{F}[zeros(F, size(ā[q])) for q in 1:nqubits(device)]
     for i in 1:ndrives(device)
         q = drivequbit(device, i)
         v̄[q] .+= driveoperator(device, ā, i, t)
@@ -1108,7 +1146,7 @@ function propagate!(
     u .= v
     u = LinearAlgebraTools.cis!(u, -τ)
     q = drivequbit(device, op.i)
-    ops = [p == q ? u : one(u) for p in 1:nqubits(device)]
+    ops = Matrix{eltype(u)}[p == q ? u : one(u) for p in 1:nqubits(device)]
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
@@ -1128,6 +1166,6 @@ function braket(
     A = array(eltype(Operators.Gradient(op.j, op.t), device), size(a), LABEL)
     A = gradeoperator(device, ā, op.j, op.t; result=A)
 
-    ops = [p == q ? A : one(A) for p in 1:nqubits(device)]
+    ops = Matrix{eltype(A)}[p == q ? A : one(A) for p in 1:nqubits(device)]
     return LinearAlgebraTools.braket(ψ1, ops, ψ2)
 end

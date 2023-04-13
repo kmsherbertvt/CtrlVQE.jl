@@ -75,19 +75,13 @@ end
 module Signals
     include("Signals.jl")
 
-    module ConstantSignals
-        include("signals/ConstantSignals.jl")
-    end
+    module ConstantSignals; include("signals/ConstantSignals.jl"); end
     import .ConstantSignals: Constant, ComplexConstant
 
-    module IntervalSignals
-        include("signals/IntervalSignals.jl")
-    end
+    module IntervalSignals; include("signals/IntervalSignals.jl"); end
     import .IntervalSignals: Interval, ComplexInterval
 
-    module StepFunctionSignals
-        include("signals/StepFunctionSignals.jl")
-    end
+    module StepFunctionSignals; include("signals/StepFunctionSignals.jl"); end
     import .StepFunctionSignals: StepFunction
 
 end
@@ -95,14 +89,36 @@ end
 module Devices
     include("Devices.jl")
 
-    module TransmonDevices
-        include("devices/TransmonDevices.jl")
-    end
+    module TransmonDevices; include("devices/TransmonDevices.jl"); end
     import .TransmonDevices: TransmonDevice
 end
 
 module Evolutions
     include("Evolutions.jl")
+end
+
+module QubitOperators
+    include("QubitOperators.jl")
+end
+
+module CostFunctions
+    include("CostFunctions.jl")
+
+    #= ENERGY FUNCTIONS =#
+    module BareEnergy; include("costfns/BareEnergy.jl"); end
+    module ProjectedEnergy; include("costfns/ProjectedEnergy.jl"); end
+    module NormalizedEnergy; include("costfns/NormalizedEnergy.jl"); end
+
+    #= PENALTY FUNCTIONS =#
+    module SoftBounds; include("costfns/SoftBounds.jl"); end
+    module HardBounds; include("costfns/HardBounds.jl"); end
+
+    #= TODO (mid): Global RMS penalty on selected parameters. =#
+    #= TODO (mid): Global RMS penalty on diff of selected parameters. =#
+
+    #= TODO (lo): Some way to pre-constrain x̄ BEFORE energy function
+        Eg. activator function, see tensorflow tutorial for inspiration. =#
+
 end
 
 

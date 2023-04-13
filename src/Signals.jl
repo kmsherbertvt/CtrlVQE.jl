@@ -85,6 +85,8 @@ end
 
 #= CONSTRAINED SIGNAL =#
 
+# TODO (mid): Try to eliminate Vararg here. Just use int type parameters, I think.
+
 struct Constrained{S<:ParametricSignal} <: AbstractSignal
     constrained::S
     constraints::Tuple{Vararg{Symbol}}
@@ -134,6 +136,8 @@ end
 
 
 #= COMPOSITE SIGNAL =#
+
+# TODO (mid): Use arbitrary signal, not abstract signal!
 
 struct Composite <: AbstractSignal
     components::Tuple{Vararg{AbstractSignal}}
@@ -194,6 +198,8 @@ end
 
 #= MODULATED SIGNAL =#
 
+
+# TODO (mid): Use arbitrary signal, not abstract signal!
 
 struct Modulated <: AbstractSignal
     components::Tuple{Vararg{AbstractSignal}}

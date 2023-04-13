@@ -3,7 +3,7 @@ import ..Bases, ..LinearAlgebraTools, ..Devices
 import ..Operators: STATIC, Drive, Gradient
 
 import ..TempArrays: array
-const LABEL = :Evolutions
+const LABEL = Symbol(@__MODULE__)
 
 using ..LinearAlgebraTools: List
 
@@ -15,7 +15,7 @@ function trapezoidaltimegrid(T::Real, r::Int)
     return τ, τ̄, t̄
 end
 
-abstract type EvolutionAlgorithm end
+abstract type Algorithm end
 
 
 #= Non-mutating `evolve` function. =#
@@ -48,7 +48,7 @@ function evolve(
 end
 
 function evolve(
-    algorithm::EvolutionAlgorithm,
+    algorithm::Algorithm,
     device::Devices.Device,
     T::Real,
     ψ0::AbstractVector;
@@ -62,7 +62,7 @@ function evolve(
 end
 
 function evolve(
-    algorithm::EvolutionAlgorithm,
+    algorithm::Algorithm,
     device::Devices.Device,
     basis::Bases.BasisType,
     T::Real,
@@ -81,7 +81,7 @@ end
 
 
 
-struct Rotate <: EvolutionAlgorithm
+struct Rotate <: Algorithm
     r::Int
 end
 
@@ -129,7 +129,7 @@ end
 
 
 
-struct Direct <: EvolutionAlgorithm
+struct Direct <: Algorithm
     r::Int
 end
 
@@ -236,6 +236,8 @@ function gradientsignals(
     ψ .= ψ0
     ψ = evolve!(evolution, device, basis, T, ψ)
     λ̄ = [LinearAlgebraTools.rotate!(O, copy(ψ)) for O in Ō]
+
+    # TODO (hi): HEY! Can't we use temp arrays for ψ and λ̄? Just need to be careful with index.
 
     #= TODO (hi): Check closely the accuracy of first and last Φ values.
 

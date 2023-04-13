@@ -4,7 +4,7 @@ using ...LinearAlgebraTools: List
 import ...Parameters, ...LinearAlgebraTools, ...Signals, ...Devices
 
 import ...TempArrays: array
-const LABEL = :TransmonDevices
+const LABEL = Symbol(@__MODULE__)
 
 @memoize Dict function bosonic_annihilator(::Type{F}, m::Int) where {F<:AbstractFloat}
     a = zeros(F, m, m)
