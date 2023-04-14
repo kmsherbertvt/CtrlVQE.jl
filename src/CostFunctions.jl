@@ -2,14 +2,17 @@ import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
 abstract type AbstractCostFunction end
-(::CostFunction)(x̄::AbstractVector)::Real = error("Not Implemented")
+(::AbstractCostFunction)(x̄::AbstractVector)::Real = error("Not Implemented")
 
 abstract type AbstractGradientFunction end
-function (::GradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)::AbstractVector
+function (::AbstractGradientFunction)(
+    ∇f̄::AbstractVector,
+    x̄::AbstractVector,
+)::AbstractVector
     return error("Not Implemented")
 end
 
-(g::GradientFunction)(x̄::AbstractVector) = g(copy(x̄),x̄)
+(g::AbstractGradientFunction)(x̄::AbstractVector) = g(copy(x̄),x̄)
 
 #= ARBITRARY FUNCTIONS - hack providing concrete type for arbitrary functionality. =#
 
@@ -30,13 +33,21 @@ end
 struct CompositeCostFunction <: AbstractCostFunction
     f̄::Vector{ArbitraryCostFunction}
 end
-CompositeCostFunction(f̄...) = CompositeCostFunction(collect(f̄))
+
+function CompositeCostFunction(f̄...)
+    return CompositeCostFunction([ArbitraryCostFunction(f) for f in f̄])
+end
+
 (f::CompositeCostFunction)(x̄::AbstractVector) = sum(f_(x̄) for f_ in f.f̄)
 
-struct CompositeGradientFunction <: AbstractCostFunction
+struct CompositeGradientFunction <: AbstractGradientFunction
     ḡ::Vector{ArbitraryGradientFunction}
 end
-CompositeGradientFunction(ḡ...) = CompositeGradientFunction(collect(ḡ))
+
+function CompositeGradientFunction(ḡ...)
+    return CompositeGradientFunction([ArbitraryGradientFunction(g) for g in ḡ])
+end
+
 function (g::CompositeGradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
     ∇f̄_ = array(eltype(x̄), size(x̄), LABEL)
     ∇f̄ .= 0

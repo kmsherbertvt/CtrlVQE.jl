@@ -108,7 +108,7 @@ function evolve!(
     A = norm(ψ)
 
     # FIRST STEP: NO NEED TO APPLY STATIC OPERATOR
-    callback !== nothing && callback(0, t̄[1], ψ)
+    callback !== nothing && callback(1, t̄[1], ψ)
     ψ = Devices.propagate!(Drive(t̄[1]),  device, basis, τ̄[1], ψ)
 
     # RUN EVOLUTION
@@ -225,7 +225,7 @@ function gradientsignals(
 )
     τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
 
-    # PREPARE SIGNAL ARRAYS Φ̄[i,j,k]
+    # PREPARE SIGNAL ARRAYS ϕ̄[i,j,k]
     if result === nothing
         F = real(LinearAlgebraTools.cis_type(ψ0))
         result = Array{F}(undef, r+1, Devices.ngrades(device), length(Ō))

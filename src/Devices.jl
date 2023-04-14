@@ -182,58 +182,6 @@ function globalize(
     return LinearAlgebraTools.kron(ops; result=result)
 end
 
-function _cd_from_ix(i::Int, m̄::AbstractVector{<:Integer})
-    i = i - 1       # SWITCH TO INDEXING FROM 0
-    ī = Vector{Int}(undef, length(m̄))
-    for q in eachindex(m̄)
-        i, ī[q] = divrem(i, m̄[q])
-    end
-    return ī
-end
-
-function _ix_from_cd(ī::AbstractVector{<:Integer}, m̄::AbstractVector{<:Integer})
-    i = 0
-    offset = 1
-    for q in eachindex(m̄)
-        i += offset * ī[q]
-        offset *= m̄[q]
-    end
-    return i + 1    # SWITCH TO INDEXING FROM 1
-end
-
-function project(
-    device::Device, op::AbstractMatrix{F}, m̄1::AbstractVector{<:Integer};
-    result=nothing,
-) where {F}
-    if result === nothing
-        N = nstates(device)
-        result = Matrix{F}(undef, N, N)
-    end
-    result .= 0
-
-    N1 = size(op, 1)
-    m̄2 = [nstates(device,q) for q in 1:nqubits(device)]
-    ix_map = Dict(i1 => _ix_from_cd(_cd_from_ix(i1,m̄1),m̄2) for i1 in 1:N1)
-
-    for i in 1:N1
-        for j in 1:N1
-            result[ix_map[i],ix_map[j]] = op[i,j]
-        end
-    end
-    return result
-end
-
-function project(device::Device, op::AbstractMatrix, m::Int; kwargs...)
-    return project(device, op, fill(m, nqubits(device)); kwargs...)
-end
-
-function project(device::Device, op::AbstractMatrix; kwargs...)
-    # ASSUME `op` HAS UNIFORM NUMBER OF STATES ON EACH QUBIT
-    m = round(Int, size(op,1) ^ (1/nqubits(device)))
-    return project(device, op, m; kwargs...)
-end
-
-
 
 
 
@@ -418,6 +366,10 @@ function Base.eltype(op::Operators.OperatorType, device::Device)
     return Base.eltype(op, device, Bases.OCCUPATION)
 end
 
+function Base.eltype(op::Operators.Identity, device::Device)
+    return Bool
+end
+
 function Base.eltype(::Operators.Qubit, device::Device, basis::Bases.BasisType)
     return promote_type(
         eltype_algebra(device, basis),
@@ -495,6 +447,27 @@ end
     return operator(op, device, basis; result=result)
 end
 
+@memoize Dict function operator(
+    op::Operators.Identity,
+    device::Device,
+    basis::Bases.BasisType,
+    ::Symbol,
+)
+    return Diagonal(ones(Bool), nstates(device))
+end
+
+function operator(
+    op::Operators.Identity,
+    device::Device,
+    basis::Bases.BasisType;
+    result=nothing,
+)
+    result === nothing && return operator(op, device, basis, :cache)
+    Im = Matrix(I, nstates(device), nstates(device))
+    result .= Im
+    return result
+end
+
 function operator(
     op::Operators.Qubit,
     device::Device,
@@ -564,22 +537,25 @@ function operator(
     return result
 end
 
-# TODO (mid): Type instability
 @memoize Dict function operator(
+    op::Operators.Static,
+    device::Device,
+    basis::Bases.Dressed,
+    ::Symbol,
+)
+    Λ, U = diagonalize(Bases.DRESSED, device)
+    return Diagonal(Λ)
+end
+
+function operator(
     op::Operators.Static,
     device::Device,
     ::Bases.Dressed;
     result=nothing,
 )
-    Λ, U = diagonalize(Bases.DRESSED, device)
-    H0 = Diagonal(Λ)
-
-    if result === nothing
-        return H0
-    else
-        result .= H0
-        return result
-    end
+    result === nothing && return operator(op, device, basis, :cache)
+    result .= operator(op, device, basis, :cache)
+    return result
 end
 
 function operator(
@@ -658,6 +634,16 @@ end
     return propagator(op, device, basis, τ; result=result)
 end
 
+@memoize Dict function propagator(
+    op::Operators.Identity,
+    device::Device,
+    basis::Bases.BasisType,
+    τ::Real,
+    ::Symbol,
+)
+    return operator(op, device, basis)
+end
+
 function propagator(
     op::Operators.OperatorType,
     device::Device,
@@ -685,6 +671,19 @@ function propagator(
     # NOTE: No need to use temp array, since operator is cached.
     result .= operator(op, device, basis)
     return LinearAlgebraTools.cis!(result, -τ)
+end
+
+function propagator(
+    op::Operators.Identity,
+    device::Device,
+    basis::Bases.BasisType,
+    τ::Real;
+    result=nothing,
+)
+    result === nothing && return propagator(op, device, basis, τ, :cache)
+    # NOTE: No need to use temp array, since operator is cached.
+    result .= operator(op, device, basis)
+    return result
 end
 
 function propagator(
@@ -781,6 +780,16 @@ function propagate!(
 end
 
 function propagate!(
+    op::Operators.Identity,
+    device::Device,
+    basis::Bases.BasisType,
+    τ::Real,
+    ψ::Evolvable,
+)
+    return ψ
+end
+
+function propagate!(
     op::Operators.Uncoupled,
     device::Device,
     basis::Bases.LocalBasis,
@@ -839,6 +848,19 @@ function evolver(
     result === nothing && (result=Matrix{LinearAlgebraTools.cis_type(H)}(undef, size(H)))
     result .= H
     return LinearAlgebraTools.cis!(result, -t)
+end
+
+function evolver(
+    op::Operators.Identity,
+    device::Device,
+    basis::Bases.BasisType,
+    τ::Real;
+    result=nothing,
+)
+    # NOTE: `evolver` SHOULD BE SAFE TO MUTATE, SO COPY CACHED I MATRIX
+    result === nothing && return copy(operator(op, device, basis))
+    result .= operator(op, device, basis)
+    return result
 end
 
 function evolver(
@@ -920,6 +942,16 @@ function evolve!(
     U = array(LinearAlgebraTools.cis_type(eltype(op, device, basis)), (N,N), LABEL)
     U = evolver(op, device, basis, t; result=U)
     return LinearAlgebraTools.rotate!(U, ψ)
+end
+
+function evolve!(
+    op::Operators.Identity,
+    device::Device,
+    basis::Bases.BasisType,
+    τ::Real,
+    ψ::Evolvable,
+)
+    return ψ
 end
 
 function evolve!(

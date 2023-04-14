@@ -1,4 +1,4 @@
-import ...CostFunctions: AbstractCostFunction, AbstractGradientFunction
+import ..AbstractCostFunction, ..AbstractGradientFunction
 
 function functions(λ̄, μ̄, σ̄)
     f = CostFunction(λ̄, μ̄, σ̄)

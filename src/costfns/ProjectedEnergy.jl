@@ -1,20 +1,21 @@
+import ...EnergyFunctions, ...AbstractGradientFunction
 
-import ...CostFunctions: AbstractCostFunction, AbstractGradientFunction
-
-import ...LinearAlgebraTools, ...Devices, ...QubitOperators
-import ...Bases: BasisType, OCCUPATION
-import ...Evolutions: Algorithm, Rotate
+import ....Parameters, ....LinearAlgebraTools, ....Devices, ....Evolutions
+import ....QubitOperators
+import ....Operators: StaticOperator, IDENTITY
+import ....Bases: BasisType, OCCUPATION
 
 function functions(
-    observable::AbstractMatrix,
+    O0::AbstractMatrix,
     ψ0::AbstractVector,
     T::Real,
     device::Devices.Device,
     r::Int;
-    algorithm=Rotate(r),
+    algorithm=Evolutions.Rotate(r),
     basis=OCCUPATION,
+    frame=IDENTITY,
 )
-    f = CostFunction(observable, ψ0, T, device, algorithm, basis)
+    f = CostFunction(O0, ψ0, T, device, algorithm, basis, frame)
     g = GradientFunction(f, r)
     return f, g
 end
@@ -23,95 +24,112 @@ struct CostFunction{
     F<:AbstractFloat,
     D<:Devices.Device,
     A<:Evolutions.Algorithm,
-    B<:Bases.BasisType,
-} <: AbstractCostFunction
-    observable::Matrix{Complex{F}}
+    B<:BasisType,
+    C<:StaticOperator,
+} <: EnergyFunctions.AbstractEnergyFunction
+    O0::Matrix{Complex{F}}
     ψ0::Vector{Complex{F}}
     T::F
     device::D
     algorithm::A
     basis::B
+    frame::C
 
     ψ::Vector{Complex{F}}
-    projected::Matrix{Complex{F}}
+    π̄::Vector{Matrix{Bool}}
+    # TODO (mid): convert to 3d array
+    OT::Matrix{Complex{F}}
+    Ot::Matrix{Complex{F}}
 
     function CostFunction(
-        observable::AbstractMatrix,
+        O0::AbstractMatrix,
         ψ0::AbstractVector,
         T::Real,
         device::D,
         algorithm::A,
         basis::B,
-    ) where {D, A, B}
+        frame::C,
+    ) where {D, A, B, C}
         # INFER FLOAT TYPE AND CONVERT ARGUMENTS
-        F = real(promote_type(Float16, eltype(observable), eltype(ψ0), eltype(T)))
-        observable = convert(Array{Complex{F}}, observable)
+        F = real(promote_type(Float16, eltype(O0), eltype(ψ0), eltype(T)))
+        O0 = convert(Array{Complex{F}}, O0)
         ψ0 = convert(Array{Complex{F}}, ψ0)
         T = F(T)
 
         # CONSTRUCT PRE-ALLOCATED VARIABLES
         ψ = Array{LinearAlgebraTools.cis_type(F)}(undef, size(ψ0))
         π̄ = QubitOperators.localqubitprojectors(device)
-        projected = copy(observable); LinearAlgebraTools.rotate!(π̄, projected)
+        OT = copy(O0)
+            Devices.evolve!(frame, device, T, OT)
+            LinearAlgebraTools.rotate!(π̄, OT)
+        Ot = copy(O0)   # TO BE EVOLVED BY t AS NEEDED
 
         # CREATE OBJECT
-        return new{F,D,A,B}(observable,ψ0,T,device,algorithm,basis,ψ,projected)
+        return new{F,D,A,B,C}(O0, ψ0, T, device, algorithm, basis, frame, ψ, π̄, OT, Ot)
     end
 end
 
 function (f::CostFunction)(x̄::AbstractVector)
-    x̄0 = Devices.values(f.device)
-    Devices.bind(f.device, x̄)
-    ψ = Evolutions.evolve(
+    x̄0 = Parameters.values(f.device)
+    Parameters.bind(f.device, x̄)
+    Evolutions.evolve(
         f.algorithm,
         f.device,
         f.basis,
         f.T,
         f.ψ0;
-        result=ψ,
+        result=f.ψ,
     )
-    Devices.bind(f.device, x̄0)
-
-    return real(LinearAlgebraTools.expectation(f.projected, ψ))
+    Parameters.bind(f.device, x̄0)
+    return EnergyFunctions.evaluate(f, f.ψ)
 end
 
-# TODO (hi): bonus method to calculate energy for given ψ, useful for evolve callback
+function EnergyFunctions.evaluate(f::CostFunction, ψ::AbstractVector)
+    return real(LinearAlgebraTools.expectation(f.OT, ψ))
+end
+
+function EnergyFunctions.evaluate(f::CostFunction, ψ::AbstractVector, t::Real)
+    f.Ot .= f.O0
+        Devices.evolve!(f.frame, f.device, t, f.Ot)
+        LinearAlgebraTools.rotate!(f.π̄, f.Ot)
+    return real(LinearAlgebraTools.expectation(f.Ot, ψ))
+end
 
 struct GradientFunction{
     F<:AbstractFloat,
     D<:Devices.Device,
     A<:Evolutions.Algorithm,
-    B<:Bases.BasisType,
+    B<:BasisType,
 } <: AbstractGradientFunction
     f::CostFunction{F,D,A,B}
     r::Int
 
-    Φ̄::Matrix{F}
+    ϕ̄::Matrix{F}
 
     function GradientFunction(
         f::CostFunction{F,D,A,B},
         r::Int,
     ) where {F, D, A, B}
-        Φ̄ = Array{F}(undef, r+1, Devices.ngrades(f.device))
-        return new{F,D,A,B}(f,r,Φ̄)
+        ϕ̄ = Array{F}(undef, r+1, Devices.ngrades(f.device))
+        return new{F,D,A,B}(f,r,ϕ̄)
     end
 end
 
 function (g::GradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
-    x̄0 = Devices.values(g.f.device)
-    Devices.bind(g.f.device, x̄)
+    x̄0 = Parameters.values(g.f.device)
+    Parameters.bind(g.f.device, x̄)
     Evolutions.gradientsignals(
         g.f.device,
         g.f.basis,
         g.f.T,
         g.f.ψ0,
         g.r,
-        g.f.projected;
-        result=g.Φ̄,
+        g.f.OT;
+        result=g.ϕ̄,
         evolution=g.f.algorithm,
     )
-    Devices.bind(g.f.device, x̄0)
+    Parameters.bind(g.f.device, x̄0)
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(g.f.T, g.r)
-    ∇f̄ .= Devices.gradient(g.f.device, τ̄, t̄, g.Φ̄)
+    ∇f̄ .= Devices.gradient(g.f.device, τ̄, t̄, g.ϕ̄)
     return ∇f̄
 end

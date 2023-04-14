@@ -36,6 +36,9 @@ module Operators
     abstract type OperatorType end
     abstract type StaticOperator <: OperatorType end
 
+    struct Identity <: StaticOperator end
+    const IDENTITY = Identity()
+
     struct Qubit <: StaticOperator
         q::Int
     end
@@ -96,6 +99,7 @@ end
 module Evolutions
     include("Evolutions.jl")
 end
+import .Evolutions: evolve, evolve!, gradientsignals
 
 module QubitOperators
     include("QubitOperators.jl")
@@ -105,9 +109,23 @@ module CostFunctions
     include("CostFunctions.jl")
 
     #= ENERGY FUNCTIONS =#
-    module BareEnergy; include("costfns/BareEnergy.jl"); end
-    module ProjectedEnergy; include("costfns/ProjectedEnergy.jl"); end
-    module NormalizedEnergy; include("costfns/NormalizedEnergy.jl"); end
+    module EnergyFunctions
+        import ..CostFunctions: AbstractCostFunction
+        abstract type AbstractEnergyFunction <: AbstractCostFunction end
+        function evaluate(::AbstractEnergyFunction, ψ::AbstractVector)
+            return error("Not Implemented")
+        end
+        function evaluate(::AbstractEnergyFunction, ψ::AbstractVector, t::Real)
+            return error("Not Implemented")
+        end
+
+        module BareEnergy; include("costfns/BareEnergy.jl"); end
+        module ProjectedEnergy; include("costfns/ProjectedEnergy.jl"); end
+        module Normalization; include("costfns/Normalization.jl"); end
+        module NormalizedEnergy; include("costfns/NormalizedEnergy.jl"); end
+    end
+    import .EnergyFunctions: evaluate
+    import .EnergyFunctions: BareEnergy, ProjectedEnergy, Normalization, NormalizedEnergy
 
     #= PENALTY FUNCTIONS =#
     module SoftBounds; include("costfns/SoftBounds.jl"); end
