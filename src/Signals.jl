@@ -56,7 +56,7 @@ function Parameters.names(signal::S) where {S<:ParametricSignal}
 end
 
 function Parameters.values(signal::S) where {S<:ParametricSignal}
-    return [getfield(signal, field) for field in parameters(signal)]
+    return identity.([getfield(signal, field) for field in parameters(signal)])
 end
 
 function Parameters.bind(signal::S, x̄::AbstractVector) where {S<:ParametricSignal}
@@ -85,7 +85,7 @@ end
 
 #= CONSTRAINED SIGNAL =#
 
-# TODO (mid): Try to eliminate Vararg here. Just use int type parameters, I think.
+# TODO (hi): Try to eliminate Vararg here. Just use int type parameters, I think.
 
 struct Constrained{S<:ParametricSignal} <: AbstractSignal
     constrained::S
@@ -137,7 +137,7 @@ end
 
 #= COMPOSITE SIGNAL =#
 
-# TODO (mid): Use arbitrary signal, not abstract signal!
+# TODO (hi): Use vector of arbitrary signal, not tuple of abstract signal!
 
 struct Composite <: AbstractSignal
     components::Tuple{Vararg{AbstractSignal}}
@@ -199,7 +199,7 @@ end
 #= MODULATED SIGNAL =#
 
 
-# TODO (mid): Use arbitrary signal, not abstract signal!
+# TODO (hi): Use vector of arbitrary signal, not tuple of abstract signal!
 
 struct Modulated <: AbstractSignal
     components::Tuple{Vararg{AbstractSignal}}

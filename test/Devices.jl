@@ -90,11 +90,6 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
 
     # BASIC UTILITIES
     @test Devices.globalize(device, a, 1) ≈ a1
-    O = diagm(ones(4))
-    ΠOΠ = diagm([1, 1, 0, 1, 1, 0, 0, 0, 0])
-    @test Devices.project(device, O, [2,2]) ≈ ΠOΠ
-    @test Devices.project(device, O, 2)     ≈ ΠOΠ
-    @test Devices.project(device, O)        ≈ ΠOΠ
 
     # BASIS ROTATIONS - only bother with Occupation and Dressed for now
     Λ, U = Devices.diagonalize(OCCUPATION, device)

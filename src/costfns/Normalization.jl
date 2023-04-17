@@ -55,7 +55,6 @@ struct CostFunction{
 end
 
 function (f::CostFunction)(x̄::AbstractVector)
-    x̄0 = Parameters.values(f.device)
     Parameters.bind(f.device, x̄)
     Evolutions.evolve(
         f.algorithm,
@@ -65,7 +64,6 @@ function (f::CostFunction)(x̄::AbstractVector)
         f.ψ0;
         result=f.ψ,
     )
-    Parameters.bind(f.device, x̄0)
     return EnergyFunctions.evaluate(f, f.ψ)
 end
 
@@ -100,7 +98,6 @@ struct GradientFunction{
 end
 
 function (g::GradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
-    x̄0 = Parameters.values(g.f.device)
     Parameters.bind(g.f.device, x̄)
     Evolutions.gradientsignals(
         g.f.device,
@@ -112,7 +109,6 @@ function (g::GradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
         result=g.ϕ̄,
         evolution=g.f.algorithm,
     )
-    Parameters.bind(g.f.device, x̄0)
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(g.f.T, g.r)
     ∇f̄ .= Devices.gradient(g.f.device, τ̄, t̄, g.ϕ̄)
     return ∇f̄

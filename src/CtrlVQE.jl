@@ -19,7 +19,7 @@ end
 module Parameters
     function count(::Any)::Int end
     function names(::Any)::AbstractVector{String} end
-    function values(::Any)::AbstractVector end
+    function values(::Any)::AbstractVector{<:Number} end
     function bind(::Any, x̄::AbstractVector)::Nothing end
 end
 
@@ -70,6 +70,7 @@ module Operators
         t::R
     end
 end
+import .Operators: IDENTITY, COUPLING, UNCOUPLED, STATIC
 
 module LinearAlgebraTools
     include("LinearAlgebraTools.jl")
@@ -86,7 +87,6 @@ module Signals
 
     module StepFunctionSignals; include("signals/StepFunctionSignals.jl"); end
     import .StepFunctionSignals: StepFunction
-
 end
 
 module Devices
@@ -95,11 +95,12 @@ module Devices
     module TransmonDevices; include("devices/TransmonDevices.jl"); end
     import .TransmonDevices: TransmonDevice
 end
+import .Devices: nqubits, nstates, #=TODO (mid) nlevels,=# ndrives, ngrades
 
 module Evolutions
     include("Evolutions.jl")
 end
-import .Evolutions: evolve, evolve!, gradientsignals
+import .Evolutions: trapezoidaltimegrid, evolve, evolve!, gradientsignals, Rotate
 
 module QubitOperators
     include("QubitOperators.jl")
@@ -138,7 +139,9 @@ module CostFunctions
         Eg. activator function, see tensorflow tutorial for inspiration. =#
 
 end
-
+import .CostFunctions: CompositeCostFunction, CompositeGradientFunction
+import .CostFunctions: evaluate, BareEnergy, ProjectedEnergy, Normalization
+import .CostFunctions: HardBounds, SoftBounds
 
 #= RECIPES =#
 

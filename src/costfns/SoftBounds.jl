@@ -34,6 +34,6 @@ end
 function (g::GradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
     λ̄ = g.f.λ̄
     χ̄ = (x̄ .- g.f.μ̄) ./ g.f.σ̄
-    ∇f̄ .= 2 .* λ̄ .* χ̄
+    ∇f̄ .= 2 .* λ̄ .* χ̄ ./ g.f.σ̄
     return ∇f̄
 end

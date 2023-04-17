@@ -553,8 +553,8 @@ function operator(
     ::Bases.Dressed;
     result=nothing,
 )
-    result === nothing && return operator(op, device, basis, :cache)
-    result .= operator(op, device, basis, :cache)
+    result === nothing && return operator(op, device, Bases.DRESSED, :cache)
+    result .= operator(op, device, Bases.DRESSED, :cache)
     return result
 end
 
@@ -1033,16 +1033,18 @@ function braket(op::Operators.StaticOperator,
     return LinearAlgebraTools.braket(ψ1, H, ψ2)
 end
 
-function braket(
-    op::Operators.Uncoupled,
-    device::Device,
-    basis::Bases.LocalBasis,
-    ψ1::AbstractVector,
-    ψ2::AbstractVector,
-)
-    h̄ = localqubitoperators(device, basis)
-    return LinearAlgebraTools.braket(ψ1, h̄, ψ2)
-end
+# function braket(
+#     op::Operators.Uncoupled,
+#     device::Device,
+#     basis::Bases.LocalBasis,
+#     ψ1::AbstractVector,
+#     ψ2::AbstractVector,
+# )
+#     h̄ = localqubitoperators(device, basis)
+#     return LinearAlgebraTools.braket(ψ1, h̄, ψ2)
+# end
+# TODO (mid): Oops; this is the SUM of each QUBIT operator.
+# TODO (mid): LocalDriveDevice can have braket(Channel) and braket(Drive).
 
 function braket(
     op::Operators.Qubit,

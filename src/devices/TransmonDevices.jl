@@ -219,7 +219,7 @@ function Parameters.values(device::AbstractTransmonDevice)
 
     # TACK ON PARAMETERS FOR EACH ν̄[i]
     append!(values, (drivefrequency(device, i) for i in 1:Devices.ndrives(device)))
-    return values
+    return identity.(values)
 end
 
 function Parameters.bind(device::AbstractTransmonDevice, x̄::AbstractVector)
