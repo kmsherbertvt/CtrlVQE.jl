@@ -1,50 +1,5 @@
 import Plots
 
-function generate_plots(subdir)
-    global iterations
-
-    global plot_Et = create_plot_Et(); Plots.savefig(plot_Et, "$subdir/plot_Et.pdf")
-    global plot_Ωt = create_plot_Ωt(); Plots.savefig(plot_Ωt, "$subdir/plot_Ωt.pdf")
-    global plot_Ωf = create_plot_Ωf(); Plots.savefig(plot_Ωf, "$subdir/plot_Ωf.pdf")
-    global plot_ϕt = create_plot_ϕt(); Plots.savefig(plot_ϕt, "$subdir/plot_ϕt.pdf")
-    global plot_ϕf = create_plot_ϕf(); Plots.savefig(plot_ϕf, "$subdir/plot_ϕf.pdf")
-    global plot_fg = create_plot_fg(); Plots.savefig(plot_fg, "$subdir/plot_fg.pdf")
-    global plot_ct = create_plot_ct(); Plots.savefig(plot_ct, "$subdir/plot_ct.pdf")
-
-    # REMOVE REDUNDANT LEGENDS AND y-LABELS
-    Plots.plot!(plot_Ωt; legend=false)
-    Plots.plot!(plot_Ωf; ylabel="")
-    Plots.plot!(plot_ϕt; legend=false)
-    Plots.plot!(plot_ϕf; legend=false, ylabel="")
-
-    # CONSTRUCT "PULSE PLOT"
-    global plot_pulse = Plots.plot(
-        plot_Et,
-        plot_Ωt, plot_Ωf,
-        plot_ϕt, plot_ϕf;
-
-        layout = (Plots.@layout [
-            E{0.2h}
-            Plots.grid(2,2)
-        ]),
-        size=(1600,800),
-    )
-    id = lpad(length(iterations) > 0 ? iterations[end] : 0, 6, "0")
-    Plots.savefig(plot_pulse, "$subdir/pulses_$id.pdf")
-
-    global plot_all = Plots.plot(
-        plot_pulse, plot_fg,
-                    plot_ct,
-
-        layout = (Plots.@layout [
-            Ω{0.5w} Plots.grid(2,1)
-        ]),
-        # size=(800,800),
-    )
-    Plots.gui(plot_all)
-end
-
-
 function create_plot_Et()
     global t, E, FCI, FES, REF
 

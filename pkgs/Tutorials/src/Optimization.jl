@@ -8,6 +8,8 @@ import NPZ: npzread
 import Optim, LineSearches
 import FFTW: rfft, rfftfreq
 
+import Plots
+
 const DEFAULTS = Dict{Symbol,Any}(
     :matrixfile => "./pkgs/Tutorials/matrix/H2_sto-3g_singlet_1.5_P-m.npy",
     :T => 10.0, # ns
@@ -372,20 +374,76 @@ function update_trace(state)
 end
 
 function update(subdir)
+    # UPDATE PARAMETER ARRAY
     global x = CtrlVQE.Parameters.values(device)
+    save(subdir)                        # SAVES CURRENT settings, x, AND trace
+
+    # PRINT OUT A STATUS REPORT
+    generate_statusreport()
+
+    # ARCHIVE THE CURRENT PARAMETER ARRAY WITH A PERSISTENT NAME
+    id = lpad(length(iterations) > 0 ? iterations[end] : 0, 6, "0")
+    serialize("$subdir/x_$id", x)
+
+    # GENERATE PLOTS
+    generate_pulseplot(subdir, id)
+    generate_traceplot(subdir)
+    global plot_master = Plots.plot(plot_pulse, plot_trace, layout=(1,2))
+    Plots.gui(plot_master)
+end
+
+function generate_pulseplot(subdir, id=nothing)
+    if id === nothing   # USE CURRENT ITERATION AND DEVICE SETTINGS
+        id = lpad(length(iterations) > 0 ? iterations[end] : 0, 6, "0")
+    else                # LOAD x FROM GIVEN ITERATION ID
+        CtrlVQE.Parameters.bind(device, deserialize("$subdir/x_$id"))
+    end
+
+    # RUN CALCULATIONS TO GET SIGNALS IN TIME AND FREQUENCY DOMAINS
     global Δ = device.ω̄ .- x[ν]
     run_pulse()
     run_fft()
 
-    save(subdir)                        # SAVES CURRENT settings, x, AND trace
-    id = lpad(length(iterations) > 0 ? iterations[end] : 0, 6, "0")
-    serialize("$subdir/x_$id", x)       # SAVES CURRENT x, INDEXED BY ITERATION
-    generate_plots(subdir)              # GENERATES AND SAVES CURRENT PLOTS
-    generate_statusreport()             # PRINTS A STATUS REPORT TO STDOUT
+    # GENERATE AND SAVE TRANSIENT STAND-ALONE VERSIONS OF EACH SUB-PLOT
+    global plot_Et = create_plot_Et(); Plots.savefig(plot_Et, "$subdir/plot_Et.pdf")
+    global plot_Ωt = create_plot_Ωt(); Plots.savefig(plot_Ωt, "$subdir/plot_Ωt.pdf")
+    global plot_Ωf = create_plot_Ωf(); Plots.savefig(plot_Ωf, "$subdir/plot_Ωf.pdf")
+    global plot_ϕt = create_plot_ϕt(); Plots.savefig(plot_ϕt, "$subdir/plot_ϕt.pdf")
+    global plot_ϕf = create_plot_ϕf(); Plots.savefig(plot_ϕf, "$subdir/plot_ϕf.pdf")
+
+    # REMOVE REDUNDANT LEGENDS AND y-LABELS
+    Plots.plot!(plot_Ωt; legend=false)
+    Plots.plot!(plot_Ωf; ylabel="")
+    Plots.plot!(plot_ϕt; legend=false)
+    Plots.plot!(plot_ϕf; legend=false, ylabel="")
+
+    # ASSEMBLE SUB-PLOTS INTO A MASTER PLOT
+    global plot_pulse = Plots.plot(
+        plot_Et,
+        plot_Ωt, plot_Ωf,
+        plot_ϕt, plot_ϕf;
+
+        layout = (Plots.@layout [
+            E{0.2h}
+            Plots.grid(2,2)
+        ]),
+        size=(1600,800),
+    )
+    Plots.savefig(plot_pulse, "$subdir/pulses_$id.pdf")
+end
+
+function generate_traceplot(subdir)
+    # GENERATE AND SAVE TRANSIENT STAND-ALONE VERSIONS OF EACH SUB-PLOT
+    global plot_fg = create_plot_fg(); Plots.savefig(plot_fg, "$subdir/plot_fg.pdf")
+    global plot_ct = create_plot_ct(); Plots.savefig(plot_ct, "$subdir/plot_ct.pdf")
+
+    # ASSEMBLE SUB-PLOTS INTO A MASTER PLOT
+    global plot_trace = Plots.plot(plot_fg, plot_ct, layout = (2, 1), size=(1600,800))
+    Plots.savefig(plot_pulse, "$subdir/plot_trace.pdf")
 end
 
 
-include("OptimizationPlots.jl")         # Provides `generate_plots`
+include("OptimizationPlots.jl")         # Provides methods to create individual subplots.
 
 
 function generate_statusreport()
