@@ -75,10 +75,6 @@ function pack_settings()
     for field in keys(DEFAULTS)
         @eval global $field
         settings[field] = @eval $field
-        # @eval begin
-        #     global $field
-        #     $settings[field] = $field
-        # end
     end
     return settings
 end
@@ -96,7 +92,6 @@ load_settings(subdir) = unpack_settings(deserialize("$subdir/settings"))
 
 function load_x(subdir)
     global x = deserialize("$subdir/x")
-    global Δ = device.ω̄ .- x[ν]
 end
 
 function load_trace(subdir)
@@ -200,7 +195,6 @@ function initialize_parameters()
     xi[ν] .+= (2 .* rand(n) .- 1) .* init_Δ
 
     global x = copy(xi)
-    global Δ = device.ω̄ .- x[ν]
 end
 
 function initialize_transmonspace()
@@ -274,10 +268,18 @@ function run_optimization(subdir)
         iterations = maxiter,
         callback = callback_optimizer(subdir),
     )
-    global optimization = Optim.optimize(fn, gd, x, optimizer, options)
+    global optimization = Optim.optimize(
+        x -> (print("\tf:"); @time fn(x)),
+        (G,x) -> (print("\tg:"); @time gd(G,x)),
+        x,
+        optimizer,
+        options,
+    )
 end
 
 function run_pulse()
+    global Δ = device.ω̄ .- x[ν]
+
     CtrlVQE.gradientsignals(
         device, T, ψ0, r, fn_energy.OT;
         result=ϕ, evolution=algorithm, callback=callback_gradient,
@@ -322,11 +324,12 @@ function run_fft()
     =#
 
     peak = max(maximum(abs.(ϕ̂α)), maximum(abs.(ϕ̂β)))
+    default(x,y) = isnothing(x) ? x : y
     global kMAX = 1
     for i in 1:CtrlVQE.ndrives(device)
         kMAX = max(kMAX,
-            findlast(abs.(ϕ̂α[:,i]) .> (peak * fFACTOR)),
-            findlast(abs.(ϕ̂α[:,i]) .> (peak * fFACTOR)),
+            default(findlast(abs.(ϕ̂α[:,i]) .> (peak * fFACTOR)), 0),
+            default(findlast(abs.(ϕ̂α[:,i]) .> (peak * fFACTOR)), 0),
         )
     end
 end
@@ -393,14 +396,15 @@ function update(subdir)
 end
 
 function generate_pulseplot(subdir, id=nothing)
-    if id === nothing   # USE CURRENT ITERATION AND DEVICE SETTINGS
+    if id === nothing   # USE CURRENT ITERATION AND PARAMETERS
         id = lpad(length(iterations) > 0 ? iterations[end] : 0, 6, "0")
+        xplot = x
     else                # LOAD x FROM GIVEN ITERATION ID
-        CtrlVQE.Parameters.bind(device, deserialize("$subdir/x_$id"))
+        xplot = deserialize("$subdir/x_$id")
     end
 
     # RUN CALCULATIONS TO GET SIGNALS IN TIME AND FREQUENCY DOMAINS
-    global Δ = device.ω̄ .- x[ν]
+    CtrlVQE.Parameters.bind(device, xplot)
     run_pulse()
     run_fft()
 
@@ -439,7 +443,7 @@ function generate_traceplot(subdir)
 
     # ASSEMBLE SUB-PLOTS INTO A MASTER PLOT
     global plot_trace = Plots.plot(plot_fg, plot_ct, layout = (2, 1), size=(1600,800))
-    Plots.savefig(plot_pulse, "$subdir/plot_trace.pdf")
+    Plots.savefig(plot_trace, "$subdir/plot_trace.pdf")
 end
 
 
