@@ -85,21 +85,21 @@ end
 
 #= CONSTRAINED SIGNAL =#
 
-# TODO (hi): Try to eliminate Vararg here. Just use int type parameters, I think.
-
 struct Constrained{S<:ParametricSignal} <: AbstractSignal
     constrained::S
-    constraints::Tuple{Vararg{Symbol}}
-    _map::Tuple{Vararg{Int}}
+    constraints::Vector{Symbol}
+    _map::Vector{Int}
 
-    function Constrained(constrained::S, constraints::Tuple{Vararg{Symbol}}) where {S}
+    function Constrained(constrained::S, constraints::Vector{Symbol}) where {S}
         fields = parameters(constrained)
-        _map = Tuple(j for (j, field) in enumerate(fields) if field ∉ constraints)
+        _map = [j for (j, field) in enumerate(fields) if field ∉ constraints]
         return new{S}(constrained, constraints, _map)
     end
 end
 
-Constrained(constrained, constraints::Symbol...) = Constrained(constrained, constraints)
+function Constrained(constrained, constraints::Symbol...)
+    return Constrained(constrained, collect(constraints))
+end
 
 function Parameters.count(signal::Constrained)
     return Parameters.count(signal.constrained) - length(signal.constraints)
@@ -133,18 +133,42 @@ function Base.string(signal::Constrained, names::AbstractVector{String})
     return Base.string(signal.constrained, newnames)
 end
 
+#= ARBITRARY SIGNAL =#
+
+#= NOTE: This is a hack.
+
+Devices need to have some signal type.
+But we should be able to adaptively CHANGE the signal, without having to change the device.
+Thus, this wrapper.
+
+This struct is by itself ill-designed; its field is an abstract type.
+But, all its methods should nevertheless be type-stable,
+    because we've explicitly declared return types in our "abstract" methods.
+=#
+struct ArbitrarySignal <: AbstractSignal
+    S::AbstractSignal
+end
+
+Parameters.count(S::ArbitrarySignal) = Parameters.count(S.S)
+Parameters.names(S::ArbitrarySignal) = Parameters.names(S.S)
+Parameters.values(S::ArbitrarySignal) = Parameters.values(S.S)
+Parameters.bind(S::ArbitrarySignal, x̄::AbstractVector) = Parameters.bind(S.S, x̄)
+
+(S::ArbitrarySignal)(t::Real) = S.S(t)
+partial(i::Int, S::ArbitrarySignal, t::Real) = partial(i, S.S, t)
+Base.string(S::ArbitrarySignal, names::AbstractVector{String}) = Base.string(S.S, names)
+
 
 
 #= COMPOSITE SIGNAL =#
 
-# TODO (hi): Use vector of arbitrary signal, not tuple of abstract signal!
-
 struct Composite <: AbstractSignal
-    components::Tuple{Vararg{AbstractSignal}}
-    # components::Vector{AbstractSignal}
+    components::Vector{ArbitrarySignal}
 end
 
-Composite(components::AbstractSignal...) = Composite(components)
+function Composite(components::AbstractSignal...)
+    return Composite([ArbitrarySignal(component) for component in components])
+end
 
 function Parameters.count(signal::Composite)
     return sum(Parameters.count(component) for component in signal.components)
@@ -198,14 +222,13 @@ end
 
 #= MODULATED SIGNAL =#
 
-
-# TODO (hi): Use vector of arbitrary signal, not tuple of abstract signal!
-
 struct Modulated <: AbstractSignal
-    components::Tuple{Vararg{AbstractSignal}}
+    components::Vector{ArbitrarySignal}
 end
 
-Modulated(components::AbstractSignal...) = Modulated(components)
+function Modulated(components::AbstractSignal...)
+    return Modulated([ArbitrarySignal(component) for component in components])
+end
 
 function Parameters.count(signal::Modulated)
     return sum(Parameters.count(component) for component in signal.components)
@@ -258,28 +281,3 @@ function Base.string(signal::Modulated, names::AbstractVector{String})
     return join(texts, " ⋅ ")
 end
 
-
-#= ARBITRARY SIGNAL =#
-
-#= NOTE: This is a hack.
-
-Devices need to have some signal type.
-But we should be able to adaptively CHANGE the signal, without having to change the device.
-Thus, this wrapper.
-
-This struct is by itself ill-designed; its field is an abstract type.
-But, all its methods should nevertheless be type-stable,
-    because we've explicitly declared return types in our "abstract" methods.
-=#
-struct ArbitrarySignal <: AbstractSignal
-    S::AbstractSignal
-end
-
-Parameters.count(S::ArbitrarySignal) = Parameters.count(S.S)
-Parameters.names(S::ArbitrarySignal) = Parameters.names(S.S)
-Parameters.values(S::ArbitrarySignal) = Parameters.values(S.S)
-Parameters.bind(S::ArbitrarySignal, x̄::AbstractVector) = Parameters.bind(S.S, x̄)
-
-(S::ArbitrarySignal)(t::Real) = S.S(t)
-partial(i::Int, S::ArbitrarySignal, t::Real) = partial(i, S.S, t)
-Base.string(S::ArbitrarySignal, names::AbstractVector{String}) = Base.string(S.S, names)

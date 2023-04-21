@@ -7,6 +7,7 @@ const LABEL = Symbol(@__MODULE__)
 
 using ..LinearAlgebraTools: List
 
+# TODO (hi): cache this
 function trapezoidaltimegrid(T::Real, r::Int)
     # NOTE: Negative values of T give reversed time grid.
     τ = T / r

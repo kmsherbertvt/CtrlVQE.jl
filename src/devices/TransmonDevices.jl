@@ -150,6 +150,8 @@ function Devices.gradeoperator(
     return result
 end
 
+# TODO (hi): permit result= kwarg
+# TODO (hi): This is SLOW!!! What on Earth???
 function Devices.gradient(
     device::AbstractTransmonDevice,
     τ̄::AbstractVector,

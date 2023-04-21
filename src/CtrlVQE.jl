@@ -17,6 +17,7 @@ module TempArrays
 end
 
 module Parameters
+    # Even Parameters should have result option (sorry!).
     function count(::Any)::Int end
     function names(::Any)::AbstractVector{String} end
     function values(::Any)::AbstractVector{<:Number} end
