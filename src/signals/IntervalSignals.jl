@@ -1,21 +1,22 @@
 import ...Signals
 
-mutable struct Interval{F,R<:Real} <: Signals.ParametricSignal
+mutable struct Interval{F} <: Signals.ParametricSignal{F,F}
     A::F
-    s1::R
-    s2::R
+    s1::F
+    s2::F
 end
 
-function (signal::Interval{F,R})(t::Real) where {F,R}
+function (signal::Interval{F})(t::Real) where {F}
     return signal.s1 ≤ t < signal.s2 ? signal.A : zero(F)
 end
 
 function Signals.partial(i::Int, signal::Interval, t::Real)
-    field = Signals.parameters(signal)[i]
-    return field == :A ? partial_A(signal, t) : error("Not Implemented")
+    # field = Signals.parameters(signal)[i]
+    # return field == :A ? partial_A(signal, t) : error("Not Implemented")
+    return i == 1 ? partial_A(signal, t) : error("Not Implemented")
 end
 
-function partial_A(signal::Interval{F,R}, t::Real) where {F,R}
+function partial_A(signal::Interval{F}, t::Real) where {F}
     return signal.s1 ≤ t < signal.s2 ? one(F) : zero(F)
 end
 
@@ -29,7 +30,7 @@ end
 
 
 
-mutable struct ComplexInterval{F} <: Signals.ParametricSignal
+mutable struct ComplexInterval{F} <: Signals.ParametricSignal{F,Complex{F}}
     A::F
     B::F
     s1::F
@@ -37,14 +38,17 @@ mutable struct ComplexInterval{F} <: Signals.ParametricSignal
 end
 
 function (signal::ComplexInterval{F})(t::Real) where {F}
-    return signal.s1 ≤ t < signal.s2 ? Complex(signal.A, signal.B) : zero(F)
+    return signal.s1 ≤ t < signal.s2 ? Complex(signal.A, signal.B) : zero(Complex{F})
 end
 
 function Signals.partial(i::Int, signal::ComplexInterval{F}, t::Real) where {F}
-    field = Signals.parameters(signal)[i]
-    return (field == :A ?   partial_A(signal, t)
-        :   field == :B ?   partial_B(signal, t)
-        :                   error("Not Implemented"))
+    # field = Signals.parameters(signal)[i]
+    # return (field == :A ?   partial_A(signal, t)
+    #     :   field == :B ?   partial_B(signal, t)
+    #     :                   error("Not Implemented"))
+    return (i == 1 ?    partial_A(signal, t)
+        :   i == 2 ?    partial_B(signal, t)
+        :               error("Not Implemented"))
 end
 
 function partial_A(signal::ComplexInterval{F}, t::Real) where {F}

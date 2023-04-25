@@ -1,6 +1,6 @@
 import ...Signals
 
-mutable struct StepFunction{F} <: Signals.ParametricSignal
+mutable struct StepFunction{F} <: Signals.ParametricSignal{F,F}
     A::F    # CONSTANT VALUE AFTER STEP
     s::F    # TIME COORDINATE OF STEP
 end

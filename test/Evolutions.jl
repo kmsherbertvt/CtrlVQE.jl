@@ -127,5 +127,6 @@ import CtrlVQE.Bases: OCCUPATION, DRESSED
     end
     gΔ = grad(central_fdm(5, 1), f, x̄)[1]
 
-    @test √sum((g0 .- gΔ).^2) < 1e-3
+    εg = g0 .- gΔ
+    @test √(sum(εg.^2)./length(εg)) < 1e-4
 end

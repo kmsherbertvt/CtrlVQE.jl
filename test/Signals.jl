@@ -49,7 +49,7 @@ import CtrlVQE: Parameters, Signals
     @test θ.constrained.s == 0.7
 
     # TEST COMPOSITE SIGNAL
-    f = Signals.Composite((c, θ))
+    f = Signals.Composite(c, θ)
 
     @test f(0.0) == 2.0
     @test f(1) == 5.0
@@ -67,7 +67,7 @@ import CtrlVQE: Parameters, Signals
     @test f.components[2].constrained.s == 0.7
 
     # TEST MODULATED SIGNAL
-    F = Signals.Modulated((c, θ))
+    F = Signals.Modulated(c, θ)
 
     @test F(0.0) == 0.0
     @test F(1) == 6.0

@@ -16,7 +16,7 @@ end
 
 
 
-abstract type AbstractTransmonDevice{F} <: Devices.LocallyDrivenDevice end
+abstract type AbstractTransmonDevice{F,FΩ} <: Devices.LocallyDrivenDevice end
 
 # THE INTERFACE TO IMPLEMENT
 
@@ -47,15 +47,15 @@ function Devices.gradequbit(device::AbstractTransmonDevice, j::Int)
     return Devices.drivequbit(device, ((j-1) >> 1) + 1)
 end
 
-Devices.eltype_localloweringoperator(::AbstractTransmonDevice{F}) where {F} = F
+Devices.eltype_localloweringoperator(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = F
 function Devices.localloweringoperator(
-    device::AbstractTransmonDevice{F},
+    device::AbstractTransmonDevice{F,FΩ},
     q::Int,
-) where {F}
+) where {F,FΩ}
     return bosonic_annihilator(F, Devices.nstates(device, q))
 end
 
-Devices.eltype_qubithamiltonian(::AbstractTransmonDevice{F}) where {F} = F
+Devices.eltype_qubithamiltonian(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = F
 function Devices.qubithamiltonian(
     device::AbstractTransmonDevice,
     ā::List{<:AbstractMatrix},
@@ -74,7 +74,7 @@ function Devices.qubithamiltonian(
     return result
 end
 
-Devices.eltype_staticcoupling(::AbstractTransmonDevice{F}) where {F} = F
+Devices.eltype_staticcoupling(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = F
 function Devices.staticcoupling(
     device::AbstractTransmonDevice,
     ā::List{<:AbstractMatrix{F}};
@@ -97,7 +97,7 @@ function Devices.staticcoupling(
     return result
 end
 
-Devices.eltype_driveoperator(::AbstractTransmonDevice{F}) where {F} = Complex{F}
+Devices.eltype_driveoperator(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = Complex{F}
 function Devices.driveoperator(
     device::AbstractTransmonDevice,
     ā::List{<:AbstractMatrix},
@@ -126,7 +126,7 @@ function Devices.driveoperator(
     return result
 end
 
-Devices.eltype_gradeoperator(::AbstractTransmonDevice{F}) where {F} = Complex{F}
+Devices.eltype_gradeoperator(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = Complex{F}
 function Devices.gradeoperator(
     device::AbstractTransmonDevice,
     ā::List{<:AbstractMatrix},
@@ -150,41 +150,82 @@ function Devices.gradeoperator(
     return result
 end
 
-# TODO (hi): permit result= kwarg
-# TODO (hi): This is SLOW!!! What on Earth???
 function Devices.gradient(
-    device::AbstractTransmonDevice,
+    device::AbstractTransmonDevice{F,FΩ},
+    τ̄::AbstractVector,
+    t̄::AbstractVector,
+    ϕ̄::AbstractMatrix;
+    result=nothing,
+) where {F,FΩ}
+    L = Parameters.count(device)
+    nD = Devices.ndrives(device)
+    isnothing(result) && return Devices.gradient(
+        device, τ̄, t̄, ϕ̄;
+        result=Vector{F}(undef, L),
+    )
+
+    gradient_for_signals!(@view(result[1:L-nD]), device, τ̄, t̄, ϕ̄)
+    gradient_for_frequencies!(@view(result[1+L-nD:L]), device, τ̄, t̄, ϕ̄)
+
+    return result
+end
+
+function gradient_for_signals!(
+    result::AbstractVector{F},
+    device::AbstractTransmonDevice{F,FΩ},
     τ̄::AbstractVector,
     t̄::AbstractVector,
     ϕ̄::AbstractMatrix,
-)::AbstractVector
-    grad = zero.(Parameters.values(device))
-
+) where {F,FΩ}
     # CALCULATE GRADIENT FOR SIGNAL PARAMETERS
+    modulation = array(FΩ, size(t̄), LABEL)
+
     offset = 0
     for i in 1:Devices.ndrives(device)
         Ω = drivesignal(device, i)
-        j = 2*(i-1) + 1             # If Julia indexed from 0, this could just be 2i...
+        j = 2i - 1
+
         L = Parameters.count(Ω)
-        for k in 1:L
-            ∂̄ = Signals.partial(k, Ω, t̄)
-            grad[offset + k] += sum(τ̄ .* real.(∂̄) .* ϕ̄[:,j])
-            grad[offset + k] += sum(τ̄ .* imag.(∂̄) .* ϕ̄[:,j+1])
-        end
+
+        modulation .= ϕ̄[:,j]
+        (FΩ <: Complex) && (modulation .-= im .* ϕ̄[:,j+1])
+        #= NOTE: This is bit obfuscated.
+        The integrate_partial function below yields the real part of ∂⋅modulation.
+        We want ∂⋅ϕα + ∂⋅ϕβ, for complex signals.
+        So we set modulation = ϕα - 𝑖 ϕβ.
+        =#
+
+        Signals.integrate_partials(
+            Ω, τ̄, t̄, modulation;
+            result=@view(result[1+offset:L+offset]),
+        )
         offset += L
     end
+
+    return result
+end
+
+function gradient_for_frequencies!(
+    result::AbstractVector{F},
+    device::AbstractTransmonDevice{F,FΩ},
+    τ̄::AbstractVector,
+    t̄::AbstractVector,
+    ϕ̄::AbstractMatrix,
+) where {F,FΩ}
+    # TEMPORARY VARIABLES NEEDED IN GRADIENT INTEGRALS
+    modulation = array(F, size(t̄), LABEL)
 
     # CALCULATE GRADIENT FOR FREQUENCY PARAMETERS
     for i in 1:Devices.ndrives(device)
         Ω = drivesignal(device, i)
-        j = 2*(i-1) + 1             # If Julia indexed from 0, this could just be 2i...
-        Ω̄ = Ω(t̄)
-        grad[offset + i] += sum(τ̄ .* t̄ .* real.(Ω̄) .* ϕ̄[:,j+1])
-        grad[offset + i] -= sum(τ̄ .* t̄ .* imag.(Ω̄) .* ϕ̄[:,j])
+        j = 2i - 1
 
+        modulation .= t̄ .* ϕ̄[:,j+1]
+        (FΩ <: Complex) && (modulation .+= im .* t̄ .* ϕ̄[:,j])
+        result[i] = Signals.integrate_signal(Ω, τ̄, t̄, modulation)
     end
 
-    return grad
+    return result
 end
 
 function Parameters.count(device::AbstractTransmonDevice)
@@ -210,8 +251,8 @@ function Parameters.names(device::AbstractTransmonDevice)
     return names
 end
 
-function Parameters.values(device::AbstractTransmonDevice)
-    values = []
+function Parameters.values(device::AbstractTransmonDevice{F,FΩ}) where {F,FΩ}
+    values = F[]
 
     # STRING TOGETHER PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in 1:Devices.ndrives(device)
@@ -221,10 +262,10 @@ function Parameters.values(device::AbstractTransmonDevice)
 
     # TACK ON PARAMETERS FOR EACH ν̄[i]
     append!(values, (drivefrequency(device, i) for i in 1:Devices.ndrives(device)))
-    return identity.(values)
+    return values
 end
 
-function Parameters.bind(device::AbstractTransmonDevice, x̄::AbstractVector)
+function Parameters.bind(device::AbstractTransmonDevice, x̄::AbstractVector{F}) where {F}
     offset = 0
 
     # BIND PARAMETERS FOR EACH SIGNAL Ω̄[i]
@@ -245,9 +286,7 @@ end
 
 
 
-struct TransmonDevice{
-    F<:AbstractFloat,
-} <: AbstractTransmonDevice{F}
+struct TransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
     # QUBIT LISTS
     ω̄::Vector{F}
     δ̄::Vector{F}
@@ -257,7 +296,7 @@ struct TransmonDevice{
     # DRIVE LISTS
     q̄::Vector{Int}
     ν̄::Vector{F}
-    Ω̄::Vector{Signals.ArbitrarySignal}
+    Ω̄::Vector{Signals.AbstractSignal{F,FΩ}}
     # OTHER PARAMETERS
     m::Int
 
@@ -268,9 +307,9 @@ struct TransmonDevice{
         quples::AbstractVector{Devices.Quple},
         q̄::AbstractVector{Int},
         ν̄::AbstractVector{<:AbstractFloat},
-        Ω̄::AbstractVector{<:Signals.AbstractSignal},
+        Ω̄::AbstractVector{<:Signals.AbstractSignal{F,FΩ}},
         m::Int,
-    )
+    ) where {F,FΩ}
         # VALIDATE PARALLEL LISTS ARE CONSISTENT SIZE
         @assert length(ω̄) == length(δ̄) ≥ 1              # NUMBER OF QUBITS
         @assert length(ḡ) == length(quples)             # NUMBER OF COUPLINGS
@@ -288,16 +327,15 @@ struct TransmonDevice{
         # VALIDATE THAT THE HILBERT SPACE HAS SOME VOLUME...
         @assert m ≥ 2
 
-        # STANDARDIZE TYPING AND CONVERT ALL LISTS TO IMMUTABLE TUPLE (except ν)
-        F = promote_type(eltype(ω̄), eltype(δ̄), eltype(ḡ), eltype(ν̄))
-        return new{F}(
+        # STANDARDIZE TYPING
+        return new{F,FΩ}(
             convert(Vector{F}, ω̄),
             convert(Vector{F}, δ̄),
             convert(Vector{F}, ḡ),
             quples,
             q̄,
             convert(Vector{F}, ν̄),
-            [Signals.ArbitrarySignal(Ω) for Ω in Ω̄],
+            [Ω for Ω in Ω̄],
             m,
         )
     end

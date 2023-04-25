@@ -17,9 +17,8 @@ module TempArrays
 end
 
 module Parameters
-    # Even Parameters should have result option (sorry!).
     function count(::Any)::Int end
-    function names(::Any)::AbstractVector{String} end
+    function names(::Any)::Vector{String} end
     function values(::Any)::AbstractVector{<:Number} end
     function bind(::Any, x̄::AbstractVector)::Nothing end
 end
@@ -170,27 +169,42 @@ function SystematicTransmonDevice(n, pulsetemplate)
     return SystematicTransmonDevice(2, n, pulsetemplate)
 end
 
-function FullyTrotterizedSignal(F, T, r)
+function FullyTrotterizedSignal(::Type{Complex{F}}, T, r) where {F}
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)
-    return Signals.Composite([
-        Signals.Constrained(
-            Signals.Interval(zero(F), t-τ/2, t+τ/2),
-            :s1, :s2,
-        ) for t in t̄
-    ]...)
+    starttimes = t̄ .- (τ/2); starttimes[1] = t̄[1]
+    return Signals.Windowed(
+        [Signals.ComplexConstant(zero(F), zero(F)) for t in starttimes],
+        starttimes,
+    )
 end
+
+function FullyTrotterizedSignal(::Type{F}, T, r) where {F<:AbstractFloat}
+    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)
+    starttimes = t̄ .- (τ/2); starttimes[1] = t̄[1]
+    return Signals.Windowed(
+        [Signals.Constant(zero(F)) for t in starttimes],
+        starttimes,
+    )
+end
+
 FullyTrotterizedSignal(T, r) = FullyTrotterizedSignal(Float64, T, r)
 
-function WindowedSquarePulse(F, T, W)
-    t̄ = collect(range(0, T, W+1))
-    t̄[end] += 10*eps(eltype(T))     # CLOSE THE RIGHT BOUNDARY
-    return Signals.Composite([
-        Signals.Constrained(
-            Signals.Interval(zero(F), t̄[i], t̄[i+1]),
-            :s1, :s2,
-        ) for i in 1:W
-    ]...)
+function WindowedSquarePulse(::Type{Complex{F}}, T, W) where {F}
+    starttimes = range(zero(T), T, W+1)[1:end-1]
+    return Signals.Windowed(
+        [Signals.ComplexConstant(zero(F), zero(F)) for t in starttimes],
+        starttimes,
+    )
 end
+
+function WindowedSquarePulse(::Type{F}, T, W) where {F<:AbstractFloat}
+    starttimes = range(zero(T), T, W+1)[1:end-1]
+    return Signals.Windowed(
+        [Signals.Constant(zero(F)) for t in starttimes],
+        starttimes,
+    )
+end
+
 WindowedSquarePulse(T, W) = WindowedSquarePulse(Float64, T, W)
 
 end # module CtrlVQE

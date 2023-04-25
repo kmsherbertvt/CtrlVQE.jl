@@ -16,35 +16,21 @@ end
 
 (g::AbstractGradientFunction)(x̄::AbstractVector) = g(copy(x̄),x̄)
 
-#= ARBITRARY FUNCTIONS - hack providing concrete type for arbitrary functionality. =#
-
-struct ArbitraryCostFunction <: AbstractCostFunction
-    f::AbstractCostFunction
-end
-(f::ArbitraryCostFunction)(x̄::AbstractVector) = f.f(x̄)
-
-struct ArbitraryGradientFunction <: AbstractGradientFunction
-    g::AbstractGradientFunction
-end
-function (g::ArbitraryGradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
-    return g.g(∇f̄, x̄)
-end
-
 #= COMPOSITE FUNCTIONS - useful for combining energy with penalties =#
 
 struct CompositeCostFunction <: AbstractCostFunction
-    f̄::Vector{ArbitraryCostFunction}
+    f̄::Vector{AbstractCostFunction}
 
     counter::Ref{Int}
     values::Vector{Float64}
 
-    function CompositeCostFunction(f̄::Vector{ArbitraryCostFunction})
+    function CompositeCostFunction(f̄::Vector{AbstractCostFunction})
         return new(f̄, 0, Vector{Float64}(undef, size(f̄)))
     end
 end
 
 function CompositeCostFunction(f̄...)
-    return CompositeCostFunction([ArbitraryCostFunction(f) for f in f̄])
+    return CompositeCostFunction(AbstractCostFunction[f for f in f̄])
 end
 
 function (f::CompositeCostFunction)(x̄::AbstractVector)
@@ -54,18 +40,18 @@ function (f::CompositeCostFunction)(x̄::AbstractVector)
 end
 
 struct CompositeGradientFunction <: AbstractGradientFunction
-    ḡ::Vector{ArbitraryGradientFunction}
+    ḡ::Vector{AbstractGradientFunction}
 
     counter::Ref{Int}
     norms::Vector{Float64}
 
-    function CompositeGradientFunction(ḡ::Vector{ArbitraryGradientFunction})
+    function CompositeGradientFunction(ḡ::Vector{AbstractGradientFunction})
         return new(ḡ, 0, Vector{Float64}(undef, size(ḡ)))
     end
 end
 
 function CompositeGradientFunction(ḡ...)
-    return CompositeGradientFunction([ArbitraryGradientFunction(g) for g in ḡ])
+    return CompositeGradientFunction(AbstractGradientFunction[g for g in ḡ])
 end
 
 function (g::CompositeGradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
