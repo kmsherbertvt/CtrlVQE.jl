@@ -213,7 +213,7 @@ function gradient_for_frequencies!(
     ϕ̄::AbstractMatrix,
 ) where {F,FΩ}
     # TEMPORARY VARIABLES NEEDED IN GRADIENT INTEGRALS
-    modulation = array(F, size(t̄), LABEL)
+    modulation = array(FΩ, size(t̄), LABEL)
 
     # CALCULATE GRADIENT FOR FREQUENCY PARAMETERS
     for i in 1:Devices.ndrives(device)
