@@ -324,7 +324,7 @@ function run_fft()
     =#
 
     peak = max(maximum(abs.(ϕ̂α)), maximum(abs.(ϕ̂β)))
-    default(x,y) = isnothing(x) ? x : y
+    default(x,y) = isnothing(x) ? y : x
     global kMAX = 1
     for i in 1:CtrlVQE.ndrives(device)
         kMAX = max(kMAX,
