@@ -171,7 +171,7 @@ end
 
 function FullyTrotterizedSignal(::Type{Complex{F}}, T, r) where {F}
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)
-    starttimes = t̄ .- (τ/2); starttimes[1] = t̄[1]
+    starttimes = t̄ .- (τ/2)
     return Signals.Windowed(
         [Signals.ComplexConstant(zero(F), zero(F)) for t in starttimes],
         starttimes,
@@ -180,7 +180,7 @@ end
 
 function FullyTrotterizedSignal(::Type{F}, T, r) where {F<:AbstractFloat}
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)
-    starttimes = t̄ .- (τ/2); starttimes[1] = t̄[1]
+    starttimes = t̄ .- (τ/2)
     return Signals.Windowed(
         [Signals.Constant(zero(F)) for t in starttimes],
         starttimes,
