@@ -55,9 +55,9 @@ function (g::GradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
 
     ∇f̄ .= 0
     for i in eachindex(x̄)
-        λ, χL, χR = λ̄[i], χ̄L[i], χ̄R[i]
-        λ > 0 && χL > 0 && (∇f̄[i] -= (2log(2)) * λ * χL * exp( log(2) * χL^2 ))
-        λ > 0 && χR > 0 && (∇f̄[i] += (2log(2)) * λ * χR * exp( log(2) * χR^2 ))
+        λ, σ, χL, χR = λ̄[i], g.f.σ̄[i], χ̄L[i], χ̄R[i]
+        λ > 0 && χL > 0 && (∇f̄[i] -= (2log(2)) * λ * χL / σ * exp( log(2) * χL^2 ))
+        λ > 0 && χR > 0 && (∇f̄[i] += (2log(2)) * λ * χR / σ * exp( log(2) * χR^2 ))
     end
     return ∇f̄
 end

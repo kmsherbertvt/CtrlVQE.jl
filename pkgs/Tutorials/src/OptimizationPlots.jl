@@ -64,7 +64,7 @@ end
 function create_plot_Ωf()
     global t, α̂, β̂, kMAX, Δ
 
-    yMAX = max(maximum(abs.(α̂)), maximum(abs.(β̂)))
+    yMAX = max(maximum(abs.(α̂[2:end])), maximum(abs.(β̂[2:end])))
     plot = Plots.plot(;
         xlabel= "Frequency (GHz)",
         ylabel= "|Amplitude| (GHz)",
@@ -115,7 +115,7 @@ end
 function create_plot_ϕf()
     global t, ϕ̂α, ϕ̂β, kMAX, Δ
 
-    yMAX = max(maximum(abs.(ϕ̂α)), maximum(abs.(ϕ̂β)))
+    yMAX = max(maximum(abs.(ϕ̂α[2:end])), maximum(abs.(ϕ̂β[2:end])))
     plot = Plots.plot(;
         xlabel= "Frequency (GHz)",
         ylabel= "|Gradient Signal| (Ha/GHz)",
