@@ -4,4 +4,8 @@ module Tutorials
         include("Optimization.jl")
     end
 
+    module AdaptiveWindows
+        include("AdaptiveWindows.jl")
+    end
+
 end

@@ -145,7 +145,10 @@ import .CostFunctions: HardBounds, SoftBounds
 
 #= RECIPES =#
 
-function SystematicTransmonDevice(F, m, n, pulsetemplate)
+function SystematicTransmonDevice(F, m, n, pulses)
+    # INTERPRET SCALAR `pulses` AS A TEMPLATE TO BE COPIED
+    Ω̄ = (pulses isa Signals.AbstractSignal) ? [deepcopy(pulses) for _ in 1:n] : pulses
+
     ω0 = F(2π * 4.80)
     Δω = F(2π * 0.02)
     δ0 = F(2π * 0.30)
@@ -157,16 +160,15 @@ function SystematicTransmonDevice(F, m, n, pulsetemplate)
     quples = [Devices.Quple(q,q+1) for q in 1:n-1]
     q̄ = 1:n
     ν̄ = copy(ω̄)
-    Ω̄ = [deepcopy(pulsetemplate) for _ in 1:n]
     return Devices.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
 end
 
-function SystematicTransmonDevice(m, n, pulsetemplate)
-    return SystematicTransmonDevice(Float64, m, n, pulsetemplate)
+function SystematicTransmonDevice(m, n, pulses)
+    return SystematicTransmonDevice(Float64, m, n, pulses)
 end
 
-function SystematicTransmonDevice(n, pulsetemplate)
-    return SystematicTransmonDevice(2, n, pulsetemplate)
+function SystematicTransmonDevice(n, pulses)
+    return SystematicTransmonDevice(2, n, pulses)
 end
 
 function FullyTrotterizedSignal(::Type{Complex{F}}, T, r) where {F}
