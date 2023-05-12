@@ -72,7 +72,7 @@ NOTE: Implements `Parameters` interface.
 abstract type Device end
 
 
-#= TODO (mid):
+#= TODO (hi):
 
 Sorry, Kyle, but I think we need to abandon the idea of variable-sized transmons.
 The benefit of having arrays instead of lists is just too much.

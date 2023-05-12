@@ -48,7 +48,7 @@ struct GradientFunction{F<:AbstractFloat} <: AbstractGradientFunction
 end
 
 function (g::GradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
-    # TODO (hi): THESE ARE ALLOCATIONS!!!!
+    # TODO (mid): THESE ARE ALLOCATIONS!!!!
     χ̄L = (g.f.x̄L .- x̄) ./ g.f.σ̄
     χ̄R = (x̄ .- g.f.x̄R) ./ g.f.σ̄
     λ̄ = g.f.λ̄

@@ -5,7 +5,7 @@ const LABEL = Symbol(@__MODULE__)
 
 # const List{T} = Union{AbstractVector{T}, Tuple{Vararg{T}}}
 const List{T} = AbstractVector{T}
-#= TODO (mid): Abolish List: use Array{n+1} instead.
+#= TODO (hi): Abolish List: use Array{n+1} instead.
 Enables pre-allocations for local operators.
 =#
 

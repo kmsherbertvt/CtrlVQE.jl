@@ -37,7 +37,7 @@ struct CostFunction{
 
     ψ::Vector{Complex{F}}
     π̄::Vector{Matrix{Bool}}
-    # TODO (mid): convert to 3d array
+    # TODO (hi): convert to 3d array
     OT::Matrix{Complex{F}}
     Ot::Matrix{Complex{F}}
 

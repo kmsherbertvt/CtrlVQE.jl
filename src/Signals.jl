@@ -520,6 +520,6 @@ function integrate_partials(
 end
 
 
-#= TODO: Annotate return types for Composite, Modulated, and Windowed.
+#= TODO (mid): Annotate return types for Composite, Modulated, and Windowed.
 
 =#

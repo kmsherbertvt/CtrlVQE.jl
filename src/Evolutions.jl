@@ -6,9 +6,9 @@ import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
 using ..LinearAlgebraTools: List
+using Memoization: @memoize
 
-# TODO (hi): cache this
-function trapezoidaltimegrid(T::Real, r::Int)
+@memoize Dict function trapezoidaltimegrid(T::Real, r::Int)
     # NOTE: Negative values of T give reversed time grid.
     τ = T / r
     τ̄ = fill(τ, r+1); τ̄[[begin, end]] ./= 2
@@ -233,29 +233,15 @@ function gradientsignals(
     end
 
     # PREPARE STATE AND CO-STATES
-    ψ = Vector{LinearAlgebraTools.cis_type(ψ0)}(undef, length(ψ0))
-    ψ .= ψ0
+    ψTYPE = LinearAlgebraTools.cis_type(ψ0)
+    ψ = array(ψTYPE, size(ψ0), (LABEL, :state)); ψ .= ψ0
     ψ = evolve!(evolution, device, basis, T, ψ)
-    λ̄ = [LinearAlgebraTools.rotate!(O, copy(ψ)) for O in Ō]
-
-    # TODO (hi): HEY! Can't we use temp arrays for ψ and λ̄? Just need to be careful with index.
-
-    #= TODO (hi): Check closely the accuracy of first and last Φ values.
-
-        Do we need to half-evolve V here?
-        There is something beautifully symmetric about *not* doing so.
-        Every drive propagation has exactly τ/2.
-        And the first and last gradient points correspond
-            to the true beginning and end of time evolution,
-            which feels right.
-
-        BUT I was doing half-evolution before,
-            and the first/last Φ seemed to match finite difference exactly.
-        So, it might be objectively wrong to change that...
-
-        If so, must use τ̄[i]/2 instead of τ/2 below, for all Device propagation.
-        (And also add in a half-evolution before the first gradient point.)
-    =#
+    λ̄ = Vector{ψTYPE}[]
+    for (k, O) in enumerate(Ō)
+        λ = array(ψTYPE, size(ψ), (LABEL, :costate, k)); λ .= ψ
+        λ = LinearAlgebraTools.rotate!(O, λ)
+        push!(λ̄, λ)
+    end
 
     # LAST GRADIENT SIGNALS
     callback !== nothing && callback(r+1, t̄[r+1], ψ)
