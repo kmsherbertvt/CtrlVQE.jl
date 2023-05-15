@@ -95,7 +95,7 @@ module Devices
     module TransmonDevices; include("devices/TransmonDevices.jl"); end
     import .TransmonDevices: TransmonDevice
 end
-import .Devices: nqubits, nstates, #=TODO (hi) nlevels,=# ndrives, ngrades
+import .Devices: nqubits, nstates, nlevels, ndrives, ngrades
 
 module Evolutions
     include("Evolutions.jl")

@@ -30,7 +30,7 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
 
     # SCALAR TESTS
     @test Devices.nqubits(device) == 2
-    @test Devices.nstates(device, 1) == 3
+    @test Devices.nlevels(device) == 3
     @test Devices.nstates(device) == 9
     @test Devices.ndrives(device) == 2
     @test Devices.ngrades(device) == 4
@@ -62,30 +62,33 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
     a1 = kron(a, one(a))
     a2 = kron(one(a), a)
 
-    h1 = Devices.qubithamiltonian(device, [a, a], 1)    # LOCAL
+    āL = cat(a, a, dims=3)
+    āG = cat(a1, a2, dims=3)
+
+    h1 = Devices.qubithamiltonian(device, āL, 1)    # LOCAL
     @test h1 ≈ h1'
-    h2 = Devices.qubithamiltonian(device, [a, a], 2)    # LOCAL
+    h2 = Devices.qubithamiltonian(device, āL, 2)    # LOCAL
     @test h2 ≈ h2'
     h = kron(h1, one(h1)) + kron(one(h2), h2)
 
-    G = Devices.staticcoupling(device, [a1, a2])
+    G = Devices.staticcoupling(device, āG)
     @test G ≈ G'
     H0 = h + G
 
-    v1 = Devices.driveoperator(device, [a, a], 1, t)    # LOCAL
+    v1 = Devices.driveoperator(device, āL, 1, t)    # LOCAL
     @test v1 ≈ v1'
-    v2 = Devices.driveoperator(device, [a, a], 2, t)    # LOCAL
+    v2 = Devices.driveoperator(device, āL, 2, t)    # LOCAL
     @test v2 ≈ v2'
     V = kron(v1, one(v1)) + kron(one(v2), v2)
     H = H0 + V
 
-    Aα1 = Devices.gradeoperator(device, [a, a], 1, t)   # LOCAL
+    Aα1 = Devices.gradeoperator(device, āL, 1, t)   # LOCAL
     @test Aα1 ≈ Aα1'
-    Aβ1 = Devices.gradeoperator(device, [a, a], 2, t)   # LOCAL
+    Aβ1 = Devices.gradeoperator(device, āL, 2, t)   # LOCAL
     @test Aβ1 ≈ Aβ1'
-    Aα2 = Devices.gradeoperator(device, [a, a], 3, t)   # LOCAL
+    Aα2 = Devices.gradeoperator(device, āL, 3, t)   # LOCAL
     @test Aα2 ≈ Aα2'
-    Aβ2 = Devices.gradeoperator(device, [a, a], 4, t)   # LOCAL
+    Aβ2 = Devices.gradeoperator(device, āL, 4, t)   # LOCAL
     @test Aβ2 ≈ Aβ2'
 
     # BASIC UTILITIES
@@ -95,7 +98,7 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
     Λ, U = Devices.diagonalize(OCCUPATION, device)
     @test U*diagm(Λ)*U' ≈ diagm(ones(Devices.nstates(device)))
     Λ, U = Devices.diagonalize(OCCUPATION, device, 1)
-    @test U*diagm(Λ)*U' ≈ diagm(ones(Devices.nstates(device, 1)))
+    @test U*diagm(Λ)*U' ≈ diagm(ones(Devices.nlevels(device)))
     Λ, U = Devices.diagonalize(DRESSED, device)
     @test U*diagm(Λ)*U' ≈ H0
 
@@ -106,8 +109,8 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
 
     # ALGEBRA
     @test Devices.eltype_algebra(device) === Float64
-    @test collect(Devices.algebra(device)) ≈ [a1, a2]
-    @test collect(Devices.localalgebra(device)) ≈ [a, a]
+    @test collect(Devices.algebra(device)) ≈ āG
+    @test collect(Devices.localalgebra(device)) ≈ āL
 
 
     DRIVE = Drive(t)
@@ -136,20 +139,20 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
     @test Devices.operator(DRIVE, device) ≈ V
     @test Devices.operator(Hamiltonian(t), device) ≈ H
 
-    @test collect(Devices.localqubitoperators(device)) ≈ [h1, h2]
+    @test Devices.localqubitoperators(device) ≈ cat(h1, h2, dims=3)
 
     # EVOLVERS - don't bother testing every single operator at this point
     @test Devices.propagator(UNCOUPLED, device, τ) ≈ exp(-im*τ*h)
     @test Devices.propagator(STATIC, device, τ) ≈ exp(-im*τ*H0)
     @test Devices.propagator(DRIVE, device, τ) ≈ exp(-im*τ*V)
 
-    @test collect(Devices.localqubitpropagators(device, τ))≈ [exp(-im*τ*h1),exp(-im*τ*h2)]
+    @test Devices.localqubitpropagators(device, τ)≈ cat(exp(-im*τ*h1),exp(-im*τ*h2), dims=3)
 
     @test Devices.evolver(UNCOUPLED, device, t) ≈ exp(-im*t*h)
     @test Devices.evolver(STATIC, device, t) ≈ exp(-im*t*H0)
     @test_throws ErrorException Devices.evolver(DRIVE, device, τ)
 
-    @test collect(Devices.localqubitevolvers(device, t)) ≈ [exp(-im*t*h1), exp(-im*t*h2)]
+    @test Devices.localqubitevolvers(device, t) ≈ cat(exp(-im*t*h1), exp(-im*t*h2), dims=3)
 
     # MUTATING EVOLUTION
     res = convert(Array{ComplexF64}, ψ)

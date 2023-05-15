@@ -1,4 +1,5 @@
 [deps]
+AnalyticPulses = "eb27ae5b-ba0a-4633-8ae7-339e2c8a5cc6"
 FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"

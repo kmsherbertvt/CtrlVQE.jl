@@ -3,21 +3,18 @@ using LinearAlgebra: kron!, eigen, Diagonal, Hermitian, mul!
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
-# const List{T} = Union{AbstractVector{T}, Tuple{Vararg{T}}}
-const List{T} = AbstractVector{T}
-#= TODO (hi): Abolish List: use Array{n+1} instead.
-Enables pre-allocations for local operators.
-=#
+const VectorList{T} = Array{T,2}
+const MatrixList{T} = Array{T,3}
 
-function kron(v̄::List{<:AbstractVector{F}}; result=nothing) where {F}
-    result === nothing && (result = Vector{F}(undef, prod(length.(v̄))))
+function kron(v̄::VectorList{F}; result=nothing) where {F}
+    isnothing(result) && (result = Vector{F}(undef, size(v̄,1)^size(v̄,2)))
 
     op  = array(F, (1,), LABEL); op[1] = one(F)
     tgt = nothing
-    for i in eachindex(v̄)
-        shape = (length(op)*length(v̄[i]),)
+    for i in axes(v̄,2)
+        shape = (length(op)*size(v̄,1),)
         tgt = array(F, shape, LABEL)
-        kron!(tgt, op, v̄[i])
+        kron!(tgt, op, @view(v̄[:,i]))
         op = tgt
     end
     result .= tgt
@@ -25,18 +22,18 @@ function kron(v̄::List{<:AbstractVector{F}}; result=nothing) where {F}
     return result
 end
 
-function kron(Ā::List{<:AbstractMatrix{F}}; result=nothing) where {F}
+function kron(Ā::MatrixList{F}; result=nothing) where {F}
     if result === nothing
-        shapes = transpose(reinterpret(reshape, Int, size.(Ā)))
-        result = Matrix{F}(undef, prod(shapes[:,1]), prod(shapes[:,2]))
+        totalsize = (size(Ā,1)^size(Ā,3), size(Ā,2)^size(Ā,3))
+        result = Matrix{F}(undef, totalsize)
     end
 
     op  = array(F, (1,1), LABEL); op[1] = one(F)
     tgt = nothing
-    for i in eachindex(Ā)
-        shape = size(op) .* size(Ā[i])
+    for i in axes(Ā,3)
+        shape = size(op) .* (size(Ā,1), size(Ā,2))
         tgt = array(F, shape, LABEL)
-        kron!(tgt, op, Ā[i])
+        kron!(tgt, op, @view(Ā[:,:,i]))
         op = tgt
     end
     result .= tgt
@@ -84,17 +81,18 @@ function rotate!(::Type{F}, R::AbstractMatrix{F_}, A::AbstractMatrix{F}) where {
 end
 
 
-function rotate!(r̄::List{<:AbstractMatrix{F_}}, x::AbstractArray{F}) where {F_, F}
+function rotate!(r̄::MatrixList{F_}, x::AbstractArray{F}) where {F_, F}
     # NOTE: Throws method-not-found error if x is not at least as rich as R.
     return rotate!(promote_type(F_, F), r̄, x)
 end
 
 function rotate!(::Type{F},
-    r̄::List{<:AbstractMatrix{F_}},
+    r̄::MatrixList{F_},
     x::AbstractVector{F}
 ) where {F_, F}
     N = length(x)
-    for r in r̄
+    for i in axes(r̄,3)
+        r = @view(r̄[:,:,i])                     # CURRENT ROTATOR
         m = size(r,1)
         x_ = transpose(reshape(x, (N÷m,m)))     # CREATE A PERMUTED VIEW
         temp = array(F, (m,N÷m), LABEL)
@@ -105,7 +103,7 @@ function rotate!(::Type{F},
 end
 
 function rotate!(::Type{F},
-    r̄::List{<:AbstractMatrix{F_}},
+    r̄::MatrixList{F_},
     A::AbstractMatrix{F}
 ) where {F_, F}
     # TODO (mid): Write this with tensor algebra
@@ -126,7 +124,7 @@ end
 
 function braket(
     x1::AbstractVector,
-    ā::List{<:AbstractMatrix{F_}},
+    ā::MatrixList{F_},
     x2::AbstractVector,
 ) where {F_}
     F = promote_type(eltype(x1), F_, eltype(x2))
@@ -137,7 +135,7 @@ function braket(
 end
 
 expectation(A::AbstractMatrix, x::AbstractVector) = braket(x, A, x)
-expectation(ā::List{<:AbstractMatrix}, x::AbstractVector) = braket(x, ā, x)
+expectation(ā::MatrixList, x::AbstractVector) = braket(x, ā, x)
 
 
 

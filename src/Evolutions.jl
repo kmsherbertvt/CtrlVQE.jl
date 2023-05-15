@@ -5,7 +5,7 @@ import ..Operators: STATIC, Drive, Gradient
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
-using ..LinearAlgebraTools: List
+using ..LinearAlgebraTools: MatrixList
 using Memoization: @memoize
 
 @memoize Dict function trapezoidaltimegrid(T::Real, r::Int)
@@ -202,11 +202,12 @@ function gradientsignals(
     result=nothing,
     kwargs...
 )
-    # `result` IS GIVEN AS A 2D ARRAY BUT MUST BE 3D FOR DELEGATION
-    result !== nothing && (result = reshape(result, size(result, 1), size(result, 2), 1))
+    # `O` AND `result` GIVEN AS 2D ARRAYS BUT MUST BE 3D FOR DELEGATION
+    result !== nothing && (result = reshape(result, size(result)..., 1))
+    O = reshape(O, size(O)..., 1)
 
     # PERFORM THE DELEGATION
-    result = gradientsignals(device, basis, T, ψ0, r, [O]; result=result, kwargs...)
+    result = gradientsignals(device, basis, T, ψ0, r, O; result=result, kwargs...)
 
     # NOW RESHAPE `result` BACK TO 2D ARRAY
     result = reshape(result, size(result, 1), size(result, 2))
@@ -219,7 +220,7 @@ function gradientsignals(
     T::Real,
     ψ0::AbstractVector,
     r::Int,
-    Ō::List{<:AbstractMatrix};
+    Ō::MatrixList;
     result=nothing,
     evolution=Rotate(r),
     callback=nothing,
@@ -234,18 +235,19 @@ function gradientsignals(
 
     # PREPARE STATE AND CO-STATES
     ψTYPE = LinearAlgebraTools.cis_type(ψ0)
-    ψ = array(ψTYPE, size(ψ0), (LABEL, :state)); ψ .= ψ0
+    ψ = array(ψTYPE, size(ψ0), LABEL); ψ .= ψ0
     ψ = evolve!(evolution, device, basis, T, ψ)
-    λ̄ = Vector{ψTYPE}[]
-    for (k, O) in enumerate(Ō)
-        λ = array(ψTYPE, size(ψ), (LABEL, :costate, k)); λ .= ψ
-        λ = LinearAlgebraTools.rotate!(O, λ)
-        push!(λ̄, λ)
+
+    λ̄ = array(ψTYPE, (size(ψ0,1), size(Ō,3)), LABEL)
+    for k in axes(Ō,3)
+        λ̄[:,k] .= ψ
+        LinearAlgebraTools.rotate!(@view(Ō[:,:,k]), @view(λ̄[:,k]))
     end
 
     # LAST GRADIENT SIGNALS
     callback !== nothing && callback(r+1, t̄[r+1], ψ)
-    for (k, λ) in enumerate(λ̄)
+    for k in axes(Ō,3)
+        λ = @view(λ̄[:,k])
         for j in 1:Devices.ngrades(device)
             z = Devices.braket(Gradient(j, t̄[end]), device, basis, λ, ψ)
             result[r+1,j,k] = 2 * imag(z)   # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
@@ -258,7 +260,8 @@ function gradientsignals(
         ψ = Devices.propagate!(Drive(t̄[i+1]), device, basis, -τ/2, ψ)
         ψ = Devices.propagate!(STATIC, device, basis, -τ, ψ)
         ψ = Devices.propagate!(Drive(t̄[i]),   device, basis, -τ/2, ψ)
-        for λ in λ̄
+        for k in axes(Ō,3)
+            λ = @view(λ̄[:,k])
             Devices.propagate!(Drive(t̄[i+1]), device, basis, -τ/2, λ)
             Devices.propagate!(STATIC, device, basis, -τ, λ)
             Devices.propagate!(Drive(t̄[i]),   device, basis, -τ/2, λ)
@@ -266,7 +269,8 @@ function gradientsignals(
 
         # CALCULATE GRADIENT SIGNAL BRAKETS
         callback !== nothing && callback(i, t̄[i], ψ)
-        for (k, λ) in enumerate(λ̄)
+        for k in axes(Ō,3)
+            λ = @view(λ̄[:,k])
             for j in 1:Devices.ngrades(device)
                 z = Devices.braket(Gradient(j, t̄[i]), device, basis, λ, ψ)
                 result[i,j,k] = 2 * imag(z) # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄

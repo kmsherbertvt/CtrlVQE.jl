@@ -16,9 +16,9 @@ import CtrlVQE: LinearAlgebraTools
     RX = [1 i; i 1] / √2    # Rotate about X axis by -π/2 radians
 
     # TEST `kron`
-    @test LinearAlgebraTools.kron([e0, e0, e1]) == [0,1,0,0,0,0,0,0]
+    @test LinearAlgebraTools.kron(hcat(e0, e0, e1)) == [0,1,0,0,0,0,0,0]
         # ORDER MATTERS: |001⟩≃|1⟩, not |5⟩
-    @test LinearAlgebraTools.kron([X, I]) == [0 0 1 0; 0 0 0 1; 1 0 0 0; 0 1 0 0]
+    @test LinearAlgebraTools.kron(cat(X, I, dims=3)) == [0 0 1 0; 0 0 0 1; 1 0 0 0; 0 1 0 0]
         # ORDER MATTERS: X⊗I = [0 I; I 0], not [X 0; 0 X]
 
     # TEST `cis!`
@@ -39,9 +39,9 @@ import CtrlVQE: LinearAlgebraTools
     @test res ≈ Z
 
     # TEST `rotate!` WITH TENSOR CONTRACTION
-    r̄ = [I, RX, I]
+    r̄ = cat(I, RX, I, dims=3)
     R = LinearAlgebraTools.kron(r̄)
-    ē = [e0, e⁻, e⁺]
+    ē = hcat(e0, e⁻, e⁺)
     x = LinearAlgebraTools.kron(ē)
 
     res = convert(Array{ComplexF64}, x)
@@ -49,9 +49,9 @@ import CtrlVQE: LinearAlgebraTools
     @test res === res_
     @test res == R * x
 
-    r̄ = [I, convert(Matrix, RX'), I]    # NOTE: kron args must be same type
+    r̄ = cat(I, convert(Matrix, RX'), I, dims=3)    # NOTE: kron args must be same type
     R = LinearAlgebraTools.kron(r̄)
-    ā = [X, Y, Z]
+    ā = cat(X, Y, Z, dims=3)
     A = LinearAlgebraTools.kron(ā)
 
     res = convert(Array{ComplexF64}, A)

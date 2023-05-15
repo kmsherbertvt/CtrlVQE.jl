@@ -49,7 +49,7 @@ import ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
-using ..LinearAlgebraTools: List
+import ..LinearAlgebraTools: MatrixList
 const Evolvable = AbstractVecOrMat{<:Complex{<:AbstractFloat}}
 
 struct Quple
@@ -71,27 +71,9 @@ NOTE: Implements `Parameters` interface.
 """
 abstract type Device end
 
-
-#= TODO (hi):
-
-Sorry, Kyle, but I think we need to abandon the idea of variable-sized transmons.
-The benefit of having arrays instead of lists is just too much.
-
-So: method nlevels(::Device) replaces nstates(::Device, q::Int).
-That alone simplifies a bunch of logic, I think?
-
-Then: all your local methods should give arrays of shape (m,m,n). Okay!
-
-Then: let local methods accept `result`.
-
-At that point, you *should* have more-or-less completely eliminated memory allocations,
-    excepting the darned eigen.
-
-=#
-
 # METHODS NEEDING TO BE IMPLEMENTED
 nqubits(::Device)::Int = error("Not Implemented")
-nstates(::Device, q::Int)::Int = error("Not Implemented")
+nlevels(::Device)::Int = error("Not Implemented")
 ndrives(::Device)::Int = error("Not Implemented")
 ngrades(::Device)::Int = error("Not Implemented")
 
@@ -106,7 +88,7 @@ end
 
 eltype_qubithamiltonian(::Device)::Type{<:Number} = error("Not Implemented")
 function qubithamiltonian(::Device,
-    ā::List{<:AbstractMatrix},
+    ā::MatrixList,
     q::Int;
     result=nothing,
 )::AbstractMatrix
@@ -115,7 +97,7 @@ end
 
 eltype_staticcoupling(::Device)::Type{<:Number} = error("Not Implemented")
 function staticcoupling(::Device,
-    ā::List{<:AbstractMatrix};
+    ā::MatrixList;
     result=nothing,
 )::AbstractMatrix
     return error("Not Implemented")
@@ -123,7 +105,7 @@ end
 
 eltype_driveoperator(::Device)::Type{<:Number} = error("Not Implemented")
 function driveoperator(::Device,
-    ā::List{<:AbstractMatrix},
+    ā::MatrixList,
     i::Int,
     t::Real;
     result=nothing,
@@ -133,7 +115,7 @@ end
 
 eltype_gradeoperator(::Device)::Type{<:Number} = error("Not Implemented")
 function gradeoperator(::Device,
-    ā::List{<:AbstractMatrix},
+    ā::MatrixList,
     j::Int,
     t::Real;
     result=nothing,
@@ -158,30 +140,25 @@ end
 
 # UTILITIES
 
-@memoize Dict nstates(device::Device) = prod(nstates(device,q) for q in 1:nqubits(device))
+@memoize Dict nstates(device::Device) = nlevels(device) ^ nqubits(device)
 
 function globalize(
     device::Device, op::AbstractMatrix{F}, q::Int;
     result=nothing,
 ) where {F}
-    if result === nothing
+    if isnothing(result)
         N = nstates(device)
         result = Matrix{F}(undef, N, N)
     end
 
-    ops = Matrix{F}[]
-    for p in 1:nqubits(device)
-        if p == q
-            push!(ops, convert(Matrix{F}, op))
-            continue
-        end
-
-        m = nstates(device, p)
-        push!(ops, Matrix{F}(I, m, m))
+    m = nlevels(device)
+    n = nqubits(device)
+    ops = array(F, (m,m,n))
+    for p in 1:n
+        ops[:,:,p] .= p == q ? op : Matrix(I, m, m)
     end
     return LinearAlgebraTools.kron(ops; result=result)
 end
-
 
 
 
@@ -203,7 +180,7 @@ end
     for i in 1:N
         perm = sortperm(abs.(U[i,:]), rev=true) # STABLE SORT BY "ith" COMPONENT
         perm_ix = 1                             # CAREFULLY HANDLE TIES
-        while perm[perm_ix] ∈ σ[1:i-1]
+        while perm[perm_ix] ∈ @view(σ[1:i-1])
             perm_ix += 1
         end
         σ[i] = perm[perm_ix]
@@ -229,16 +206,28 @@ end
 end
 
 @memoize Dict function diagonalize(basis::Bases.LocalBasis, device::Device)
-    ΛU = [diagonalize(basis, device, q) for q in 1:nqubits(device)]
-    Λ = LinearAlgebraTools.kron([ΛU[q].values  for q in 1:nqubits(device)])
-    U = LinearAlgebraTools.kron([ΛU[q].vectors for q in 1:nqubits(device)])
+    F = eltype_localloweringoperator(device)
+        # NOTE: May not be correct, if we ever introduce a complex local basis!
+
+    m = nlevels(device)
+    n = nqubits(device)
+    λ̄ = Array{F,2}(undef, m, n)
+    ū = Array{F,3}(undef, m, m, n)
+    for q in 1:n
+        ΛU = diagonalize(basis, device, q)
+        λ̄[:,q] .= ΛU.values
+        ū[:,:,q] .= ΛU.vectors
+    end
+    Λ = LinearAlgebraTools.kron(λ̄)
+    U = LinearAlgebraTools.kron(ū)
     return Eigen(Λ, U)
 end
 
 @memoize Dict function diagonalize(::Bases.Occupation, device::Device, q::Int)
-    a = localloweringoperator(device, q)
-    I = one(a)
-    return eigen(Hermitian(I))
+    F = eltype_localloweringoperator(device)
+    m = nlevels(device)
+    identity = Matrix{F}(I, m, m)
+    return eigen(Hermitian(identity))
 end
 
 @memoize Dict function diagonalize(::Bases.Coordinate, device::Device, q::Int)
@@ -292,7 +281,16 @@ end
     src::Bases.LocalBasis,
     device::Device,
 )
-    return [basisrotation(tgt, src, device, q) for q in 1:nqubits(device)]
+    F = eltype_localloweringoperator(device)
+        # NOTE: May not be correct, if we ever introduce a complex local basis!
+
+    m = nlevels(device)
+    n = nqubits(device)
+    ū = Array{F,3}(undef, m, m, n)
+    for q in 1:n
+        ū[:,:,q] .= basisrotation(tgt, src, device, q)
+    end
+    return ū
 end
 
 
@@ -317,19 +315,16 @@ end
     device::Device,
     basis::Bases.BasisType=Bases.OCCUPATION,
 )
+    F = eltype_algebra(device, basis)
     U = basisrotation(basis, Bases.OCCUPATION, device)
-    a0 = localloweringoperator(device, 1)   # NOTE: Raises error if device has no qubits.
-    F = promote_type(eltype(U), eltype(a0)) # NUMBER TYPE COMPATIBLE WITH ROTATION
 
-    ā = Matrix{F}[]
-    for q in 1:nqubits(device)
+    n = nqubits(device)
+    N = nstates(device)
+    ā = Array{F,3}(undef, N, N, n)
+    for q in 1:n
         a0 = localloweringoperator(device, q)
-        aF = Matrix{F}(undef, size(a0))
-        aF .= a0
-
-        a = globalize(device, aF, q)
-        a = LinearAlgebraTools.rotate!(U, a)
-        push!(ā, a)
+        ā[:,:,q] .= globalize(device, a0, q)
+        LinearAlgebraTools.rotate!(U, @view(ā[:,:,q]))
     end
     return ā
 end
@@ -339,25 +334,18 @@ end
     basis::Bases.BasisType=Bases.OCCUPATION,
 )
     # DETERMINE THE NUMBER TYPE COMPATIBLE WITH ROTATION
-    # NOTE: Raises error if device has no qubits.
-    U = basisrotation(basis, Bases.OCCUPATION, device, 1)
-    a0 = localloweringoperator(device, 1)
-    F = promote_type(eltype(U), eltype(a0))
+    F = eltype_algebra(device, basis)
 
-    ā = Matrix{F}[]
+    m = nlevels(device)
+    n = nqubits(device)
+    ā = Array{F,3}(undef, m, m, n)
     for q in 1:nqubits(device)
-        U = basisrotation(basis, Bases.OCCUPATION, device, q)
-        a0 = localloweringoperator(device, q)
-        aF = Matrix{F}(undef, size(a0))
-        aF .= a0
-
-        a = LinearAlgebraTools.rotate!(U, aF)
-        push!(ā, a)
+        ā[:,:,q] .= localloweringoperator(device, q)
+        u = basisrotation(basis, Bases.OCCUPATION, device, q)
+        LinearAlgebraTools.rotate!(u, @view(ā[:,:,q]))
     end
     return ā
 end
-
-
 
 
 #= TYPE FUNCTIONS =#
@@ -442,8 +430,9 @@ end
     ::Symbol,
 )
     # NOTE: Use a cache for time-independent operators, if not using pre-allocated result.
+    F = eltype(op, device, basis)
     N = nstates(device)
-    result = Matrix{eltype(op,device,basis)}(undef, N, N)
+    result = Matrix{F}(undef, N, N)
     return operator(op, device, basis; result=result)
 end
 
@@ -462,9 +451,9 @@ function operator(
     basis::Bases.BasisType;
     result=nothing,
 )
-    result === nothing && return operator(op, device, basis, :cache)
-    Im = Matrix(I, nstates(device), nstates(device))
-    result .= Im
+    isnothing(result) && return operator(op, device, basis, :cache)
+    N = nstates(device)
+    result .= Matrix(I, N, N)
     return result
 end
 
@@ -474,7 +463,7 @@ function operator(
     basis::Bases.BasisType;
     result=nothing,
 )
-    result === nothing && return operator(op, device, basis, :cache)
+    isnothing(result) && return operator(op, device, basis, :cache)
     ā = algebra(device, basis)
     return qubithamiltonian(device, ā, op.q; result=result)
 end
@@ -485,7 +474,7 @@ function operator(
     basis::Bases.BasisType;
     result=nothing,
 )
-    result === nothing && return operator(op, device, basis, :cache)
+    isnothing(result) && return operator(op, device, basis, :cache)
     ā = algebra(device, basis)
     return staticcoupling(device, ā; result=result)
 end
@@ -516,7 +505,7 @@ function operator(
     basis::Bases.BasisType;
     result=nothing,
 )
-    result === nothing && return operator(op, device, basis, :cache)
+    isnothing(result) && return operator(op, device, basis, :cache)
     result .= 0
     for q in 1:nqubits(device)
         result .+= operator(Operators.Qubit(q), device, basis)
@@ -530,7 +519,7 @@ function operator(
     basis::Bases.BasisType;
     result=nothing,
 )
-    result === nothing && return operator(op, device, basis, :cache)
+    isnothing(result) && return operator(op, device, basis, :cache)
     result .= 0
     result .+= operator(Operators.UNCOUPLED, device, basis)
     result .+= operator(Operators.COUPLING, device, basis)
@@ -553,7 +542,7 @@ function operator(
     ::Bases.Dressed;
     result=nothing,
 )
-    result === nothing && return operator(op, device, Bases.DRESSED, :cache)
+    isnothing(result) && return operator(op, device, Bases.DRESSED, :cache)
     result .= operator(op, device, Bases.DRESSED, :cache)
     return result
 end
@@ -564,7 +553,7 @@ function operator(
     basis::Bases.BasisType;
     result=nothing,
 )
-    if result === nothing
+    if isnothing(result)
         N = nstates(device)
         result = Matrix{eltype(op,device,basis)}(undef, N, N)
     end
@@ -587,7 +576,7 @@ function operator(
     basis::Bases.BasisType;
     result=nothing,
 )
-    if result === nothing
+    if isnothing(result)
         N = nstates(device)
         result = Matrix{eltype(op,device,basis)}(undef, N, N)
     end
@@ -605,8 +594,16 @@ end
     device::Device,
     basis::Bases.LocalBasis,
 )
+    F = eltype(Operators.UNCOUPLED, device, basis)
     ā = localalgebra(device, basis)
-    return [qubithamiltonian(device, ā, q) for q in 1:nqubits(device)]
+
+    m = nlevels(device)
+    n = nqubits(device)
+    h̄ = Array{F,3}(undef, m, m, n)
+    for q in 1:n
+        h̄[:,:,q] .= qubithamiltonian(device, ā, q)
+    end
+    return h̄
 end
 
 
@@ -655,7 +652,7 @@ function propagator(
     H = array(eltype(op, device, basis), (N,N), LABEL)
     H = operator(op, device, basis; result=H)
 
-    result === nothing && (result=Matrix{LinearAlgebraTools.cis_type(H)}(undef, size(H)))
+    isnothing(result) && (result=Matrix{LinearAlgebraTools.cis_type(H)}(undef, size(H)))
     result .= H
     return LinearAlgebraTools.cis!(result, -τ)
 end
@@ -667,7 +664,7 @@ function propagator(
     τ::Real;
     result=nothing,
 )
-    result === nothing && return propagator(op, device, basis, τ, :cache)
+    isnothing(result) && return propagator(op, device, basis, τ, :cache)
     # NOTE: No need to use temp array, since operator is cached.
     result .= operator(op, device, basis)
     return LinearAlgebraTools.cis!(result, -τ)
@@ -680,7 +677,7 @@ function propagator(
     τ::Real;
     result=nothing,
 )
-    result === nothing && return propagator(op, device, basis, τ, :cache)
+    isnothing(result) && return propagator(op, device, basis, τ, :cache)
     # NOTE: No need to use temp array, since operator is cached.
     result .= operator(op, device, basis)
     return result
@@ -693,7 +690,7 @@ function propagator(
     τ::Real;
     result=nothing,
 )
-    result === nothing && return propagator(op, device, basis, τ, :cache)
+    isnothing(result) && return propagator(op, device, basis, τ, :cache)
     ū = localqubitpropagators(device, basis, τ)
     return LinearAlgebraTools.kron(ū; result=result)
 end
@@ -705,7 +702,7 @@ function propagator(
     τ::Real;
     result=nothing,
 )
-    result === nothing && return propagator(op, device, basis, τ, :cache)
+    isnothing(result) && return propagator(op, device, basis, τ, :cache)
     ā = localalgebra(device, basis)
 
     h = qubithamiltonian(device, ā, op.q)
@@ -728,16 +725,14 @@ end
     basis::Bases.LocalBasis,
     τ::Real,
 )
-    h̄ = localqubitoperators(device, basis)
-    h = h̄[1]        # NOTE: Raises error if device has no qubits.
-    F = LinearAlgebraTools.cis_type(h)
+    F = LinearAlgebraTools.cis_type(eltype(Operators.UNCOUPLED, device, basis))
 
-    ū = Matrix{F}[]
-    for h in h̄
-        u = Matrix{F}(undef, size(h))
-        u .= h
-        u = LinearAlgebraTools.cis!(u, -τ)
-        push!(ū, u)
+    m = nlevels(device)
+    n = nqubits(device)
+    ū = Array{F,3}(undef, m, m, n)
+    ū .= localqubitoperators(device, basis) # COPIES LOCAL OPERATORS INTO cis-able TYPE
+    for q in 1:n
+        LinearAlgebraTools.cis!(@view(ū[:,:,q]), -τ)
     end
     return ū
 end
@@ -807,13 +802,20 @@ function propagate!(
     τ::Real,
     ψ::Evolvable,
 )
+    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
     ā = localalgebra(device, basis)
-    h = qubithamiltonian(device, ā, op.q)
 
-    u = Matrix{LinearAlgebraTools.cis_type(h)}(undef, size(h))
-    u .= h
-    u = LinearAlgebraTools.cis!(u, -τ)
-    ops = Matrix{eltype(u)}[p == op.q ? u : one(u) for p in 1:nqubits(device)]
+    m = nlevels(device)
+    n = nqubits(device)
+    ops = array(eltype(u), (m,m,n))
+    for p in 1:n
+        if p == op.q
+            qubithamiltonian(device, ā, op.q; result=@view(ops[:,:,p]))
+            LinearAlgebraTools.cis!(@view(ops[:,:,p]), -τ)
+        else
+            ops[:,:,p] .= Matrix(I, m, m)
+        end
+    end
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
@@ -845,7 +847,7 @@ function evolver(
 )
     # NOTE: No need for temp array since operator is cached.
     H = operator(op, device, basis)
-    result === nothing && (result=Matrix{LinearAlgebraTools.cis_type(H)}(undef, size(H)))
+    isnothing(result) && (result=Matrix{LinearAlgebraTools.cis_type(H)}(undef, size(H)))
     result .= H
     return LinearAlgebraTools.cis!(result, -t)
 end
@@ -858,7 +860,7 @@ function evolver(
     result=nothing,
 )
     # NOTE: `evolver` SHOULD BE SAFE TO MUTATE, SO COPY CACHED I MATRIX
-    result === nothing && return copy(operator(op, device, basis))
+    isnothing(result) && return copy(operator(op, device, basis))
     result .= operator(op, device, basis)
     return result
 end
@@ -899,21 +901,21 @@ end
 function localqubitevolvers(
     device::Device,
     basis::Bases.LocalBasis,
-    t::Real,
+    t::Real;
+    result=nothing
 )
-    h̄ = localqubitoperators(device, basis)
-    h = h̄[1]        # NOTE: Raises error if device has no qubits.
-    F = LinearAlgebraTools.cis_type(h)
+    F = LinearAlgebraTools.cis_type(eltype(Operators.UNCOUPLED, device, basis))
 
-    ū = Matrix{F}[]
-    for h in h̄
-        u = Matrix{F}(undef, size(h))
-        u .= h
-        u = LinearAlgebraTools.cis!(u, -t)
-        push!(ū, u)
+    m = nlevels(device)
+    n = nqubits(device)
+    ū = isnothing(result) ? Array{F,3}(undef, m, m, n) : result
+    ū .= localqubitoperators(device, basis) # COPIES LOCAL OPERATORS INTO cis-able TYPE
+    for q in 1:n
+        LinearAlgebraTools.cis!(@view(ū[:,:,q]), -t)
     end
     return ū
 end
+
 
 
 #= MUTATING EVOLUTION FOR ARBITRARY TIME (static only) =#
@@ -972,13 +974,20 @@ function evolve!(
     t::Real,
     ψ::Evolvable,
 )
+    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
     ā = localalgebra(device, basis)
-    h = qubithamiltonian(device, ā, op.q)
 
-    u = Matrix{LinearAlgebraTools.cis_type(h)}(undef, size(h))
-    u .= h
-    u = LinearAlgebraTools.cis!(u, -t)
-    ops = Matrix{eltype(u)}[p == op.q ? u : one(u) for p in 1:nqubits(device)]
+    m = nlevels(device)
+    n = nqubits(device)
+    ops = array(eltype(u), (m,m,n))
+    for p in 1:n
+        if p == op.q
+            qubithamiltonian(device, ā, op.q; result=@view(ops[:,:,p]))
+            LinearAlgebraTools.cis!(@view(ops[:,:,p]), -t)
+        else
+            ops[:,:,p] .= Matrix(I, m, m)
+        end
+    end
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
@@ -1033,18 +1042,17 @@ function braket(op::Operators.StaticOperator,
     return LinearAlgebraTools.braket(ψ1, H, ψ2)
 end
 
-# function braket(
-#     op::Operators.Uncoupled,
-#     device::Device,
-#     basis::Bases.LocalBasis,
-#     ψ1::AbstractVector,
-#     ψ2::AbstractVector,
-# )
-#     h̄ = localqubitoperators(device, basis)
-#     return LinearAlgebraTools.braket(ψ1, h̄, ψ2)
-# end
-# TODO (mid): Oops; this is the SUM of each QUBIT operator.
-# TODO (mid): LocalDriveDevice can have braket(Channel) and braket(Drive).
+function braket(
+    op::Operators.Uncoupled,
+    device::Device,
+    basis::Bases.LocalBasis,
+    ψ1::AbstractVector,
+    ψ2::AbstractVector,
+)
+    return sum(
+        braket(Operators.Qubit(q), device, basis, ψ1, ψ2) for q in 1:nqubits(device)
+    )
+end
 
 function braket(
     op::Operators.Qubit,
@@ -1056,7 +1064,12 @@ function braket(
     ā = localalgebra(device, basis)
     h = qubithamiltonian(device, ā, op.q)
 
-    ops = Matrix{eltype(h)}[p == op.q ? h : one(h) for p in 1:nqubits(device)]
+    m = nlevels(device)
+    n = nqubits(device)
+    ops = array(eltype(h), (m,m,n))
+    for p in 1:n
+        ops[:,:,p] .= p == op.q ? h : Matrix(I, m, m)
+    end
     return LinearAlgebraTools.braket(ψ1, ops, ψ2)
 end
 
@@ -1088,17 +1101,19 @@ end
 function localdriveoperators(
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
-    t::Real,
+    t::Real;
+    result=nothing,
 )
+    F = eltype(Operators.Drive(t), device, basis)
     ā = localalgebra(device, basis)
 
-    # SINGLE OPERATOR TO FETCH THE CORRECT TYPING
-    F = eltype(Operators.Drive(t), device, basis)
-
-    v̄ = Matrix{F}[zeros(F, size(ā[q])) for q in 1:nqubits(device)]
-    for i in 1:ndrives(device)
+    m = nlevels(device)
+    n = nqubits(device)
+    v̄ = isnothing(result) ? Array{F,3}(undef, m, m, n) : result
+    v̄ .= 0
+    for i in 1:n
         q = drivequbit(device, i)
-        v̄[q] .+= driveoperator(device, ā, i, t)
+        v̄[:,:,q] .+= driveoperator(device, ā, i, t)
     end
     return v̄
 end
@@ -1111,18 +1126,17 @@ function localdrivepropagators(
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
     τ::Real,
-    t::Real,
+    t::Real;
+    result=nothing,
 )
-    v̄ = localdriveoperators(device, basis, t)
-    v = v̄[1]        # NOTE: Raises error if device has no drives.
-    F = LinearAlgebraTools.cis_type(v)
+    F = eltype(Operators.Drive(t), device, basis)
 
-    ū = Matrix{F}[]
-    for v in v̄
-        u = Matrix{F}(undef, size(v))
-        u .= v
-        u = LinearAlgebraTools.cis!(u, -τ)
-        push!(ū, u)
+    m = nlevels(device)
+    n = nqubits(device)
+    ū = isnothing(result) ? Array{F,3}(undef, m, m, n) : result
+    ū .= localdriveoperators(device, basis, t)
+    for q in 1:n
+        LinearAlgebraTools.cis!(@view(ū[:,:,q]), -τ)
     end
     return ū
 end
@@ -1145,13 +1159,13 @@ function propagator(
     τ::Real;
     result=nothing,
 )
+    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
     ā = localalgebra(device, basis)
-    v = driveoperator(device, ā, op.i, op.t)
-
-    u = Matrix{LinearAlgebraTools.cis_type(v)}(undef, size(v))
-    u .= v
-    u = LinearAlgebraTools.cis!(u, -τ)
     q = drivequbit(device, op.i)
+
+    u = array(F, size(v))
+    u .= driveoperator(device, ā, op.i, op.t)
+    u = LinearAlgebraTools.cis!(u, -τ)
     return globalize(device, u, q; result=result)
 end
 
@@ -1173,18 +1187,64 @@ function propagate!(
     τ::Real,
     ψ::Evolvable,
 )
+    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
     ā = localalgebra(device, basis)
-    v = driveoperator(device, ā, op.i, op.t)
-
-    u = Matrix{LinearAlgebraTools.cis_type(v)}(undef, size(v))
-    u .= v
-    u = LinearAlgebraTools.cis!(u, -τ)
     q = drivequbit(device, op.i)
-    ops = Matrix{eltype(u)}[p == q ? u : one(u) for p in 1:nqubits(device)]
+
+    m = nlevels(device)
+    n = nqubits(device)
+    ops = array(F, (m,m,n))
+    for p in 1:n
+        if p == q
+            driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
+            LinearAlgebraTools.cis!(@view(ops[:,:,p]), -τ)
+        else
+            ops[:,:,p] .= Matrix(I, m, m)
+        end
+    end
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
 
 # LOCALIZING GRADIENT OPERATORS
+
+function braket(
+    op::Operators.Drive,
+    device::Device,
+    basis::Bases.LocalBasis,
+    ψ1::AbstractVector,
+    ψ2::AbstractVector,
+)
+    return sum(
+        braket(
+            Operators.Channel(i, op.t),
+            device, basis, ψ1, ψ2
+        ) for i in 1:ndrives(device)
+    )
+end
+
+function braket(
+    op::Operators.Channel,
+    device::Device,
+    basis::Bases.LocalBasis,
+    ψ1::AbstractVector,
+    ψ2::AbstractVector,
+)
+    F = eltype(op, device, basis)
+    ā = localalgebra(device, basis)
+    q = drivequbit(device, op.i)
+
+    m = nlevels(device)
+    n = nqubits(device)
+    ops = array(F, (m,m,n))
+    for p in 1:n
+        if p == q
+            driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
+        else
+            ops[:,:,p] .= Matrix(I, m, m)
+        end
+    end
+    return LinearAlgebraTools.braket(ψ1, ops, ψ2)
+end
 
 function braket(
     op::Operators.Gradient,
@@ -1193,13 +1253,19 @@ function braket(
     ψ1::AbstractVector,
     ψ2::AbstractVector,
 )
+    F = eltype(op, device, basis)
     ā = localalgebra(device, basis)
     q = gradequbit(device, op.j)
-    a = ā[q]
 
-    A = array(eltype(Operators.Gradient(op.j, op.t), device), size(a), LABEL)
-    A = gradeoperator(device, ā, op.j, op.t; result=A)
-
-    ops = Matrix{eltype(A)}[p == q ? A : one(A) for p in 1:nqubits(device)]
+    m = nlevels(device)
+    n = nqubits(device)
+    ops = array(F, (m,m,n))
+    for p in 1:n
+        if p == q
+            gradeoperator(device, ā, op.j, op.t; result=@view(ops[:,:,p]))
+        else
+            ops[:,:,p] .= Matrix(I, m, m)
+        end
+    end
     return LinearAlgebraTools.braket(ψ1, ops, ψ2)
 end

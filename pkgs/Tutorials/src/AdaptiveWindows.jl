@@ -12,7 +12,7 @@ import Plots
 
 const DEFAULTS = Dict{Symbol,Any}(
     :matrixfile => "./pkgs/Tutorials/matrix/H2_sto-3g_singlet_1.5_P-m.npy",
-    :T => 10.0, # ns
+    :T => 5.0, # ns
     :r => 200,
     :m => 2,
 
@@ -34,10 +34,10 @@ const DEFAULTS = Dict{Symbol,Any}(
     :updateiter => 100,
     :fnRATIO => 3,
 
-    :maxadapt => 1,           # Number of adaptations attempted before giving up.
+    :maxadapt => 10,           # Number of adaptations attempted before giving up.
     :ϕtol => 1e-6,              # Neglect switches oscillating within ϕtol.
     :τtol => 0.5,               # Neglect switches happening within space τtol⋅(T/r).
-    :Ωtol => 1e-2,              # Merge switches when they optimize to within Ωtol.
+    :Ωtol => 1e-3,              # Merge switches when they optimize to within Ωtol.
 
     :fFACTOR => 0.01,
 )
@@ -46,12 +46,12 @@ const DEFAULTS = Dict{Symbol,Any}(
 function run(; subdir="./pkgs/Tutorials/dat/adaptivewindows", loaddir=false, resume=true)
     loaddir == true && return run(; subdir=subdir, loaddir=subdir, resume=resume)
 
-    # isdir(subdir) && !(subdir == loaddir) && error("""
-    #     Directory $subdir already exists. Do one of:
-    #     1. Rename (or delete) the existing directory.
-    #     2. Call `run(; subdir="<path>")` with a different directory.
-    #     3. Call `run(; loaddir=true)` to resume the existing experiment.
-    # """)
+    isdir(subdir) && !(subdir == loaddir) && error("""
+        Directory $subdir already exists. Do one of:
+        1. Rename (or delete) the existing directory.
+        2. Call `run(; subdir="<path>")` with a different directory.
+        3. Call `run(; loaddir=true)` to resume the existing experiment.
+    """)
     !(subdir == loaddir) && mkpath(subdir)
 
     if loaddir isa String

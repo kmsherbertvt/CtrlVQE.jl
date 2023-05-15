@@ -30,8 +30,7 @@ struct CostFunction{
     basis::B
 
     ψ::Vector{Complex{F}}
-    π̄::Vector{Matrix{Bool}}
-    # TODO (hi): convert to 3d array
+    π̄::LinearAlgebraTools.MatrixList{Bool}
 
     function CostFunction(
         ψ0::AbstractVector,

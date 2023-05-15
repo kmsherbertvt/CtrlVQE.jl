@@ -14,13 +14,29 @@ function qubitisometry(device::Devices.Device)
 end
 
 function localqubitprojectors(device::Devices.Device)
-    return Matrix{Bool}[ϕ*ϕ' for ϕ in localqubitisometries(device)]
+    m = Devices.nlevels(device)
+    n = Devices.nqubits(device)
+    π = Matrix(I, m, m)
+    for l in 3:m
+        π[l,l] = 0
+    end
+    π̄ = Array{Bool}(undef, m, m, n)
+    for q in 1:n
+        π̄[:,:,q] .= π
+    end
+    return π̄
 end
 
 function localqubitisometries(device::Devices.Device)
     # NOTE: Acts on qubit space, projects up to device space.
-    ϕ(q) = Matrix(I,Devices.nstates(device,q), 2)
-    return Matrix{Bool}[ϕ(q) for q in 1:Devices.nqubits(device)]
+    m = Devices.nlevels(device)
+    n = Devices.nqubits(device)
+    ϕ = Matrix(I, m, 2)
+    ϕ̄ = Array{Bool}(undef, m, 2, n)
+    for q in 1:n
+        ϕ̄[:,:,q] .= ϕ
+    end
+    return ϕ̄
 end
 
 
@@ -44,10 +60,12 @@ end
 
 function project(ψ::AbstractVector{F}, device::Devices.Device) where {F}
     N0 = length(ψ)
-    m̄0 = fill(2, Devices.nqubits(device))
-
     N = Devices.nstates(device)
-    m̄ = [Devices.nstates(device,q) for q in 1:Devices.nqubits(device)]
+    m = Devices.nlevels(device)
+
+    m̄0 = fill(2, Devices.nqubits(device))
+    m̄  = fill(m, Devices.nqubits(device))
+
     ix_map = Dict(i0 => _ix_from_cd(_cd_from_ix(i0,m̄0),m̄) for i0 in 1:N0)
     result = zeros(F, N)
     for i in 1:N0
@@ -58,10 +76,10 @@ end
 
 function project(H::AbstractMatrix{F}, device::Devices.Device) where {F}
     N0 = size(H, 1)
+    m̄ = fill(Devices.nlevels(device), Devices.nqubits(device))
     m̄0 = fill(2, Devices.nqubits(device))
 
     N = Devices.nstates(device)
-    m̄ = [Devices.nstates(device,q) for q in 1:Devices.nqubits(device)]
     ix_map = Dict(i0 => _ix_from_cd(_cd_from_ix(i0,m̄0),m̄) for i0 in 1:N0)
     result = zeros(F, N, N)
     for i in 1:N0

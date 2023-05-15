@@ -1,6 +1,6 @@
 using Memoization: @memoize
 import LinearAlgebra: I, mul!
-using ...LinearAlgebraTools: List
+using ...LinearAlgebraTools: MatrixList
 import ...Parameters, ...LinearAlgebraTools, ...Signals, ...Devices
 
 import ...TempArrays: array
@@ -20,7 +20,7 @@ abstract type AbstractTransmonDevice{F,FΩ} <: Devices.LocallyDrivenDevice end
 
 # THE INTERFACE TO IMPLEMENT
 
-# Devices.nstates
+# Devices.nlevels
 # Devices.nqubits
 resonancefrequency(::AbstractTransmonDevice, q::Int)::Real = error("Not Implemented")
 anharmonicity(::AbstractTransmonDevice, q::Int)::Real = error("Not Implemented")
@@ -52,17 +52,17 @@ function Devices.localloweringoperator(
     device::AbstractTransmonDevice{F,FΩ},
     q::Int,
 ) where {F,FΩ}
-    return bosonic_annihilator(F, Devices.nstates(device, q))
+    return bosonic_annihilator(F, Devices.nlevels(device))
 end
 
 Devices.eltype_qubithamiltonian(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = F
 function Devices.qubithamiltonian(
     device::AbstractTransmonDevice,
-    ā::List{<:AbstractMatrix},
+    ā::MatrixList,
     q::Int;
     result=nothing,
 )
-    a = ā[q]
+    a = @view(ā[:,:,q])
     Im = Matrix(I, size(a))     # UNAVOIDABLE ALLOCATION?
 
     result === nothing && (result = Matrix{eltype(a)}(undef, size(a)))
@@ -77,20 +77,19 @@ end
 Devices.eltype_staticcoupling(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = F
 function Devices.staticcoupling(
     device::AbstractTransmonDevice,
-    ā::List{<:AbstractMatrix{F}};
+    ā::MatrixList{F};
     result=nothing,
 ) where {F}
-    shape = size(ā[1])  # NOTE: Not robust for empty devices.
-    result === nothing && (result = Matrix{F}(undef, shape))
+    d = size(ā,1)
+    result === nothing && (result = Matrix{F}(undef, d, d))
+    aTa = array(F, size(result), LABEL)
 
     result .= 0
     for pq in 1:ncouplings(device)
         g = couplingstrength(device, pq)
         p, q = couplingpair(device, pq)
 
-        aTa = array(F, shape, LABEL)
-        mul!(aTa, ā[p]', ā[q])
-
+        aTa = mul!(aTa, (@view(ā[:,:,p]))', @view(ā[:,:,q]))
         result .+= g .* aTa
         result .+= g .* aTa'
     end
@@ -100,12 +99,12 @@ end
 Devices.eltype_driveoperator(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = Complex{F}
 function Devices.driveoperator(
     device::AbstractTransmonDevice,
-    ā::List{<:AbstractMatrix},
+    ā::MatrixList,
     i::Int,
     t::Real;
     result=nothing,
 )
-    a = ā[Devices.drivequbit(device, i)]
+    a = @view(ā[:,:,Devices.drivequbit(device, i)])
     e = exp(im * drivefrequency(device, i) * t)
     Ω = drivesignal(device, i)(t)
 
@@ -129,13 +128,13 @@ end
 Devices.eltype_gradeoperator(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = Complex{F}
 function Devices.gradeoperator(
     device::AbstractTransmonDevice,
-    ā::List{<:AbstractMatrix},
+    ā::MatrixList,
     j::Int,
     t::Real;
     result=nothing,
 )
     i = ((j-1) >> 1) + 1
-    a = ā[Devices.drivequbit(device, i)]
+    a = @view(ā[:,:,Devices.drivequbit(device, i)])
     e = exp(im * drivefrequency(device, i) * t)
 
     if result === nothing
@@ -341,7 +340,7 @@ struct TransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
     end
 end
 
-Devices.nstates(device::TransmonDevice, q::Int) = device.m
+Devices.nlevels(device::TransmonDevice) = device.m
 
 Devices.nqubits(device::TransmonDevice) = length(device.ω̄)
 resonancefrequency(device::TransmonDevice, q::Int) = device.ω̄[q]

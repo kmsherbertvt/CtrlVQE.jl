@@ -115,7 +115,7 @@ import CtrlVQE.Bases: OCCUPATION, DRESSED
     x̄ = Parameters.values(device)
 
     r = 1000
-    ϕ̄ = Evolutions.gradientsignals(device, T, ψ0, r, [O])
+    ϕ̄ = Evolutions.gradientsignals(device, T, ψ0, r, cat(O, dims=3))
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T, r)
     g0 = Devices.gradient(device, τ̄, t̄, ϕ̄[:,:,1])
 
