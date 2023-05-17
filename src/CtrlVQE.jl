@@ -131,6 +131,7 @@ module CostFunctions
     #= PENALTY FUNCTIONS =#
     module SoftBounds; include("costfns/SoftBounds.jl"); end
     module HardBounds; include("costfns/HardBounds.jl"); end
+    module SmoothBounds; include("costfns/SmoothBounds.jl"); end
 
     #= TODO (mid): Local bounds using smoothing function exp(-x⁻¹) =#
     #= TODO (mid): Global RMS penalty on selected parameters. =#
@@ -142,7 +143,7 @@ module CostFunctions
 end
 import .CostFunctions: CompositeCostFunction, CompositeGradientFunction
 import .CostFunctions: evaluate, BareEnergy, ProjectedEnergy, Normalization
-import .CostFunctions: HardBounds, SoftBounds
+import .CostFunctions: HardBounds, SoftBounds, SmoothBounds
 
 #= RECIPES =#
 
