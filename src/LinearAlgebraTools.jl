@@ -50,7 +50,7 @@ function cis!(A::AbstractMatrix{<:Complex{<:AbstractFloat}}, x::Number=1)
     # NOTE: calculates exp(𝑖xA), aka Cos(xA) + I Sin(xA), hence cis
     # NOTE: A must not be a restrictive view
     # NOTE: A must be Hermitian (in character, not in type)
-    Λ, U = eigen(Hermitian(A))              # TODO (mid): UNNECESSARY ALLOCATIONS
+    Λ, U = eigen(Hermitian(A))              # TODO (lo): UNNECESSARY ALLOCATIONS
 
     F = Complex{real(eltype(Λ))}
     diag = array(F, size(Λ), LABEL)

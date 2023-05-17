@@ -3,16 +3,10 @@ import LinearAlgebra: I, mul!
 using ...LinearAlgebraTools: MatrixList
 import ...Parameters, ...LinearAlgebraTools, ...Signals, ...Devices
 
+import ...Signals: AbstractSignal
+
 import ...TempArrays: array
 const LABEL = Symbol(@__MODULE__)
-
-@memoize Dict function bosonic_annihilator(::Type{F}, m::Int) where {F<:AbstractFloat}
-    a = zeros(F, m, m)
-    for i ∈ 1:m-1
-        a[i,i+1] = √i
-    end
-    return a
-end
 
 
 
@@ -49,10 +43,26 @@ end
 
 Devices.eltype_localloweringoperator(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = F
 function Devices.localloweringoperator(
-    device::AbstractTransmonDevice{F,FΩ},
-    q::Int,
+    device::AbstractTransmonDevice{F,FΩ};
+    result=nothing,
 ) where {F,FΩ}
-    return bosonic_annihilator(F, Devices.nlevels(device))
+    isnothing(result) && return _cachedloweringoperator(device, :cache)
+    result .= 0
+
+    m = Devices.nlevels(device)
+    for i ∈ 1:m-1
+        result[i,i+1] = √i
+    end
+    return result
+end
+
+@memoize Dict function _cachedloweringoperator(
+    device::AbstractTransmonDevice{F,FΩ},
+    ::Symbol,
+) where {F,FΩ}
+    m = Devices.nlevels(device)
+    result = Matrix{F}(undef, m, m)
+    return Devices.localloweringoperator(device; result=result)
 end
 
 Devices.eltype_qubithamiltonian(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = F

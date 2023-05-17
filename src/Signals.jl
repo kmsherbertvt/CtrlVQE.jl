@@ -59,8 +59,8 @@ function integrate_partials(
     result=nothing,
 ) where {P,R}
     # NOTE: Calculates ∫τ ℜ(∂k⋅ϕ) for each parameter k. Let ϕ = ϕα - 𝑖 ϕβ to get desired gradient calculation.
-    isnothing(result) && return integrate_gradient_signal!(
-        signal, τ̄, t̄, ϕα, ϕβ;
+    isnothing(result) && return integrate_partials(
+        signal, τ̄, t̄, ϕ̄;
         result=Vector{P}(undef, Parameters.count(signal))
     )
 
@@ -441,9 +441,12 @@ end
 
 function Base.string(signal::Windowed, names::AbstractVector{String})
     texts = String[]
-    for window in signal.windows
+    for (k, window) in enumerate(signal.windows)
         L = Parameters.count(window)
         text = string(window, names[1+signal.offsets[k]:L+signal.offsets[k]])
+
+        s1 = signal.starttimes[k]
+        s2 = k+1 > length(signal.starttimes) ? "∞" : signal.starttimes[k+1]
         push!(texts, "($text) | t∊[$s1,$s2)")
     end
 
@@ -498,8 +501,8 @@ function integrate_partials(
     ϕ̄::AbstractVector,;
     result=nothing,
 ) where {P,R}
-    isnothing(result) && return integrate_gradient_signal!(
-        signal, τ̄, t̄, ϕα, ϕβ;
+    isnothing(result) && return integrate_partials(
+        signal, τ̄, t̄, ϕ̄;
         result=Vector{P}(undef, Parameters.count(signal))
     )
     result .= 0

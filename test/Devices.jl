@@ -58,7 +58,7 @@ import CtrlVQE.Operators: UNCOUPLED, STATIC, Drive, Hamiltonian
     @test Devices.eltype_gradeoperator(device) === ComplexF64
 
     # BASIC MATRICES - not testing for correctness of particular model, just hermiticity
-    a = Devices.localloweringoperator(device, 1)        # LOCAL
+    a = Devices.localloweringoperator(device)       # LOCAL
     a1 = kron(a, one(a))
     a2 = kron(one(a), a)
 

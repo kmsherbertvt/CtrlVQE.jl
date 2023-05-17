@@ -60,7 +60,7 @@ function partial_B(signal::ComplexInterval{F}, t::Real) where {F}
 end
 
 function Base.string(::ComplexInterval, names::AbstractVector{String})
-    A, s1, s2 = names
+    A, B, s1, s2 = names
     return "$A + i $B | t∊[$s1,$s2)"
 end
 

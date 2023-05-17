@@ -17,10 +17,10 @@ module TempArrays
 end
 
 module Parameters
-    function count(::Any)::Int end
-    function names(::Any)::Vector{String} end
-    function values(::Any)::AbstractVector{<:Number} end
-    function bind(::Any, x̄::AbstractVector)::Nothing end
+    function count(::Any)::Int; error("Not Implemented"); end
+    function names(::Any)::Vector{String}; error("Not Implemented"); end
+    function values(::Any)::AbstractVector{<:Number}; error("Not Implemented"); end
+    function bind(::Any, x̄::AbstractVector)::Nothing; error("Not Implemented"); end
 end
 
 module Bases
