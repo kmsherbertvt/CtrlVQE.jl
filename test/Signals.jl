@@ -1,87 +1,57 @@
 using Test
-import CtrlVQE: Parameters, Signals
+import .StandardTests
 
-@testset "Signals" begin
-    ∂ = Signals.partial
+import CtrlVQE: Signals
 
-    # TEST CONSTANT SIGNAL
-    c = Signals.Constant(5.0)
-    @test c(0.0) == 5.0
-    @test c(1) == 5.0
+@testset "Constant" begin
+    signal = Signals.Constant(0.5)
+    StandardTests.validate(signal)
+end
 
-    @test ∂(1,c,0.0) == 1.0
-    @test ∂(1,c,1) == 1.0
+@testset "CompositeSignal" begin
+    signal = Signals.CompositeSignal(
+        Signals.Constant(0.75),
+        Signals.Constant(0.25),
+    )
+    StandardTests.validate(signal)
+end
 
-    @test Parameters.count(c) == 1
-    @test Parameters.values(c) == [5.0]
-    Parameters.bind(c, [2.0])
-    @test c.A == 2.0
+@testset "ModulatedSignal" begin
+    signal = Signals.ModulatedSignal(
+        Signals.Constant(0.75),
+        Signals.Constant(0.25),
+    )
+    StandardTests.validate(signal)
+end
 
-    # TEST STEP SIGNAL
-    Θ = Signals.StepFunction(3.0, 0.5)
-    @test Θ(0.0) == 0.0
-    @test Θ(1) == 3.0
+@testset "WindowedSignal" begin
+    signal = Signals.WindowedSignal([
+        Signals.Constant(0.75),
+        Signals.Constant(0.25),
+    ], [0.0, 0.5])
+    StandardTests.validate(signal)
+end
 
-    @test ∂(1,Θ,0.0) == 0.0
-    @test ∂(1,Θ,1) == 1.0
+@testset "ComplexConstant" begin
+    signal = Signals.ComplexConstant(0.75, 0.25)
+    StandardTests.validate(signal)
+end
 
-    @test ∂(2,Θ,0.0) == 0.0
-    @test ∂(2,Θ,1) == 0.0
+#= NOTE: The following signals include parameters with ill-defined gradients.
 
-    @test Parameters.count(Θ) == 2
-    @test Parameters.values(Θ) == [3.0, 0.5]
-    Parameters.bind(Θ, [2.0, 0.7])
-    @test Θ.A == 2.0
-    @test Θ.s == 0.7
+Therefore, they serve to test constrained signals, rather than themselves...
+=#
+@testset "Interval" begin
+    signal = Signals.Interval(0.5, 0.25, 1.25)
+    StandardTests.validate(Signals.ConstrainedSignal(signal, :s1, :s2))
+end
 
-    # TEST CONSTRAINED SIGNAL
-    θ = Signals.Constrained(Θ, :s)
-    @test θ(0.0) == 0.0
-    @test θ(1) == 2.0
+@testset "ComplexInterval" begin
+    signal = Signals.ComplexInterval(0.75, 0.25, 0.25, 1.25)
+    StandardTests.validate(Signals.ConstrainedSignal(signal, :s1, :s2))
+end
 
-    @test ∂(1,θ,0.0) == 0.0
-    @test ∂(1,θ,1) == 1.0
-
-    @test Parameters.count(θ) == 1
-    @test Parameters.values(θ) == [2.0]
-    Parameters.bind(θ, [3.0])
-    @test θ.constrained.A == 3.0
-    @test θ.constrained.s == 0.7
-
-    # TEST COMPOSITE SIGNAL
-    f = Signals.Composite(c, θ)
-
-    @test f(0.0) == 2.0
-    @test f(1) == 5.0
-
-    @test ∂(1,f,0.0) == 1.0
-    @test ∂(1,f,1) == 1.0
-    @test ∂(2,f,0.0) == 0.0
-    @test ∂(2,f,1) == 1.0
-
-    @test Parameters.count(f) == 2
-    @test Parameters.values(f) == [2.0, 3.0]
-    Parameters.bind(f, [1.0, 6.0])
-    @test f.components[1].A == 1.0
-    @test f.components[2].constrained.A == 6.0
-    @test f.components[2].constrained.s == 0.7
-
-    # TEST MODULATED SIGNAL
-    F = Signals.Modulated(c, θ)
-
-    @test F(0.0) == 0.0
-    @test F(1) == 6.0
-
-    @test ∂(1,F,0.0) == 0.0
-    @test ∂(1,F,1) == 6.0
-    @test ∂(2,F,0.0) == 0.0
-    @test ∂(2,F,1) == 1.0
-
-    @test Parameters.count(F) == 2
-    @test Parameters.values(F) == [1.0, 6.0]
-    Parameters.bind(F, [3.0, 2.0])
-    @test F.components[1].A == 3.0
-    @test F.components[2].constrained.A == 2.0
-    @test F.components[2].constrained.s == 0.7
-
+@testset "StepFunction" begin
+    signal = Signals.StepFunction(0.75, 0.75)
+    StandardTests.validate(Signals.ConstrainedSignal(signal, :s))
 end

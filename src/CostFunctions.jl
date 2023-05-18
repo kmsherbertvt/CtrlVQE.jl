@@ -16,6 +16,8 @@ end
 
 (g::AbstractGradientFunction)(x̄::AbstractVector) = g(copy(x̄),x̄)
 
+
+
 #= COMPOSITE FUNCTIONS - useful for combining energy with penalties =#
 
 struct CompositeCostFunction <: AbstractCostFunction
@@ -38,6 +40,9 @@ function (f::CompositeCostFunction)(x̄::AbstractVector)
     f.values .= [f_(x̄) for f_ in f.f̄]
     return sum(f.values)
 end
+
+
+
 
 struct CompositeGradientFunction <: AbstractGradientFunction
     ḡ::Vector{AbstractGradientFunction}

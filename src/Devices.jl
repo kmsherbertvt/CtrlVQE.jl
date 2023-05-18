@@ -43,8 +43,8 @@ If it can be done, it would require obtaining the actual `IdDict`
 
 =#
 
-using LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen, mul!
-import ..Bases, ..Operators, ..LinearAlgebraTools, ..Signals
+import LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen
+import ..Bases, ..Operators, ..LinearAlgebraTools
 
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
@@ -52,18 +52,8 @@ const LABEL = Symbol(@__MODULE__)
 import ..LinearAlgebraTools: MatrixList
 const Evolvable = AbstractVecOrMat{<:Complex{<:AbstractFloat}}
 
-struct Quple
-    q1::Int
-    q2::Int
-    # INNER CONSTRUCTOR: Constrain order so that `Quple(q1,q2) == Quple(q2,q1)`.
-    Quple(q1, q2) = q1 > q2 ? new(q2, q1) : new(q1, q2)
-end
-
-# IMPLEMENT ITERATION, FOR CONVENIENT UNPACKING
-Base.iterate(quple::Quple) = quple.q1, true
-Base.iterate(quple::Quple, state) = state ? (quple.q2, false) : nothing
-
-# TODO (lo): Generalize to n qubits (call sort on input arguments)
+#= TODO (hi): Include an export list,
+    for the sake of seeing at a glance what this module provides. =#
 
 
 """
@@ -123,7 +113,8 @@ end
 function gradient(::Device,
     τ̄::AbstractVector,
     t̄::AbstractVector,
-    ϕ̄::AbstractMatrix,
+    ϕ̄::AbstractMatrix;
+    result=nothing,
 )::AbstractVector
     return error("Not Implemented")
 end
@@ -643,7 +634,11 @@ end
     τ::Real,
     ::Symbol,
 )
-    return operator(op, device, basis)
+    # NOTE: Select type independent of Identity, which is non-descriptive Bool.
+    N = nstates(device)
+    F = eltype_staticcoupling(device)
+    result = Matrix{LinearAlgebraTools.cis_type(F)}(undef, N, N)
+    return propagator(op, device, basis, τ; result=result)
 end
 
 function propagator(
@@ -683,6 +678,7 @@ function propagator(
 )
     isnothing(result) && return propagator(op, device, basis, τ, :cache)
     result .= operator(op, device, basis, :cache)
+    result .*= exp(-im*τ)   # Include global phase.
     return result
 end
 
@@ -798,6 +794,7 @@ function propagate!(
     τ::Real,
     ψ::Evolvable,
 )
+    ψ .*= exp(-im*τ)   # Include global phase.
     return ψ
 end
 
@@ -877,12 +874,15 @@ function evolver(
     op::Operators.Identity,
     device::Device,
     basis::Bases.BasisType,
-    τ::Real;
+    t::Real;
     result=nothing,
 )
-    # NOTE: `evolver` SHOULD BE SAFE TO MUTATE, SO COPY CACHED I MATRIX
-    isnothing(result) && return copy(operator(op, device, basis))
-    result .= operator(op, device, basis, :cache)
+    # NOTE: Select type independent of Identity, which is non-descriptive Bool.
+    F = eltype_staticcoupling(device)
+    Im = operator(op, device, basis, :cache)
+    isnothing(result) && (result=Matrix{LinearAlgebraTools.cis_type(F)}(undef, size(Im)))
+    result .= Im
+    result .*= exp(-im*t)   # Include global phase.
     return result
 end
 
@@ -978,6 +978,7 @@ function evolve!(
     τ::Real,
     ψ::Evolvable,
 )
+    ψ .*= exp(-im*τ)   # Include global phase.
     return ψ
 end
 
@@ -1112,197 +1113,3 @@ end
 
 
 
-
-
-abstract type LocallyDrivenDevice <: Device end
-
-# METHODS NEEDING TO BE IMPLEMENTED
-drivequbit(::LocallyDrivenDevice, i::Int)::Int = error("Not Implemented")
-gradequbit(::LocallyDrivenDevice, j::Int)::Int = error("Not Implemented")
-
-# LOCALIZING DRIVE OPERATORS
-
-function localdriveoperators(device::LocallyDrivenDevice, t::Real; kwargs...)
-    return localdriveoperators(device, Bases.OCCUPATION, t; kwargs...)
-end
-
-function localdriveoperators(
-    device::LocallyDrivenDevice,
-    basis::Bases.LocalBasis,
-    t::Real;
-    result=nothing,
-)
-    F = eltype(Operators.Drive(t), device, basis)
-    ā = localalgebra(device, basis)
-
-    m = nlevels(device)
-    n = nqubits(device)
-    isnothing(result) && (result = Array{F,3}(undef, m, m, n))
-    result .= 0
-    for i in 1:n
-        q = drivequbit(device, i)
-        result[:,:,q] .+= driveoperator(device, ā, i, t)
-    end
-    return result
-end
-
-function localdrivepropagators(device::LocallyDrivenDevice, τ::Real, t::Real; kwargs...)
-    return localdrivepropagators(device, Bases.OCCUPATION, τ, t; kwargs...)
-end
-
-function localdrivepropagators(
-    device::LocallyDrivenDevice,
-    basis::Bases.LocalBasis,
-    τ::Real,
-    t::Real;
-    result=nothing,
-)
-    F = eltype(Operators.Drive(t), device, basis)
-
-    m = nlevels(device)
-    n = nqubits(device)
-    isnothing(result) && (result = Array{F,3}(undef, m, m, n))
-    result = localdriveoperators(device, basis, t; result=result)
-    for q in 1:n
-        LinearAlgebraTools.cis!(@view(result[:,:,q]), -τ)
-    end
-    return result
-end
-
-function propagator(
-    op::Operators.Drive,
-    device::LocallyDrivenDevice,
-    basis::Bases.LocalBasis,
-    τ::Real;
-    result=nothing,
-)
-    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
-    m = nlevels(device)
-    n = nqubits(device)
-    ū = array(F, (m,m,n), LABEL)
-    ū = localdrivepropagators(device, basis, τ, op.t; result=ū)
-    return LinearAlgebraTools.kron(ū; result=result)
-end
-
-function propagator(
-    op::Operators.Channel,
-    device::LocallyDrivenDevice,
-    basis::Bases.LocalBasis,
-    τ::Real;
-    result=nothing,
-)
-    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
-    ā = localalgebra(device, basis)
-    q = drivequbit(device, op.i)
-
-    m = nlevels(device)
-    u = array(F, (m, m), LABEL)
-    u .= driveoperator(device, ā, op.i, op.t)
-    u = LinearAlgebraTools.cis!(u, -τ)
-    return globalize(device, u, q; result=result)
-end
-
-function propagate!(
-    op::Operators.Drive,
-    device::LocallyDrivenDevice,
-    basis::Bases.LocalBasis,
-    τ::Real,
-    ψ::Evolvable,
-)
-    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
-    m = nlevels(device)
-    n = nqubits(device)
-    ū = array(F, (m,m,n), LABEL)
-    ū = localdrivepropagators(device, basis, τ, op.t; result=ū)
-    return LinearAlgebraTools.rotate!(ū, ψ)
-end
-
-function propagate!(
-    op::Operators.Channel,
-    device::LocallyDrivenDevice,
-    basis::Bases.LocalBasis,
-    τ::Real,
-    ψ::Evolvable,
-)
-    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
-    ā = localalgebra(device, basis)
-    q = drivequbit(device, op.i)
-
-    m = nlevels(device)
-    n = nqubits(device)
-    ops = array(F, (m,m,n), LABEL)
-    for p in 1:n
-        if p == q
-            driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
-            LinearAlgebraTools.cis!(@view(ops[:,:,p]), -τ)
-        else
-            ops[:,:,p] .= Matrix(I, m, m)
-        end
-    end
-    return LinearAlgebraTools.rotate!(ops, ψ)
-end
-
-# LOCALIZING GRADIENT OPERATORS
-
-function braket(
-    op::Operators.Drive,
-    device::Device,
-    basis::Bases.LocalBasis,
-    ψ1::AbstractVector,
-    ψ2::AbstractVector,
-)
-    return sum(
-        braket(
-            Operators.Channel(i, op.t),
-            device, basis, ψ1, ψ2
-        ) for i in 1:ndrives(device)
-    )
-end
-
-function braket(
-    op::Operators.Channel,
-    device::Device,
-    basis::Bases.LocalBasis,
-    ψ1::AbstractVector,
-    ψ2::AbstractVector,
-)
-    F = eltype(op, device, basis)
-    ā = localalgebra(device, basis)
-    q = drivequbit(device, op.i)
-
-    m = nlevels(device)
-    n = nqubits(device)
-    ops = array(F, (m,m,n), LABEL)
-    for p in 1:n
-        if p == q
-            driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
-        else
-            ops[:,:,p] .= Matrix(I, m, m)
-        end
-    end
-    return LinearAlgebraTools.braket(ψ1, ops, ψ2)
-end
-
-function braket(
-    op::Operators.Gradient,
-    device::LocallyDrivenDevice,
-    basis::Bases.LocalBasis,
-    ψ1::AbstractVector,
-    ψ2::AbstractVector,
-)
-    F = eltype(op, device, basis)
-    ā = localalgebra(device, basis)
-    q = gradequbit(device, op.j)
-
-    m = nlevels(device)
-    n = nqubits(device)
-    ops = array(F, (m,m,n), LABEL)
-    for p in 1:n
-        if p == q
-            gradeoperator(device, ā, op.j, op.t; result=@view(ops[:,:,p]))
-        else
-            ops[:,:,p] .= Matrix(I, m, m)
-        end
-    end
-    return LinearAlgebraTools.braket(ψ1, ops, ψ2)
-end

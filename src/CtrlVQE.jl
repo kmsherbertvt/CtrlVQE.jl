@@ -72,12 +72,40 @@ module Operators
 end
 import .Operators: IDENTITY, COUPLING, UNCOUPLED, STATIC
 
+module Quples
+    struct Quple
+        q1::Int
+        q2::Int
+        # INNER CONSTRUCTOR: Constrain order so that `Quple(q1,q2) == Quple(q2,q1)`.
+        Quple(q1, q2) = q1 > q2 ? new(q2, q1) : new(q1, q2)
+    end
+
+    # IMPLEMENT ITERATION, FOR CONVENIENT UNPACKING
+    Base.iterate(quple::Quple) = quple.q1, true
+    Base.iterate(quple::Quple, state) = state ? (quple.q2, false) : nothing
+
+    # TODO (lo): Generalize to n qubits (call sort on input arguments)
+end
+import .Quples: Quple
+
 module LinearAlgebraTools
     include("LinearAlgebraTools.jl")
 end
 
 module Signals
     include("Signals.jl")
+
+    module ParametricSignals; include("signals/ParametricSignals.jl"); end
+    import .ParametricSignals: ParametricSignal, parameters, ConstrainedSignal
+
+    module CompositeSignals; include("signals/CompositeSignals.jl"); end
+    import .CompositeSignals: CompositeSignal
+
+    module ModulatedSignals; include("signals/ModulatedSignals.jl"); end
+    import .ModulatedSignals: ModulatedSignal
+
+    module WindowedSignals; include("signals/WindowedSignals.jl"); end
+    import .WindowedSignals: WindowedSignal
 
     module ConstantSignals; include("signals/ConstantSignals.jl"); end
     import .ConstantSignals: Constant, ComplexConstant
@@ -92,8 +120,11 @@ end
 module Devices
     include("Devices.jl")
 
+    module LocallyDrivenDevices; include("devices/LocallyDrivenDevices.jl"); end
+    import .LocallyDrivenDevices: LocallyDrivenDevice
+
     module TransmonDevices; include("devices/TransmonDevices.jl"); end
-    import .TransmonDevices: TransmonDevice
+    import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice
 end
 import .Devices: nqubits, nstates, nlevels, ndrives, ngrades
 
@@ -159,7 +190,7 @@ function SystematicTransmonDevice(F, m, n, pulses)
     ω̄ = collect(ω0 .+ (Δω * (1:n)))
     δ̄ = fill(δ0, n)
     ḡ = fill(g0, n-1)
-    quples = [Devices.Quple(q,q+1) for q in 1:n-1]
+    quples = [Quple(q,q+1) for q in 1:n-1]
     q̄ = 1:n
     ν̄ = copy(ω̄)
     return Devices.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
@@ -176,7 +207,7 @@ end
 function FullyTrotterizedSignal(::Type{Complex{F}}, T, r) where {F}
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)
     starttimes = t̄ .- (τ/2)
-    return Signals.Windowed(
+    return Signals.WindowedSignal(
         [Signals.ComplexConstant(zero(F), zero(F)) for t in starttimes],
         starttimes,
     )
@@ -185,7 +216,7 @@ end
 function FullyTrotterizedSignal(::Type{F}, T, r) where {F<:AbstractFloat}
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)
     starttimes = t̄ .- (τ/2)
-    return Signals.Windowed(
+    return Signals.WindowedSignal(
         [Signals.Constant(zero(F)) for t in starttimes],
         starttimes,
     )
@@ -195,7 +226,7 @@ FullyTrotterizedSignal(T, r) = FullyTrotterizedSignal(Float64, T, r)
 
 function WindowedSquarePulse(::Type{Complex{F}}, T, W) where {F}
     starttimes = range(zero(T), T, W+1)[1:end-1]
-    return Signals.Windowed(
+    return Signals.WindowedSignal(
         [Signals.ComplexConstant(zero(F), zero(F)) for t in starttimes],
         starttimes,
     )
@@ -203,7 +234,7 @@ end
 
 function WindowedSquarePulse(::Type{F}, T, W) where {F<:AbstractFloat}
     starttimes = range(zero(T), T, W+1)[1:end-1]
-    return Signals.Windowed(
+    return Signals.WindowedSignal(
         [Signals.Constant(zero(F)) for t in starttimes],
         starttimes,
     )

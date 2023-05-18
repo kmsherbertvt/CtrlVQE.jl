@@ -1,16 +1,19 @@
-using Memoization: @memoize
+import Memoization: @memoize
 import LinearAlgebra: I, mul!
-using ...LinearAlgebraTools: MatrixList
-import ...Parameters, ...LinearAlgebraTools, ...Signals, ...Devices
+
+import ...Parameters, ...Quples, ...LinearAlgebraTools, ...Signals, ...Devices
+import ..LocallyDrivenDevices
 
 import ...Signals: AbstractSignal
+import ...LinearAlgebraTools: MatrixList
+import ...Quples: Quple
 
 import ...TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
 
 
-abstract type AbstractTransmonDevice{F,FΩ} <: Devices.LocallyDrivenDevice end
+abstract type AbstractTransmonDevice{F,FΩ} <: LocallyDrivenDevices.LocallyDrivenDevice end
 
 # THE INTERFACE TO IMPLEMENT
 
@@ -20,11 +23,11 @@ resonancefrequency(::AbstractTransmonDevice, q::Int)::Real = error("Not Implemen
 anharmonicity(::AbstractTransmonDevice, q::Int)::Real = error("Not Implemented")
 
 ncouplings(::AbstractTransmonDevice)::Int = error("Not Implemented")
-couplingpair(::AbstractTransmonDevice, k::Int)::Devices.Quple = error("Not Implemented")
+couplingpair(::AbstractTransmonDevice, k::Int)::Quple = error("Not Implemented")
 couplingstrength(::AbstractTransmonDevice, k::Int)::Real = error("Not Implemented")
 
 # Devices.ndrives
-# Devices.drivequbit
+# LocallyDrivenDevices.drivequbit
 drivefrequency(::AbstractTransmonDevice, i::Int)::Real = error("Not Implemented")
 drivesignal(::AbstractTransmonDevice, i::Int)::AbstractSignal = error("Not Implemented")
 
@@ -37,8 +40,8 @@ function Devices.ngrades(device::AbstractTransmonDevice)
     return 2 * Devices.ndrives(device)
 end
 
-function Devices.gradequbit(device::AbstractTransmonDevice, j::Int)
-    return Devices.drivequbit(device, ((j-1) >> 1) + 1)
+function LocallyDrivenDevices.gradequbit(device::AbstractTransmonDevice, j::Int)
+    return LocallyDrivenDevices.drivequbit(device, ((j-1) >> 1) + 1)
 end
 
 Devices.eltype_localloweringoperator(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = F
@@ -46,7 +49,7 @@ function Devices.localloweringoperator(
     device::AbstractTransmonDevice{F,FΩ};
     result=nothing,
 ) where {F,FΩ}
-    isnothing(result) && return _cachedloweringoperator(device, :cache)
+    isnothing(result) && return _cachedloweringoperator(device)
     result .= 0
 
     m = Devices.nlevels(device)
@@ -58,7 +61,6 @@ end
 
 @memoize Dict function _cachedloweringoperator(
     device::AbstractTransmonDevice{F,FΩ},
-    ::Symbol,
 ) where {F,FΩ}
     m = Devices.nlevels(device)
     result = Matrix{F}(undef, m, m)
@@ -114,7 +116,7 @@ function Devices.driveoperator(
     t::Real;
     result=nothing,
 )
-    a = @view(ā[:,:,Devices.drivequbit(device, i)])
+    a = @view(ā[:,:,LocallyDrivenDevices.drivequbit(device, i)])
     e = exp(im * drivefrequency(device, i) * t)
     Ω = drivesignal(device, i)(t)
 
@@ -144,7 +146,7 @@ function Devices.gradeoperator(
     result=nothing,
 )
     i = ((j-1) >> 1) + 1
-    a = @view(ā[:,:,Devices.drivequbit(device, i)])
+    a = @view(ā[:,:,LocallyDrivenDevices.drivequbit(device, i)])
     e = exp(im * drivefrequency(device, i) * t)
 
     if result === nothing
@@ -301,11 +303,11 @@ struct TransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
     δ̄::Vector{F}
     # COUPLING LISTS
     ḡ::Vector{F}
-    quples::Vector{Devices.Quple}
+    quples::Vector{Quple}
     # DRIVE LISTS
     q̄::Vector{Int}
     ν̄::Vector{F}
-    Ω̄::Vector{Signals.AbstractSignal{F,FΩ}}
+    Ω̄::Vector{AbstractSignal{F,FΩ}}
     # OTHER PARAMETERS
     m::Int
 
@@ -313,10 +315,10 @@ struct TransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
         ω̄::AbstractVector{<:Real},
         δ̄::AbstractVector{<:Real},
         ḡ::AbstractVector{<:Real},
-        quples::AbstractVector{Devices.Quple},
+        quples::AbstractVector{Quple},
         q̄::AbstractVector{Int},
         ν̄::AbstractVector{<:AbstractFloat},
-        Ω̄::AbstractVector{<:Signals.AbstractSignal{F,FΩ}},
+        Ω̄::AbstractVector{<:AbstractSignal{F,FΩ}},
         m::Int,
     ) where {F,FΩ}
         # VALIDATE PARALLEL LISTS ARE CONSISTENT SIZE
@@ -361,17 +363,171 @@ couplingpair(device::TransmonDevice, k::Int) = device.quples[k]
 couplingstrength(device::TransmonDevice, k::Int) = device.ḡ[k]
 
 Devices.ndrives(device::TransmonDevice) = length(device.q̄)
-Devices.drivequbit(device::TransmonDevice, i::Int) = device.q̄[i]
+LocallyDrivenDevices.drivequbit(device::TransmonDevice, i::Int) = device.q̄[i]
 drivefrequency(device::TransmonDevice, i::Int) = device.ν̄[i]
 drivesignal(device::TransmonDevice, i::Int) = device.Ω̄[i]
 
 bindfrequencies(device::TransmonDevice, ν̄::AbstractVector) = (device.ν̄ .= ν̄)
 
 
+
+
+
+
+
+
+
+
+struct FixedFrequencyTransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
+    # QUBIT LISTS
+    ω̄::Vector{F}
+    δ̄::Vector{F}
+    # COUPLING LISTS
+    ḡ::Vector{F}
+    quples::Vector{Quple}
+    # DRIVE LISTS
+    q̄::Vector{Int}
+    ν̄::Vector{F}
+    Ω̄::Vector{AbstractSignal{F,FΩ}}
+    # OTHER PARAMETERS
+    m::Int
+
+    function FixedFrequencyTransmonDevice(
+        ω̄::AbstractVector{<:Real},
+        δ̄::AbstractVector{<:Real},
+        ḡ::AbstractVector{<:Real},
+        quples::AbstractVector{Quple},
+        q̄::AbstractVector{Int},
+        ν̄::AbstractVector{<:AbstractFloat},
+        Ω̄::AbstractVector{<:AbstractSignal{F,FΩ}},
+        m::Int,
+    ) where {F,FΩ}
+        # VALIDATE PARALLEL LISTS ARE CONSISTENT SIZE
+        @assert length(ω̄) == length(δ̄) ≥ 1              # NUMBER OF QUBITS
+        @assert length(ḡ) == length(quples)             # NUMBER OF COUPLINGS
+        @assert length(q̄) == length(ν̄) == length(Ω̄)     # NUMBER OF DRIVES
+
+        # VALIDATE QUBIT INDICES
+        for (p,q) in quples
+            @assert 1 <= p <= length(ω̄)
+            @assert 1 <= q <= length(ω̄)
+        end
+        for q in q̄
+            @assert 1 <= q <= length(ω̄)
+        end
+
+        # VALIDATE THAT THE HILBERT SPACE HAS SOME VOLUME...
+        @assert m ≥ 2
+
+        # STANDARDIZE TYPING
+        return new{F,FΩ}(
+            convert(Vector{F}, ω̄),
+            convert(Vector{F}, δ̄),
+            convert(Vector{F}, ḡ),
+            quples,
+            q̄,
+            convert(Vector{F}, ν̄),
+            [Ω for Ω in Ω̄],
+            m,
+        )
+    end
+end
+
+Devices.nlevels(device::FixedFrequencyTransmonDevice) = device.m
+
+Devices.nqubits(device::FixedFrequencyTransmonDevice) = length(device.ω̄)
+resonancefrequency(device::FixedFrequencyTransmonDevice, q::Int) = device.ω̄[q]
+anharmonicity(device::FixedFrequencyTransmonDevice, q::Int) = device.δ̄[q]
+
+ncouplings(device::FixedFrequencyTransmonDevice) = length(device.quples)
+couplingpair(device::FixedFrequencyTransmonDevice, k::Int) = device.quples[k]
+couplingstrength(device::FixedFrequencyTransmonDevice, k::Int) = device.ḡ[k]
+
+Devices.ndrives(device::FixedFrequencyTransmonDevice) = length(device.q̄)
+LocallyDrivenDevices.drivequbit(device::FixedFrequencyTransmonDevice, i::Int)=device.q̄[i]
+drivefrequency(device::FixedFrequencyTransmonDevice, i::Int) = device.ν̄[i]
+drivesignal(device::FixedFrequencyTransmonDevice, i::Int) = device.Ω̄[i]
+
+bindfrequencies(device::FixedFrequencyTransmonDevice, ν̄::AbstractVector) = nothing
+
+
+function Parameters.count(device::FixedFrequencyTransmonDevice)
+    cnt = 0
+    for i in 1:Devices.ndrives(device)
+        cnt += Parameters.count(drivesignal(device, i))
+    end
+    return cnt
+end
+
+function Parameters.names(device::FixedFrequencyTransmonDevice)
+    names = []
+
+    # STRING TOGETHER PARAMETER NAMES FOR EACH SIGNAL Ω̄[i]
+    annotate(name,i) = "Ω$i(q$(device.q̄[i])):$name"
+    for i in 1:Devices.ndrives(device)
+        Ω = drivesignal(device, i)
+        append!(names, (annotate(name,i) for name in Parameters.names(Ω)))
+    end
+
+    return names
+end
+
+function Parameters.values(device::FixedFrequencyTransmonDevice{F,FΩ}) where {F,FΩ}
+    values = F[]
+
+    # STRING TOGETHER PARAMETERS FOR EACH SIGNAL Ω̄[i]
+    for i in 1:Devices.ndrives(device)
+        Ω = drivesignal(device, i)
+        append!(values, Parameters.values(Ω))
+    end
+
+    return values
+end
+
+function Parameters.bind(
+    device::FixedFrequencyTransmonDevice,
+    x̄::AbstractVector{F},
+) where {F}
+    offset = 0
+
+    # BIND PARAMETERS FOR EACH SIGNAL Ω̄[i]
+    for i in 1:Devices.ndrives(device)
+        Ω = drivesignal(device, i)
+        L = Parameters.count(Ω)
+        Parameters.bind(Ω, x̄[offset+1:offset+L])
+        offset += L
+    end
+end
+
+function Devices.gradient(
+    device::FixedFrequencyTransmonDevice{F,FΩ},
+    τ̄::AbstractVector,
+    t̄::AbstractVector,
+    ϕ̄::AbstractMatrix;
+    result=nothing,
+) where {F,FΩ}
+    L = Parameters.count(device)
+    isnothing(result) && return Devices.gradient(
+        device, τ̄, t̄, ϕ̄;
+        result=Vector{F}(undef, L),
+    )
+
+    gradient_for_signals!(result, device, τ̄, t̄, ϕ̄)
+
+    return result
+end
+
+
+
+
+
+
+
+
+
 #= TODO (low): Other types
 
 LegacyTransmonDevice: assume Ω(t) is real, no analytical gradient for ν, half as many grade operators.
-FixedFrequencyTransmonDevice: ν is tuple and not included in parameters.
 LinearTransmonDevice: quples and ḡ replaced by n-length tuple ḡ, efficient static propagate.
 TransmonDeviceSansRWA: implicitly one channel per qubit, different drive
 a mix of the three I guess...
