@@ -113,6 +113,9 @@ module Signals
 
     module StepFunctionSignals; include("signals/StepFunctionSignals.jl"); end
     import .StepFunctionSignals: StepFunction
+
+    module GaussianSignals; include("signals/GaussianSignals.jl"); end
+    import .GaussianSignals: Gaussian
 end
 
 module Devices

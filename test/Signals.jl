@@ -32,26 +32,30 @@ end
     StandardTests.validate(signal)
 end
 
-@testset "ComplexConstant" begin
-    signal = Signals.ComplexConstant(0.75, 0.25)
-    StandardTests.validate(signal)
-end
-
-#= NOTE: The following signals include parameters with ill-defined gradients.
-
-Therefore, they serve to test constrained signals, rather than themselves...
-=#
+# NOTE: This signal has ill-defined gradients, so test it with ConstrainedSignal.
 @testset "Interval" begin
     signal = Signals.Interval(0.5, 0.25, 1.25)
     StandardTests.validate(Signals.ConstrainedSignal(signal, :s1, :s2))
 end
 
+# NOTE: This signal has ill-defined gradients, so test it with ConstrainedSignal.
 @testset "ComplexInterval" begin
     signal = Signals.ComplexInterval(0.75, 0.25, 0.25, 1.25)
     StandardTests.validate(Signals.ConstrainedSignal(signal, :s1, :s2))
 end
 
+# NOTE: This signal has ill-defined gradients, so test it with ConstrainedSignal.
 @testset "StepFunction" begin
     signal = Signals.StepFunction(0.75, 0.75)
     StandardTests.validate(Signals.ConstrainedSignal(signal, :s))
+end
+
+@testset "ComplexConstant" begin
+    signal = Signals.ComplexConstant(0.75, 0.25)
+    StandardTests.validate(signal)
+end
+
+@testset "Gaussian" begin
+    signal = Signals.Gaussian(0.75, 0.25, 0.75)
+    StandardTests.validate(signal)
 end
