@@ -55,6 +55,11 @@ end
     StandardTests.validate(signal)
 end
 
+@testset "PolarComplexConstant" begin
+    signal = Signals.PolarComplexConstant(0.75, 0.25)
+    StandardTests.validate(signal)
+end
+
 @testset "Gaussian" begin
     signal = Signals.Gaussian(0.75, 0.25, 0.75)
     StandardTests.validate(signal)

@@ -106,7 +106,7 @@ module Signals
     import .WindowedSignals: WindowedSignal
 
     module ConstantSignals; include("signals/ConstantSignals.jl"); end
-    import .ConstantSignals: Constant, ComplexConstant
+    import .ConstantSignals: Constant, ComplexConstant, PolarComplexConstant
 
     module IntervalSignals; include("signals/IntervalSignals.jl"); end
     import .IntervalSignals: Interval, ComplexInterval
