@@ -1,6 +1,6 @@
 #= We want to work out a systematic way of testing new devices. =#
 
-import CtrlVQE: Parameters, Devices
+import CtrlVQE: Parameters, Signals, Devices
 import CtrlVQE.Devices: LocallyDrivenDevices
 import CtrlVQE.Bases: DRESSED, OCCUPATION
 import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
@@ -24,6 +24,7 @@ function check_times(device::Devices.Device)
     println("Parameters and Gradient")
 
     @time L = Parameters.count(device)
+    @time Parameters.names(device)
     @time x̄ = Parameters.values(device)
 
     @time Parameters.bind(device, 2 .* x̄)
@@ -164,6 +165,40 @@ function check_times(device::LocallyDrivenDevices.LocallyDrivenDevice)
     @time LocallyDrivenDevices.localdrivepropagators(device, τ, t; result=Y)
     @time Z = LocallyDrivenDevices.localdrivepropagators(device, OCCUPATION, τ, t)
     @time LocallyDrivenDevices.localdrivepropagators(device, OCCUPATION, τ, t; result=Z)
+
+    return nothing
+end
+
+
+
+
+
+function check_times(signal::Signals.AbstractSignal{P,R}) where {P,R}
+
+    println("Parameters Interface")
+    @time L = Parameters.count(signal)
+    @time x̄ = Parameters.values(signal)
+    @time names = Parameters.names(signal)
+    @time Parameters.bind(signal, x̄)
+
+    println("Functions")
+    @time signal(t)
+    @time ft̄ = signal(t̄)
+    @time signal(t̄; result=ft̄)
+
+    println("Partials")
+    @time Signals.partial(L, signal, t)
+    @time gt̄ = Signals.partial(L, signal, t̄)
+    @time Signals.partial(L, signal, t̄; result=gt̄)
+
+    println("Convenience Methods")
+    @time string(signal, names)
+    @time string(signal)
+
+    @time Ip = Signals.integrate_partials(signal, τ̄, t̄, ϕ̄)
+    @time Signals.integrate_partials(signal, τ̄, t̄, ϕ̄; result=Ip)
+
+    @time Signals.integrate_signal(signal, τ̄, t̄, ϕ̄)
 
     return nothing
 end

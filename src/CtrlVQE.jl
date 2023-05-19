@@ -83,8 +83,6 @@ module Quples
     # IMPLEMENT ITERATION, FOR CONVENIENT UNPACKING
     Base.iterate(quple::Quple) = quple.q1, true
     Base.iterate(quple::Quple, state) = state ? (quple.q2, false) : nothing
-
-    # TODO (lo): Generalize to n qubits (call sort on input arguments)
 end
 import .Quples: Quple
 

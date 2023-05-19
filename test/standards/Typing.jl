@@ -1,6 +1,6 @@
 #= We want to work out a systematic way of testing new devices. =#
 
-import CtrlVQE: Parameters, Devices
+import CtrlVQE: Parameters, Signals, Devices
 import CtrlVQE.Devices: LocallyDrivenDevices
 import CtrlVQE.Bases: DRESSED, OCCUPATION
 import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
@@ -24,6 +24,7 @@ function check_types(device::Devices.Device)
     println("Parameters and Gradient")
 
     @code_warntype Parameters.count(device)
+    @code_warntype Parameters.names(device)
     @code_warntype Parameters.values(device); x̄ = Parameters.values(device)
     @code_warntype Parameters.bind(device, x̄)
 
@@ -31,12 +32,6 @@ function check_types(device::Devices.Device)
     @code_warntype Devices.gradient(device, τ̄, t̄, ϕ̄_)
     grad = Devices.gradient(device, τ̄, t̄, ϕ̄_)
     @code_warntype Devices.gradient(device, τ̄, t̄, ϕ̄_; result=grad)
-    return nothing # TEMP
-
-    #= TODO (hi): All the Parameters methods are a mess.
-        Probably related mostly to AbstractSignals.
-        So let's trim up Signals first, in case that solves some problems.
-        =#
 
 
     println("Hamiltonian Terms")
@@ -173,7 +168,6 @@ function check_types(device::LocallyDrivenDevices.LocallyDrivenDevice)
     invoke(check_types, Tuple{Devices.Device}, device)
     i = Devices.ndrives(device)
     j = Devices.ngrades(device)
-    return nothing # TEMP
 
     @code_warntype LocallyDrivenDevices.drivequbit(device, i)
     @code_warntype LocallyDrivenDevices.gradequbit(device, j)
@@ -198,4 +192,40 @@ function check_types(device::LocallyDrivenDevices.LocallyDrivenDevice)
     return nothing
 end
 
-# TODO (hi): Create an exhaustive @code_warntype method for Signals
+
+
+
+
+function check_types(signal::Signals.AbstractSignal{P,R}) where {P,R}
+
+    # TEST PARAMETERS
+
+    @code_warntype Parameters.count(signal); L = Parameters.count(signal)
+    @code_warntype Parameters.values(signal); x̄ = Parameters.values(signal)
+    @code_warntype Parameters.names(signal); names = Parameters.names(signal)
+    @code_warntype Parameters.bind(signal, x̄)
+
+    # TEST FUNCTION CONSISTENCY
+
+    @code_warntype signal(t)
+    @code_warntype signal(t̄); ft̄ = signal(t̄)
+    @code_warntype signal(t̄; result=ft̄)
+
+    # TEST GRADIENT CONSISTENCY
+
+    @code_warntype Signals.partial(L, signal, t)
+    @code_warntype Signals.partial(L, signal, t̄); gt̄ = Signals.partial(L, signal, t̄)
+    @code_warntype Signals.partial(L, signal, t̄; result=gt̄)
+
+    # CONVENIENCE FUNCTIONS
+
+    @code_warntype string(signal, names)
+    @code_warntype string(signal)
+
+    @code_warntype Signals.integrate_partials(signal, τ̄, t̄, ϕ̄)
+    Ip = Signals.integrate_partials(signal, τ̄, t̄, ϕ̄)
+    @code_warntype Signals.integrate_partials(signal, τ̄, t̄, ϕ̄; result=Ip)
+
+    @code_warntype Signals.integrate_signal(signal, τ̄, t̄, ϕ̄)
+
+end

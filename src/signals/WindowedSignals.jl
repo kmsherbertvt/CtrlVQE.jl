@@ -36,21 +36,30 @@ struct WindowedSignal{P,R} <: AbstractSignal{P,R}
 end
 
 function Parameters.count(signal::WindowedSignal)
-    return sum(Parameters.count(window) for window in signal.windows)
+    return sum(Parameters.count(window)::Int for window in signal.windows)
 end
 
 function Parameters.names(signal::WindowedSignal)
-    names(i) = ["$name.$i" for name in Parameters.names(signal.windows[i])]
-    return vcat((names(i) for i in eachindex(signal.windows))...)
+    allnames = String[]
+    for (i, window) in enumerate(signal.windows)
+        for name in Parameters.names(window)::Vector{String}
+            push!(allnames, "$name.$i")
+        end
+    end
+    return allnames
 end
 
-function Parameters.values(signal::WindowedSignal)
-    return vcat((Parameters.values(window) for window in signal.windows)...)
+function Parameters.values(signal::WindowedSignal{P,R}) where {P,R}
+    allvalues = P[]
+    for window in signal.windows
+        append!(allvalues, Parameters.values(window)::Vector{P})
+    end
+    return allvalues
 end
 
 function Parameters.bind(signal::WindowedSignal{P,R}, x̄::AbstractVector{P}) where {P,R}
     for (k, window) in enumerate(signal.windows)
-        L = Parameters.count(window)
+        L = Parameters.count(window)::Int
         Parameters.bind(window, x̄[1+signal.offsets[k]:L+signal.offsets[k]])
     end
 end
@@ -67,15 +76,15 @@ function get_window_from_parameter(signal::WindowedSignal, i::Int)
     return k
 end
 
-function (signal::WindowedSignal)(t::Real)
+function (signal::WindowedSignal{P,R})(t::Real) where {P,R}
     k = get_window_from_time(signal,t)
-    return signal.windows[k](t)
+    return signal.windows[k](t)::R
 end
 
 function Signals.partial(i::Int, signal::WindowedSignal{P,R}, t::Real) where {P,R}
     kt = get_window_from_time(signal,t)
     ki = get_window_from_parameter(signal,i)
-    return (kt == ki ?  Signals.partial(i-signal.offsets[ki], signal.windows[kt], t)
+    return (kt == ki ?  Signals.partial(i-signal.offsets[ki], signal.windows[kt], t)::R
         :               zero(R)
     )
 end
@@ -83,7 +92,7 @@ end
 function Base.string(signal::WindowedSignal, names::AbstractVector{String})
     texts = String[]
     for (k, window) in enumerate(signal.windows)
-        L = Parameters.count(window)
+        L = Parameters.count(window)::Int
         text = string(window, names[1+signal.offsets[k]:L+signal.offsets[k]])
 
         s1 = signal.starttimes[k]
@@ -105,7 +114,7 @@ function (signal::WindowedSignal{P,R})(
         while k < length(signal.windows) && t ≥ signal.starttimes[k+1]
             k += 1
         end
-        result[i] = signal.windows[k](t)
+        result[i] = signal.windows[k](t)::R
     end
     return result
 end
@@ -131,7 +140,7 @@ function Signals.partial(
         if      ki > kt; continue
         elseif  ki < kt; break
         else
-            result[j] = Signals.partial(i-signal.offsets[ki], signal.windows[kt], t)
+            result[j] = Signals.partial(i-signal.offsets[ki], signal.windows[kt], t)::R
         end
     end
     return result
@@ -157,7 +166,7 @@ function Signals.integrate_partials(
         end
 
         for i in 1:Parameters.count(signal.windows[k])     # i INDEXES PARAMETER
-            ∂ = partial(i, signal.windows[k], t)
+            ∂ = Signals.partial(i, signal.windows[k], t)::R
             result[i+signal.offsets[k]] += τ̄[j] * real(∂ * ϕ̄[j])
         end
     end

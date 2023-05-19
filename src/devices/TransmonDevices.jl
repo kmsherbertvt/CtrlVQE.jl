@@ -242,7 +242,7 @@ end
 function Parameters.count(device::AbstractTransmonDevice)
     cnt = Devices.ndrives(device)           # NOTE: There are `ndrives` frequencies.
     for i in 1:Devices.ndrives(device)
-        cnt += Parameters.count(drivesignal(device, i))
+        cnt += Parameters.count(drivesignal(device, i))::Int
     end
     return cnt
 end
@@ -268,7 +268,7 @@ function Parameters.values(device::AbstractTransmonDevice{F,FΩ}) where {F,FΩ}
     # STRING TOGETHER PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in 1:Devices.ndrives(device)
         Ω = drivesignal(device, i)
-        append!(values, Parameters.values(Ω))
+        append!(values, Parameters.values(Ω)::Vector{F})
     end
 
     # TACK ON PARAMETERS FOR EACH ν̄[i]
@@ -282,7 +282,7 @@ function Parameters.bind(device::AbstractTransmonDevice, x̄::AbstractVector{F})
     # BIND PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in 1:Devices.ndrives(device)
         Ω = drivesignal(device, i)
-        L = Parameters.count(Ω)
+        L = Parameters.count(Ω)::Int
         Parameters.bind(Ω, x̄[offset+1:offset+L])
         offset += L
     end
@@ -454,7 +454,7 @@ bindfrequencies(device::FixedFrequencyTransmonDevice, ν̄::AbstractVector) = no
 function Parameters.count(device::FixedFrequencyTransmonDevice)
     cnt = 0
     for i in 1:Devices.ndrives(device)
-        cnt += Parameters.count(drivesignal(device, i))
+        cnt += Parameters.count(drivesignal(device, i))::Int
     end
     return cnt
 end
@@ -478,7 +478,7 @@ function Parameters.values(device::FixedFrequencyTransmonDevice{F,FΩ}) where {F
     # STRING TOGETHER PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in 1:Devices.ndrives(device)
         Ω = drivesignal(device, i)
-        append!(values, Parameters.values(Ω))
+        append!(values, Parameters.values(Ω)::Vector{F})
     end
 
     return values
@@ -493,7 +493,7 @@ function Parameters.bind(
     # BIND PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in 1:Devices.ndrives(device)
         Ω = drivesignal(device, i)
-        L = Parameters.count(Ω)
+        L = Parameters.count(Ω)::Int
         Parameters.bind(Ω, x̄[offset+1:offset+L])
         offset += L
     end
@@ -506,7 +506,7 @@ function Devices.gradient(
     ϕ̄::AbstractMatrix;
     result=nothing,
 ) where {F,FΩ}
-    L = Parameters.count(device)
+    L = Parameters.count(device)::Int
     isnothing(result) && return Devices.gradient(
         device, τ̄, t̄, ϕ̄;
         result=Vector{F}(undef, L),

@@ -21,8 +21,6 @@ abstract type AbstractSignal{P<:AbstractFloat,R<:Number} end
 partial(i::Int, ::AbstractSignal, t::Real)::Number = error("Not Implemented")
     # NOTE: Return type is R
 
-#= TODO (mid): Annotate return types for Composite, Modulated, and Windowed. =#
-
 Base.string(::AbstractSignal, ::AbstractVector{String})::String = error("Not Implemented")
 
 
