@@ -1,7 +1,7 @@
 import ..AbstractCostFunction, ..AbstractGradientFunction
 
 
-smoothwall(u) = u ≤ 0 ? 0 : exp(u - 1/u^2)
+smoothwall(u) = u ≤ 0 ? 0 : exp(u - 1/u)
 smoothgrad(u) = u ≤ 0 ? 0 : (1 + 1/u^2) * smoothwall(u)
 
 function functions(λ̄, μ̄R, μ̄L, σ̄)
