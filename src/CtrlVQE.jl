@@ -243,4 +243,7 @@ end
 
 WindowedSquarePulse(T, W) = WindowedSquarePulse(Float64, T, W)
 
+
+# TODO (hi): Generalize recipes for new device and constant signal types.
+
 end # module CtrlVQE

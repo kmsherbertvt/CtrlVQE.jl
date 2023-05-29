@@ -4,7 +4,7 @@ authors = ["kyles "]
 version = "0.1.0"
 
 [deps]
-AnalyticSquarePulse = "58b49aaa-f693-49aa-a6dc-f24ac989f3ba"
+AnalyticPulses = "eb27ae5b-ba0a-4633-8ae7-339e2c8a5cc6"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 CtrlVQE = "b0286c9f-ec41-4a06-9137-e6f7f9cecc08"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
