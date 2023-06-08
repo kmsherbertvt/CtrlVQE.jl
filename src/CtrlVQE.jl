@@ -1,70 +1,286 @@
 module CtrlVQE
 
+"""
+    TempArrays
+
+Maintain caches for pre-allocated arrays used only temporarily within a function.
+
+Do NOT use this module for arrays
+    whose data are accessible outside the function in which they are created.
+
+"""
 module TempArrays
     using Memoization: @memoize
 
+    """
+        array(::F, shape::Tuple, index=nothing)
+
+    Fetch a temporary array with type `F` and shape `shape`.
+
+    The `index` parameter is an additional unique key,
+        allowing the module to cache mulitple arrays of the same type and shape.
+    You should pass `index=Symbol(@__MODULE__)` to prevent collisions across modules.
+    You may pass a tuple, eg. `index=(Symbol(@__MODULE__), :otherkey)`
+        to prevent collisions within a module.
+
+    """
     @memoize function array(::F, shape::Tuple, index=nothing) where {F<:Number}
-        # NOTE: `index` gives a means of making distinct arrays of the same type and shape
-        #= NOTE: Standard practice is to pass a Symbol(<modulename>) as index,
-            to ensure no unwanted collisions. =#
         # TODO (lo): Thread-safe and hands-off approach to this.
         return Array{F}(undef, shape)
     end
 
+    """
+        array(F::Type{<:Number}, shape::Tuple, index=nothing)
+
+    Same as above but passing the type directly, rather than an instance of the type.
+
+    """
     function array(F::Type{<:Number}, shape::Tuple, index=nothing)
         return array(zero(F), shape, index)
     end
 end
 
+"""
+    Parameters
+
+Standardized interface for interacting with variational parameters.
+
+Most commonly implemented by `Signals` and `Devices`.
+
+"""
 module Parameters
-    function count(::Any)::Int; error("Not Implemented"); end
-    function names(::Any)::Vector{String}; error("Not Implemented"); end
-    function values(::Any)::AbstractVector{<:Number}; error("Not Implemented"); end
-    function bind(::Any, x̄::AbstractVector)::Nothing; error("Not Implemented"); end
+    """
+        count(entity)
+
+    The number of variational parameters in `entity`.
+
+    # Implementation
+
+    Must return a non-negative integer.
+
+    """
+    function count end
+
+    """
+        names(entity)
+
+    An ordered list of human-readable names for each variational parameter in `entity`.
+
+    # Implementation
+
+    Must return a vector of strings.
+
+    """
+    function names end
+
+    """
+        values(entity)
+
+    An ordered list of the numerical values for each variational parameter in `entity`.
+
+    # Implementation
+
+    Must return a vector of some float type.
+
+    """
+    function values end
+
+    """
+        bind(entity, x̄::AbstractVector)
+
+    Assigns new values for each variational parameter in `entity`.
+
+    # Implementation
+
+    This method should mutate `entity` such that, for example,
+        the expression `bind(entity, x̄); ȳ = values(entity); x̄ == ȳ` evaluates true.
+    There is no return value.
+
+    """
+    function bind end
 end
 
+
+"""
+    Bases
+
+Enumerates various linear-algebraic bases for representing statevectors and matrices.
+
+"""
 module Bases
     abstract type BasisType end
+
+    """
+        Dressed(), aka DRESSED
+
+    The eigenbasis of the static Hamiltonian associated with a `Device`.
+    Eigenvectors are ordered to maximize similarity with an identity matrix.
+    Phases are fixed so that the diagonal is real.
+
+    """
     struct Dressed      <: BasisType end;       const DRESSED = Dressed()
+
     abstract type LocalBasis <: BasisType end
+
+    """
+        Occupation(), aka OCCUPATION
+
+    The eigenbasis of local number operators ``n̂ ≡ a'a``.
+    Generally equivalent to what is called the "Z basis", or the "computational basis".
+
+    """
     struct Occupation   <: LocalBasis end;      const OCCUPATION = Occupation()
+
+    """
+        Coordinate(), aka COORDINATE
+
+    The eigenbasis of local quadrature operators ``Q ≡ (a + a')/√2``.
+
+    """
     struct Coordinate   <: LocalBasis end;      const COORDINATE = Coordinate()
+
+    """
+        Momentum(), aka MOMENTUM
+
+    The eigenbasis of local quadrature operators ``P ≡ i(a - a')/√2``.
+
+    """
     struct Momentum     <: LocalBasis end;      const MOMENTUM   = Momentum()
 end
 
+"""
+    Bases
+
+Enumerates various categories of Hermitian observable related to a device.
+
+"""
 module Operators
     abstract type OperatorType end
     abstract type StaticOperator <: OperatorType end
 
+    """
+        Identity(), aka IDENTITY
+
+    The identity operator.
+
+    """
     struct Identity <: StaticOperator end
     const IDENTITY = Identity()
 
+    """
+        Qubit(q)
+
+    The component of the static Hamiltonian which is local to qubit `q`.
+
+    For example, in a transmon device,
+        `Qubit(2)` represents a term ``ω_q a_q'a_q - δ_q/2 a_q'a_q'a_q a_q``.
+
+    """
     struct Qubit <: StaticOperator
         q::Int
     end
 
+    """
+        Coupling(), aka COUPLING
+
+    The components of the static Hamiltonian which are non-local to any one qubit.
+
+    For example, in a transmon device,
+        `Coupling()` represents the sum ``∑_{p,q} g_{pq} (a_p'a_q + a_q'a_p)``.
+
+    """
     struct Coupling <: StaticOperator end
     const COUPLING = Coupling()
 
+    """
+        Uncoupled(), aka UNCOUPLED
+
+    The components of the static Hamiltonian which are local to each qubit.
+
+    This represents the sum of each `Qubit(q)`,
+        where `q` iterates over each qubit in the device.
+
+    For example, in a transmon device,
+        `Uncoupled()` represents the sum ``∑_q (ω_q a_q'a_q - δ_q/2 a_q'a_q'a_q a_q)``.
+
+    """
     struct Uncoupled <: StaticOperator end
     const UNCOUPLED = Uncoupled()
 
+    """
+        Static(), aka STATIC
+
+    All components of the static Hamiltonian.
+
+    This represents the sum of `Uncoupled()` and `Coupled()`
+
+    """
     struct Static <: StaticOperator end
     const STATIC = Static()
 
+    """
+        Channel(i,t)
+
+    An individual drive term (indexed by `i`) at a specific time `t`.
+
+    For example, in a transmon device,
+        `Channel(q,t)` might represent ``Ω_q(t) [exp(iν_qt) a_q + exp(-iν_qt) a_q']``,
+        the drive for a single qubit.
+
+    Note that you are free to have multiple channels for each qubit,
+        or channels which operate on multiple qubits.
+
+    """
     struct Channel{R<:Real} <: OperatorType
         i::Int
         t::R
     end
 
+    """
+        Drive(t)
+
+    The sum of all drive terms at a specific time `t`.
+
+    This represents the sum of each `Qubit(i)`,
+        where `i` iterates over each drive term in the device.
+
+    For example, in a transmon device,
+        `Drive(t)` might represent ``∑_q Ω_q(t) [exp(iν_qt) a_q + exp(-iν_qt) a_q']``.
+
+    """
     struct Drive{R<:Real} <: OperatorType
         t::R
     end
 
+    """
+        Hamiltonian(t)
+
+    The full Hamiltonian at a specific time `t`.
+
+    This represents the sum of `Static()` and `Drive(t)`.
+
+    """
     struct Hamiltonian{R<:Real} <: OperatorType
         t::R
     end
 
+    """
+        Gradient(j,t)
+
+    An individual gradient operator (indexed by `j`) at a specific time `t`.
+
+    The gradient operators appear in the derivation of each gradient signal,
+        which are used to calculate analytical gradients of each variational parameter.
+    The gradient operators are very closely related to individual channel operators,
+        but sufficiently distinct that they need to be treated separately.
+
+    For example, for a transmon device,
+        each channel operator ``Ω_q(t) [exp(iν_qt) a_q + exp(-iν_qt) a_q']``
+        is associated with *two* gradient operators:
+    - ``exp(iν_qt) a_q + exp(-iν_qt) a_q'``
+    - ``i[exp(iν_qt) a_q - exp(-iν_qt) a_q']``
+
+    """
     struct Gradient{R<:Real} <: OperatorType
         j::Int
         t::R
@@ -72,7 +288,21 @@ module Operators
 end
 import .Operators: IDENTITY, COUPLING, UNCOUPLED, STATIC
 
+"""
+    Quples
+
+Qubit tuples: simple types to represent couplings within a device.
+
+"""
 module Quples
+    """
+        Quple(q1,q2)
+
+    A (symmetric) coupling between qubits indexed by `q1` and `q2`.
+
+    Note that the order is irrelevant: `Quple(q1,q2) == Quple(q2,q1)`.
+
+    """
     struct Quple
         q1::Int
         q2::Int
@@ -86,10 +316,29 @@ module Quples
 end
 import .Quples: Quple
 
+"""
+    LinearAlgebraTools
+
+Implement some frequently-used linear-algebraic operations.
+
+Much of this functionality is available in Julia's standard `LinearAlgebra` library,
+    but the implementations here might take advantage of pre-allocated `TempArrays`
+    and (sometimes) efficient tensor contractions.
+
+"""
 module LinearAlgebraTools
     include("LinearAlgebraTools.jl")
 end
 
+"""
+    Signals
+
+Time-dependent functions suitable for control signals with variational parameters.
+
+The main motivation of this module
+    is to provide a common interface for analytical gradients and optimization.
+
+"""
 module Signals
     include("Signals.jl")
 
@@ -118,6 +367,18 @@ module Signals
     import .GaussianSignals: Gaussian
 end
 
+"""
+    Devices
+
+*In silico* representation of quantum devices, in which quantum states evolve in time.
+
+In this package,
+    the "static" components (ie. qubit frequencies, couplings, etc.)
+    and the "drive" components (ie. control signal, variational parameters, etc.)
+    are *all* integrated into a single `Device` object.
+All you need to know how a quantum state `ψ` evolves up time `T` is in the device.
+
+"""
 module Devices
     include("Devices.jl")
 
@@ -129,15 +390,33 @@ module Devices
 end
 import .Devices: nqubits, nstates, nlevels, ndrives, ngrades
 
+"""
+    Evolutions
+
+Algorithms to run time evolution, and related constructs like gradient signals.
+
+"""
 module Evolutions
     include("Evolutions.jl")
 end
 import .Evolutions: trapezoidaltimegrid, evolve, evolve!, gradientsignals, Rotate
 
+"""
+    QubitOperators
+
+Interfaces aribitary physical Hilbert space with a strictly binary logical Hilbert space.
+
+"""
 module QubitOperators
     include("QubitOperators.jl")
 end
 
+"""
+    CostFunctions
+
+Convenience wrappers for time-evolution code to interface directly with optimizations.
+
+"""
 module CostFunctions
     include("CostFunctions.jl")
 
@@ -165,7 +444,6 @@ module CostFunctions
     module HardBounds; include("costfns/HardBounds.jl"); end
     module SmoothBounds; include("costfns/SmoothBounds.jl"); end
 
-    #= TODO (mid): Local bounds using smoothing function exp(-x⁻¹) =#
     #= TODO (mid): Global RMS penalty on selected parameters. =#
     #= TODO (mid): Global RMS penalty on diff of selected parameters. =#
 
@@ -177,73 +455,98 @@ import .CostFunctions: CompositeCostFunction, CompositeGradientFunction
 import .CostFunctions: evaluate, BareEnergy, ProjectedEnergy, Normalization
 import .CostFunctions: HardBounds, SoftBounds, SmoothBounds
 
+
+
+
 #= RECIPES =#
 
-function SystematicTransmonDevice(F, m, n, pulses)
+"""
+    Systematic(DeviceType, n, pulses; kwargs...)
+
+Standardized constructor for a somewhat realistic `DeviceType`, but of arbitrary size.
+
+# Arguments
+- DeviceType::Type{<:Devices.Device} - the type of the device to be constructed
+- n::Int - the number of qubits in the device
+- pulses - a vector of control signals (Signals.AbstractSignal), or one to be copied
+
+Unless otherwise stated, a systematic device has one channel for each qubit.
+
+"""
+function Systematic end
+
+"""
+    Systematic(TransmonDeviceType, n, pulses; kwargs...)
+
+Standardized constructor for a transmon device.
+
+This is a linearly coupled device,
+    with uniformly-spaced resonance frequencies,
+    and with all coupling and anharmonicity constants equal for each qubit.
+The actual values of each constant are meant to roughly approximate a typical IBM device.
+
+# Keyword Arguments
+- m::Int - the number of transmon levels to include in simulations
+- F::Type{<:AbstractFloat} - the precision type to use for device parameters
+
+"""
+function Systematic(
+    TransmonDeviceType::Type{<:Devices.TransmonDevices.AbstractTransmonDevice},
+    n::Int,
+    pulses;
+    m=2,
+    F=Float64,
+)
     # INTERPRET SCALAR `pulses` AS A TEMPLATE TO BE COPIED
     Ω̄ = (pulses isa Signals.AbstractSignal) ? [deepcopy(pulses) for _ in 1:n] : pulses
 
+    # DEFINE STANDARDIZED PARAMETERS
     ω0 = F(2π * 4.80)
     Δω = F(2π * 0.02)
     δ0 = F(2π * 0.30)
     g0 = F(2π * 0.02)
 
+    # ASSEMBLE THE DEVICE
     ω̄ = collect(ω0 .+ (Δω * (1:n)))
     δ̄ = fill(δ0, n)
     ḡ = fill(g0, n-1)
     quples = [Quple(q,q+1) for q in 1:n-1]
     q̄ = 1:n
     ν̄ = copy(ω̄)
-    return Devices.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
+    return TransmonDeviceType(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
 end
 
-function SystematicTransmonDevice(m, n, pulses)
-    return SystematicTransmonDevice(Float64, m, n, pulses)
-end
+"""
+    FullyTrotterized(signal::Signals.AbstractSignal, T::Real, r::Int)
 
-function SystematicTransmonDevice(n, pulses)
-    return SystematicTransmonDevice(2, n, pulses)
-end
+Break a signal up so that each time-step is parameterized separately.
 
-function FullyTrotterizedSignal(::Type{Complex{F}}, T, r) where {F}
-    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)
+Usually you'll want to use this with constant signals.
+
+"""
+function FullyTrotterized(signal::Signals.AbstractSignal, T::Real, r::Int)
+    τ, _, t̄ = Evolutions.trapezoidaltimegrid(T,r)
     starttimes = t̄ .- (τ/2)
     return Signals.WindowedSignal(
-        [Signals.ComplexConstant(zero(F), zero(F)) for t in starttimes],
+        [deepcopy(signal) for t in starttimes],
         starttimes,
     )
 end
 
-function FullyTrotterizedSignal(::Type{F}, T, r) where {F<:AbstractFloat}
-    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T,r)
-    starttimes = t̄ .- (τ/2)
-    return Signals.WindowedSignal(
-        [Signals.Constant(zero(F)) for t in starttimes],
-        starttimes,
-    )
-end
+"""
+    UniformWindowed(signal::Signals.AbstractSignal, T::Real, W::Int)
 
-FullyTrotterizedSignal(T, r) = FullyTrotterizedSignal(Float64, T, r)
+Break a signal up into equal-sized windows.
 
-function WindowedSquarePulse(::Type{Complex{F}}, T, W) where {F}
+Usually you'll want to use this with constant signals.
+
+"""
+function UniformWindowed(signal::Signals.AbstractSignal, T::Real, W::Int)
     starttimes = range(zero(T), T, W+1)[1:end-1]
     return Signals.WindowedSignal(
-        [Signals.ComplexConstant(zero(F), zero(F)) for t in starttimes],
+        [deepcopy(signal) for t in starttimes],
         starttimes,
     )
 end
-
-function WindowedSquarePulse(::Type{F}, T, W) where {F<:AbstractFloat}
-    starttimes = range(zero(T), T, W+1)[1:end-1]
-    return Signals.WindowedSignal(
-        [Signals.Constant(zero(F)) for t in starttimes],
-        starttimes,
-    )
-end
-
-WindowedSquarePulse(T, W) = WindowedSquarePulse(Float64, T, W)
-
-
-# TODO (hi): Generalize recipes for new device and constant signal types.
 
 end # module CtrlVQE

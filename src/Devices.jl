@@ -225,7 +225,7 @@ end
 
 @memoize Dict function diagonalize(::Bases.Momentum, device::Device, q::Int)
     a = localloweringoperator(device)
-    P = (a - a') / eltype(a)(√2)
+    P = im*(a - a') / eltype(a)(√2)
     return eigen(Hermitian(P))
 end
 
