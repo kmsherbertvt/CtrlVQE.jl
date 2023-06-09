@@ -149,7 +149,7 @@ module Bases
 end
 
 """
-    Bases
+    Operators
 
 Enumerates various categories of Hermitian observable related to a device.
 
@@ -461,33 +461,23 @@ import .CostFunctions: HardBounds, SoftBounds, SmoothBounds
 #= RECIPES =#
 
 """
-    Systematic(DeviceType, n, pulses; kwargs...)
-
-Standardized constructor for a somewhat realistic `DeviceType`, but of arbitrary size.
-
-# Arguments
-- DeviceType::Type{<:Devices.Device} - the type of the device to be constructed
-- n::Int - the number of qubits in the device
-- pulses - a vector of control signals (Signals.AbstractSignal), or one to be copied
-
-Unless otherwise stated, a systematic device has one channel for each qubit.
-
-"""
-function Systematic end
-
-"""
     Systematic(TransmonDeviceType, n, pulses; kwargs...)
 
-Standardized constructor for a transmon device.
+Standardized constructor for a somewhat realistic transmon device, but of arbitrary size.
 
 This is a linearly coupled device,
     with uniformly-spaced resonance frequencies,
     and with all coupling and anharmonicity constants equal for each qubit.
 The actual values of each constant are meant to roughly approximate a typical IBM device.
 
+# Arguments
+- `TransmonDeviceType`: the type of the device to be constructed
+- `n::Int`: the number of qubits in the device
+- `pulses`: a vector of control signals (`Signals.AbstractSignal`), or one to be copied
+
 # Keyword Arguments
-- m::Int - the number of transmon levels to include in simulations
-- F::Type{<:AbstractFloat} - the precision type to use for device parameters
+- `m::Int`: the number of transmon levels to include in simulations (defaults to 2)
+- `F`: the float type to use for device parameters (defaults to `Float64`)
 
 """
 function Systematic(

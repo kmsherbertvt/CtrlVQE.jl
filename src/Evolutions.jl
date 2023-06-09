@@ -14,7 +14,7 @@ using Memoization: @memoize
 All the tools needed to integrate over time using a simple trapezoidal rule.
 
 # Arguments
-- `T`: the upper bound of the integral (0 is implicitly the lower bound)
+- `T`: the upper bound of the integral (0 is implicitly the lower bound).
         If `T` is negative, `|T|` is used as the lower bound and 0 as the upper bound.
 
 - `r`: the number of time steps.

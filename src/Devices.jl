@@ -32,12 +32,14 @@ If your device's drive channels are all local,
     you should implement a `LocallyDrivenDevice`,
     which has a few extra requirements.
 
-## Counting methods (each returns an integer):
+## Counting methods:
 
 - `nqubits(::D)`: the number of qubits in the device - call this `n`.
 - `nlevels(::D)`: the number of physical levels in each "qubit" - call this `m`.
 - `ndrives(::D)`: the number of distinct drive channels.
 - `ngrades(::D)`: the number of distinct gradient operators.
+
+Each of these methods returns an integer.
 
 ## Algebra methods:
 
@@ -90,7 +92,7 @@ If you *really* want to write your operators as functions of something other tha
 
 Each of these methods gives the number type of the corresponding operator.
 Implement these methods based only on your implementation of the methods,
-    ie. they should be independent of the type of `ā` (or assume `ā` has type Bool).
+    ie. they should be independent of the type of `ā`.
 
 ## Gradient methods:
 
@@ -331,12 +333,7 @@ function eltype_gradeoperator(::Device)
 end
 
 """
-    gradient(::Device,
-    τ̄::AbstractVector,
-    t̄::AbstractVector,
-    ϕ̄::AbstractMatrix;
-    result=nothing,
-)::AbstractVector
+    gradient(::Device, τ̄, t̄, ϕ̄; result=nothing)
 
 The gradient vector of partials for each variational parameter in the device.
 

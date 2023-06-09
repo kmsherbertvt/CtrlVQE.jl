@@ -6,9 +6,35 @@ CurrentModule = CtrlVQE
 
 Documentation for [CtrlVQE](https://github.com/kmsherbertvt/CtrlVQE.jl).
 
-```@index
+## Main Modules
+
+```@contents
+Pages = [
+    "Parameters.md",
+    "Bases.md",
+    "Operators.md",
+    "LinearAlgebraTools.md",
+    "Devices.md",
+    "Signals.md",
+    "Evolutions.md",
+]
 ```
+
+## Recipes
 
 ```@autodocs
 Modules = [CtrlVQE]
+```
+
+## Miscellaneous Modules
+
+### Quples
+```@autodocs
+Modules = [Quples]
+```
+
+### TempArrays
+```@docs
+TempArrays
+TempArrays.array
 ```
