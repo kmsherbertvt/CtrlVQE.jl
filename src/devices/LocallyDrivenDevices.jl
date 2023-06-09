@@ -4,15 +4,65 @@ import ..Bases, ..Operators, ...LinearAlgebraTools, ...Devices
 import ...TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
+"""
+    LocallyDrivenDevice
 
+Super-type for device objects whose drive channels act locally on individual qubits.
+
+Inherit from this type if your `driveoperator` and `gradeoperator` methods
+    depend only on a single annihilation operator `ā[:,:,q]`.
+This enables more efficient propagation methods which exploit a tensor product structure.
+
+# Implementation
+
+Any concrete sub-type `D` must implement *everything* required in the `Device` interface,
+    so consult the documentation for `Device` carefully.
+
+In addition, the following methods must be implemented:
+- `drivequbit(::D, i::Int)`: index of the qubit on which channel `i` is applied.
+- `gradequbit(::D, j::Int)`: index of the qubit associated with the jth gradient operator.
+
+It's usually trivial to infer the channel index i associated with each gradient operator,
+    in which case `gradequbit(device, j) = drivequbit(device, i)`,
+    but this is left as an implementation detail.
+
+"""
 abstract type LocallyDrivenDevice <: Devices.Device end
 
-# METHODS NEEDING TO BE IMPLEMENTED
-drivequbit(::LocallyDrivenDevice, i::Int)::Int = error("Not Implemented")
-gradequbit(::LocallyDrivenDevice, j::Int)::Int = error("Not Implemented")
+"""
+    drivequbit(device, i::Int)
 
-# LOCALIZING DRIVE OPERATORS
+Index of the qubit on which channel `i` is applied.
 
+"""
+function drivequbit(::LocallyDrivenDevice, i::Int)
+    error("Not Implemented")
+    return 0
+end
+
+"""
+    gradequbit(device, j::Int)
+
+Index of the qubit associated with the jth gradient operator.
+
+"""
+function gradequbit(::LocallyDrivenDevice, j::Int)
+    error("Not Implemented")
+    return 0
+end
+
+"""
+    localdriveoperators(device[, basis], t; kwargs...)
+
+A matrix list `v̄`, where `v̄[:,:,q]` represents a sum of all drives acting on qubit `q`.
+
+# Arguments
+- `device::Device`: which device is being described.
+- `basis::Bases.BasisType`: which basis the operators will be represented in.
+        Defaults to `Bases.OCCUPATION` when omitted.
+- `t::Real`: the time each drive operator is evaluated at.
+
+"""
 function localdriveoperators(device::LocallyDrivenDevice, t::Real; kwargs...)
     return localdriveoperators(device, Bases.OCCUPATION, t; kwargs...)
 end
@@ -37,6 +87,21 @@ function localdriveoperators(
     return result
 end
 
+"""
+    localdrivepropagators(device[, basis], τ, t; kwargs...)
+
+A matrix list `ū`, where `ū[:,:,q]` is the propagator for a local drive term.
+
+# Arguments
+- `device::Device`: which device is being described.
+- `basis::Bases.BasisType`: which basis the operators will be represented in.
+        Defaults to `Bases.OCCUPATION` when omitted.
+- `τ::Real`: the amount to move forward in time by.
+        Note that the propagation is only approximate for time-dependent operators.
+        The smaller `τ` is, the more accurate the approximation.
+- `t::Real`: the time each drive operator is evaluated at.
+
+"""
 function localdrivepropagators(device::LocallyDrivenDevice, τ::Real, t::Real; kwargs...)
     return localdrivepropagators(device, Bases.OCCUPATION, τ, t; kwargs...)
 end
@@ -59,6 +124,13 @@ function localdrivepropagators(
     end
     return result
 end
+
+#=
+
+The remainder of this module overrides `Device` methods
+    to exploit tensor structure in the drives.
+
+=#
 
 function Devices.propagator(
     op::Operators.Drive,
@@ -132,8 +204,6 @@ function Devices.propagate!(
     end
     return LinearAlgebraTools.rotate!(ops, ψ)
 end
-
-# LOCALIZING GRADIENT OPERATORS
 
 function Devices.braket(
     op::Operators.Drive,

@@ -11,7 +11,20 @@ import ...Quples: Quple
 import ...TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
+#=
 
+The layout of this file includes a `TransmonDevice` interface,
+    and a couple concrete types implementing it.
+
+The purpose of the interface is to minimize code duplication for very similar devices,
+    but it is all rather more complicated and ugly than it needs to be.
+I suspect a better practice would be to implement each concrete type independently,
+    definitely in its own file,
+    and probably in its own module.
+
+Therefore, I don't recommend looking too closely to this file as a model to emulate.
+
+=#
 
 abstract type AbstractTransmonDevice{F,FΩ} <: LocallyDrivenDevices.LocallyDrivenDevice end
 
@@ -296,7 +309,28 @@ end
 
 
 
+"""
+    TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
 
+A transmon device, modeling for example IBM's superconducting quantum computers.
+
+Variational parameters include the shape parameters in each pulse,
+    and the pulse frequencies.
+
+# Arguments
+- `ω̄`: a vector of angular frequencies specifying the resonance frequency of each qubit.
+- `δ̄`: a vector of angular frequencies specifying the anharmonicity of each qubit.
+
+- `ḡ`: a vector of angular frequencies specifying the strength of each coupling.
+- `quples`: a vector of `Quple` identifying whcih qubits participate in each coupling.
+
+- `q̄`: a vector of indices specifying the target qubit for each drive channel.
+- `ν̄`: a vector of angular frequencies specifying the pulse frequencies for each channel.
+- `Ω̄`: a vector of signals specifying the shape of the pulse for each channel.
+
+- `m`: an integer specifying the number of physical levels to retain for each qubit.
+
+"""
 struct TransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
     # QUBIT LISTS
     ω̄::Vector{F}
@@ -378,6 +412,28 @@ bindfrequencies(device::TransmonDevice, ν̄::AbstractVector) = (device.ν̄ .= 
 
 
 
+"""
+    FixedFrequencyTransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
+
+A transmon device, modeling for example IBM's superconducting quantum computers.
+
+Variational parameters include ONLY the shape parameters in each pulse.
+Pulse frequencies are "frozen".
+
+# Arguments
+- `ω̄`: a vector of angular frequencies specifying the resonance frequency of each qubit.
+- `δ̄`: a vector of angular frequencies specifying the anharmonicity of each qubit.
+
+- `ḡ`: a vector of angular frequencies specifying the strength of each coupling.
+- `quples`: a vector of `Quple` identifying whcih qubits participate in each coupling.
+
+- `q̄`: a vector of indices specifying the target qubit for each drive channel.
+- `ν̄`: a vector of angular frequencies specifying the pulse frequencies for each channel.
+- `Ω̄`: a vector of signals specifying the shape of the pulse for each channel.
+
+- `m`: an integer specifying the number of physical levels to retain for each qubit.
+
+"""
 struct FixedFrequencyTransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
     # QUBIT LISTS
     ω̄::Vector{F}
