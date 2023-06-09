@@ -1,47 +1,5 @@
+# TODO (hi): add exports
 using Memoization: @memoize
-#= NOTE:
-
-We are using `Memoization` to reconcile the following two considerations:
-1. Simple-as-possible interface.
-2. Don't re-calculate things you've already calculated.
-
-The `Memoization` package is a bit beyond our control, generating two more problems:
-1. Not every use-case will want every function call cached. Doing so is a waste of space.
-2. If the state of any argument in a method changes, its cached value is no longer valid.
-
-After toying with ideas for a number of more customized cache implementations,
-    I've decided, to simply *not* memoize any function depending on an absolute time.
-    I think that more or less solves the worst parts of problem 1.
-
-    By chance, it seems like relative time only appears without absolute time in a context where the relative time could be interpreted as an absolute time (ie. propagation of a static hamiltonian), which means we actually just don't cache any times at all... Huh.
-
-    Naw. We do very much desire staticpropagator(τ) to cache.
-    If we definitely do not want staticpropagator(t) to cache,
-        thing to do is to split one off into a new method.
-
-As it happens, it also solves problem 2 in the short term,
-    because, at present, static device parameters are considered fixed.
-So, the changing state of the device would only actually impact time-dependent methods.
-
-BUT
-
-If ever we implement a device with "tunable couplings",
-    such that time-independent parameters of a device are changed on `Parameters.bind(⋅)`,
-    the implementation of `Parameters.bind` should CLEAR the cache:
-
-    Memoization.empty_all_caches!()
-
-Alternatively, selectively clear caches for affected functions via:
-
-    Memoization.empty_cache!(fn)
-
-I don't know if it's possible to selectively clear cached values for specific methods.
-If it can be done, it would require obtaining the actual `IdDict`
-    being used as a cache for a particular function,
-    figuring out exactly how that cache is indexed,
-    and manually removing elements matching your targeted method signature.
-
-=#
 
 import LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen
 import ..Bases, ..Operators, ..LinearAlgebraTools
@@ -52,26 +10,188 @@ const LABEL = Symbol(@__MODULE__)
 import ..LinearAlgebraTools: MatrixList
 const Evolvable = AbstractVecOrMat{<:Complex{<:AbstractFloat}}
 
-#= TODO (hi): Include an export list,
-    for the sake of seeing at a glance what this module provides. =#
-
 
 """
-NOTE: Implements `Parameters` interface.
+    Device
+
+Super-type for all device objects.
+
+# Implementation
+
+Any concrete sub-type `D` must implement all functions in the `Parameters` module.
+- In particular, if any static operators in your device depend on variational parameters,
+    you should consult the "Note on Caching" below.
+
+In addition, all methods in the following sections must be implemented.
+- Counting methods
+- Algebra methods
+- Operator methods
+- Type methods
+- Gradient methods
+
+If your device's drive channels are all local,
+    you should implement a `LocallyDrivenDevice`,
+    which has a few extra requirements.
+
+## Counting methods (each returns an integer):
+
+- `nqubits(::D)`: the number of qubits in the device - call this `n`.
+- `nlevels(::D)`: the number of physical levels in each "qubit" - call this `m`.
+- `ndrives(::D)`: the number of distinct drive channels.
+- `ngrades(::D)`: the number of distinct gradient operators.
+
+## Algebra methods:
+
+- `localloweringoperator(::D)`:
+        an `m × m` matrix applying the lowering operator `a` to a single qubit.
+
+This method should define `result=nothing` as a keyword argument;
+    when passed, use it as the array to store your result in.
+
+## Operator methods:
+
+- `qubithamiltonian(::D, ā, q::Int)`:
+        the static components of the device Hamiltonian local to qubit q.
+
+- `staticcoupling(::D, ā)`:
+        the static components of the device Hamiltonian nonlocal to any one qubit.
+
+- `driveoperator(::D, ā, i::Int, t::Real)`:
+        the distinct drive operator for channel `i` at time `t`
+
+- `gradeoperator(::D, ā, j::Int, t::Real)`:
+        the distinct gradient operator indexed by `j` at time `t`
+
+Each of these methods should define `result=nothing` as a keyword argument;
+    when passed, use it as the array to store your result in.
+
+Each of these methods takes a 3darray `ā`;
+    the annihilation operator ``a_q`` is given by the matrix `ā[:,:,q]`.
+These methods should construct a new matrix as a function of each ``a_q``.
+Usually, each `ā[:,:,q]` is defined on the full Hilbert space (ie. `m^n × m^n`),
+    but sometimes the code exploits a simple tensor structure
+    by passing in local `m × m` operators instead,
+    so do not assume a specific size a priori.
+
+The annihilation operators ``a_q`` and their adjoints ``a_q'`` form a complete algebra,
+    so it is always possible to express any operator given just `ā`.
+For example, the Pauli spin matrices in a two-level system can be expressed
+    as ``X=a+a'``, ``Y=i(a-a')``, and ``Z=a'a``.
+If you *really* want to write your operators as functions of something other than ``a_q``,
+    you may "hack" in a new algebra by implementing new methods
+    for this module's `algebra` and `localalgebra` functions.
+
+## Type methods:
+
+- `eltype_localloweringoperator(::D)`
+- `eltype_qubithamiltonian(::D)`
+- `eltype_staticcoupling(::D)`
+- `eltype_driveoperator(::D)`
+- `eltype_gradeoperator(::D)`
+
+Each of these methods gives the number type of the corresponding operator.
+Implement these methods based only on your implementation of the methods,
+    ie. they should be independent of the type of `ā` (or assume `ā` has type Bool).
+
+## Gradient methods:
+
+- `gradient(::D, τ̄, t̄, ϕ̄)`:
+        the gradient vector for each variational parameter in the device.
+        Each partial is generally an integral over at least one gradient signal:
+        The arguments `τ̄` and `t̄` are time spacings and time grids,
+            as given by `Evolutions.trapezoidaltimegrid`.
+        The argument `ϕ̄` is a 2d array; `ϕ̄[:,:,j]` contains the jth gradient signal
+            ``ϕ_j(t)`` evaluated at each point in `t̄`.
+
+## Notes on Caching
+
+This module uses the `Memoization` package to cache some arrays as they are calculated.
+
+This does not apply to any method which depends on an absolute time t,
+    though it does apply to methods depending only on a relative time τ.
+For example, the propagator for a static Hamiltonian is cached,
+    but not one for a drive Hamiltonian.
+No caching happens for any method if its `result` keyword argument is used.
+
+Usually, variational parameters only affect time-dependent methods,
+    but if any of your device's static operators do depend on a variational parameter,
+    you should be careful to empty the cache when `Parameters.bind` is called.
+
+You can completely clear everything in the cache with:
+
+    Memoization.empty_all_caches!()
+
+Alternatively, selectively clear caches for affected functions via:
+    
+    Memoization.empty_cache!(fn)
+
+I don't know if it's possible to selectively clear cached values for specific methods.
+If it can be done, it would require obtaining the actual `Dict`
+    being used as a cache for a particular function,
+    figuring out exactly how that cache is indexed,
+    and manually removing elements matching your targeted method signature.
+
 """
 abstract type Device end
 
-# METHODS NEEDING TO BE IMPLEMENTED
-nqubits(::Device)::Int = error("Not Implemented")
-nlevels(::Device)::Int = error("Not Implemented")
-ndrives(::Device)::Int = error("Not Implemented")
-ngrades(::Device)::Int = error("Not Implemented")
+"""
+    nqubits(device)
 
-# NOTE: eltypes need only give "highest" type of coefficients; pretend ā is Bool
+The number of qubits in the device.
 
-eltype_localloweringoperator(::Device)::Type{<:Number} = error("Not Implemented")
-localloweringoperator(::Device; result=nothing)::AbstractMatrix = error("Not Implemented")
+"""
+function nqubits(::Device)
+    error("Not Implemented")
+    return 0
+end
 
+"""
+    nlevels(device)
+
+The number of physical levels in each "qubit".
+
+"""
+function nlevels(::Device)
+    error("Not Implemented")
+    return 0
+end
+
+"""
+    ndrives(device)
+
+The number of distinct drive channels.
+
+"""
+function ndrives(::Device)
+    error("Not Implemented")
+    return 0
+end
+
+"""
+    ngrades(device)
+
+The number of distinct gradient operators.
+
+"""
+function ngrades(::Device)
+    error("Not Implemented")
+    return 0
+end
+
+"""
+    localloweringoperator(device::Device; result=nothing)
+
+The lowering operator ``a`` acting on the Hilbert space of a single physical qubit.
+
+Optionally, pass a pre-allocated array of compatible type and shape as `result`.
+
+"""
+function localloweringoperator(::Device; result=nothing)
+    error("Not Implemented")
+    return zeros(eltype_localloweringoperator(device), nlevels(device), nlevels(device))
+end
+
+# TODO
 eltype_qubithamiltonian(::Device)::Type{<:Number} = error("Not Implemented")
 function qubithamiltonian(::Device,
     ā::MatrixList,
@@ -121,6 +241,18 @@ end
 
 
 
+
+
+"""
+    eltype_localloweringoperator(device::Device)
+
+The number type of a local lowering operator for this device.
+
+"""
+function eltype_localloweringoperator(::Device)
+    error("Not Implemented")
+    return Bool
+end
 
 
 

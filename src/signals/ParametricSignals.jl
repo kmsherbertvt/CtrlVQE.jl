@@ -1,32 +1,73 @@
+# TODO (hi): add exports
 import Memoization: @memoize
 import ...Parameters, ...Signals
 
 
 """
-    abstract type ParametricSignal{P,R} ... end
+    ParametricSignal{P,R} ... end
+
+Super-type for user-defined signal objects ``Ω(t)``.
+
+# Type Parameters
+- `P` denotes the type of all variational parameters. Must be a real float.
+- `R` denotes the type of ``Ω(t)`` itself. May be any number type.
 
 # Implementation
-- Subtypes S are mutable structs.
-- All differentiable parameters of S are of type P.
-- Subtypes implement the following methods:
-    (::S)(t::Real)::R
-    partial(i::Int, ::S, t::Real)::R
 
-By default, all fields of type P are treated as differentiable parameters.
-You can narrow this selection by implementing:
-    parameters(::S)::Vector{Symbol}
-But before you do that, consider using a `ConstrainedSignal` instead.
+Any concrete sub-type `S` must be a mutable struct,
+    and all of its variational parameters are of type P.
+By default, *all* fields of type P are treated as variational parameters.
+You may optionally change this by implementing `parameters(::S)`,
+    which should return a vector of each variational parameter of `S`.
+But before you do that,
+    consider whether a `ConstrainedSignal` provides the desired behavior.
+
+The following methods must be implemented:
+
+- `(Ω::S)(t::Real)`:
+        the actual function ``Ω(t)``. Must return a number of type `R`.
+
+- `partial(i::Int, Ω::S, t::Real)`:
+        the partial derivative ``∂Ω/∂x_i`` evaluated at time `t`,
+        where ``x_i`` is Ω's i-th variational parameter (ie. `Parameters.names(Ω)[i]`).
+        Must return a number of type `R`.
+
+- `Base.string(Ω::S, names::AbstractVector{String})`:
+        a human-readable description of the signal,
+        inserting each element of `names` in the place of the corresponding parameter.
+    For example, a complex constant signal might return a description like "\$A + i \$B",
+        where `A` and `B` are the "names" given by the `names` argument.
 
 """
 abstract type ParametricSignal{P,R} <: Signals.AbstractSignal{P,R} end
 
+#= TO BE IMPLEMENTED BY SUB-CLASSES:
+    (::S)(t::Real)::R
+    Signals.partial(i::Int, ::S, t::Real)::R
+    Base.string(::S, ::AbstractVector{String})::String
+=#
+
+"""
+    parameters(::Type{S<:ParametricSignal{P,R}})
+
+A vector of all the variational parameters in a signal of type `S`.
+
+"""
 @memoize Dict function parameters(::Type{S}) where {P,R,S<:ParametricSignal{P,R}}
     return [field for (i, field) in enumerate(fieldnames(S)) if S.types[i] == P]
 end
 
+"""
+    parameters(::S<:ParametricSignal{P,R})
+
+A vector of all the variational parameters in a signal of type `S`.
+
+"""
 function parameters(signal::S) where {P,R,S<:ParametricSignal{P,R}}
     return parameters(S)
 end
+
+#= `Parameters` INTERFACE =#
 
 Parameters.count(signal::S) where {S<:ParametricSignal} = length(parameters(S))
 
@@ -47,26 +88,22 @@ function Parameters.bind(
     end
 end
 
-#= TO BE IMPLEMENTED BY SUB-CLASSES:
-    (::S)(t::Real)::R
-    Signals.partial(i::Int, ::S, t::Real)::R
-    Base.string(::S, ::AbstractVector{String})::String
-=#
 
 
 
 
 
 
+"""
+    ConstrainedSignal(constrained::<:ParametricSignal, constraints::Vector{Symbol})
 
+The parametric signal `constrained`, freezing all fields in `constraints`.
 
-##########################################################################################
-#=                              SPECIAL SIGNAL TYPES
-=#
+Frozen parameters are omitted from the `Parameters` interface.
+In other words, they do not appear in `Parameters.names` or `Parameters.values`,
+    and they are not mutated by `Parameters.bind`.
 
-
-#= CONSTRAINED SIGNAL =#
-
+"""
 struct ConstrainedSignal{P,R,S<:ParametricSignal{P,R}} <: Signals.AbstractSignal{P,R}
     constrained::S
     constraints::Vector{Symbol}
@@ -82,9 +119,17 @@ struct ConstrainedSignal{P,R,S<:ParametricSignal{P,R}} <: Signals.AbstractSignal
     end
 end
 
+"""
+    ConstrainedSignal(constrained::ParametricSignal, constraints::Symbol...)
+
+Alternate constructor, letting each field be passed as its own argument.
+
+"""
 function ConstrainedSignal(constrained::ParametricSignal, constraints::Symbol...)
     return ConstrainedSignal(constrained, collect(constraints))
 end
+
+#= `Parameters` INTERFACE =#
 
 function Parameters.count(signal::ConstrainedSignal)
     return Parameters.count(signal.constrained) - length(signal.constraints)
@@ -104,6 +149,8 @@ function Parameters.bind(signal::ConstrainedSignal{P,R,S}, x̄::AbstractVector{P
         setfield!(signal.constrained, fields[signal._map[i]], x̄[i])
     end
 end
+
+#= `Signals` INTERFACE =#
 
 (signal::ConstrainedSignal)(t::Real) = signal.constrained(t)
 function Signals.partial(i::Int, signal::ConstrainedSignal, t::Real)

@@ -1,12 +1,17 @@
+# TODO (hi): add exports
 import ...Signals
 
+"""
+    Gaussian(A::F, σ::F, s::F) where {F<:AbstractFloat}
+
+A Gaussian real signal ``Ω(t) = A exp( -((t-s)/σ)^2 / 2)``.
+
+"""
 mutable struct Gaussian{F} <: Signals.ParametricSignal{F,F}
     A::F    # MAXIMUM PEAK
     σ::F    # EFFECTIVE WIDTH
     s::F    # CENTRAL TIME
 end
-
-
 
 function (signal::Gaussian{F})(t::Real) where {F}
     A = signal.A; σ = signal.σ; s = signal.s

@@ -15,8 +15,11 @@ Super-type for all signal objects ``Ω(t)``.
 
 # Implementation
 
-Any sub-type `S` must implement all functions in the `Parameters` module.
+Any concrete sub-type `S` must implement all functions in the `Parameters` module.
 - In particular, `Parameters.values(Ω::S)` must return a vector of type `P`.
+- If you are trying to create your own signal type,
+    you *probably* want to implement a `ParametricSignal`,
+    which already has an implementation for the `Parameters` interface.
 
 In addition, the following methods must be implemented:
 

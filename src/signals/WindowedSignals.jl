@@ -1,9 +1,26 @@
+# TODO (hi): add exports
 import ...Parameters, ...Signals
 import ...Signals: AbstractSignal
 
 
-#= WINDOWED SIGNAL =#
+"""
+    WindowedSignal(windows, starttimes)
 
+A signal which applies a different function for each window.
+
+# Arguments
+- windows: a vector of signals
+- starttimes: a vector of times transitioning each window
+
+Both `windows` and `starttimes` have the same length;
+    `starttimes[i]` indicates when `windows[i]` begins.
+
+This signal is undefined for times `t < starttimes[1]`.
+Normally, `starttimes[1] == 0`.
+
+Note that each window must share the same type parameters `P` and `R`.
+
+"""
 struct WindowedSignal{P,R} <: AbstractSignal{P,R}
     windows::Vector{AbstractSignal{P,R}}
     starttimes::Vector{P}
@@ -35,6 +52,32 @@ struct WindowedSignal{P,R} <: AbstractSignal{P,R}
     end
 end
 
+"""
+    get_window_from_time(signal::WindowedSignal, t::Real)
+
+Identify the window index given the time (by inspecting `starttimes`).
+
+"""
+function get_window_from_time(signal::WindowedSignal, t::Real)
+    k = findlast(starttime -> starttime ≤ t, signal.starttimes)
+    isnothing(k) && error("Time $t does not fit into any window.")
+    return k
+end
+
+"""
+    get_window_from_parameter(signal::WindowedSignal, i::Int)
+
+Identify the window index given a parameter index (by counting parameters in `windows`).
+
+"""
+function get_window_from_parameter(signal::WindowedSignal, i::Int)
+    k = findlast(offset -> offset < i, signal.offsets)
+    isnothing(k) && error("Parameter $i does not fit into any window.")
+    return k
+end
+
+#= `Parameters` INTERFACE =#
+
 function Parameters.count(signal::WindowedSignal)
     return sum(Parameters.count(window)::Int for window in signal.windows)
 end
@@ -64,17 +107,7 @@ function Parameters.bind(signal::WindowedSignal{P,R}, x̄::AbstractVector{P}) wh
     end
 end
 
-function get_window_from_time(signal::WindowedSignal, t::Real)
-    k = findlast(starttime -> starttime ≤ t, signal.starttimes)
-    isnothing(k) && error("Time $t does not fit into any window.")
-    return k
-end
-
-function get_window_from_parameter(signal::WindowedSignal, i::Int)
-    k = findlast(offset -> offset < i, signal.offsets)
-    isnothing(k) && error("Parameter $i does not fit into any window.")
-    return k
-end
+#= `Signals` INTERFACE =#
 
 function (signal::WindowedSignal{P,R})(t::Real) where {P,R}
     k = get_window_from_time(signal,t)
@@ -103,7 +136,12 @@ function Base.string(signal::WindowedSignal, names::AbstractVector{String})
     return join(texts, "; ")
 end
 
-# VECTORIZED METHODS
+#= `Signals` OVERRIDES
+
+More efficient implementations of functions over a full timegrid.
+
+=#
+
 function (signal::WindowedSignal{P,R})(
     t̄::AbstractVector{<:Real};
     result=nothing,

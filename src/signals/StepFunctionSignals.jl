@@ -1,5 +1,12 @@
+# TODO (hi): add exports
 import ...Signals
 
+"""
+    StepFunction(A::F, s::F) where {F<:AbstractFloat}
+
+The piecewise signal ``Ω(t) = A⋅Θ(t-s)``, where ``Θ`` is the Heaviside step function.
+
+"""
 mutable struct StepFunction{F} <: Signals.ParametricSignal{F,F}
     A::F    # CONSTANT VALUE AFTER STEP
     s::F    # TIME COORDINATE OF STEP

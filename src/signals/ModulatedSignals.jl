@@ -1,8 +1,15 @@
+# TODO (hi): add exports
 import ...Parameters, ...Signals
 import ...Signals: AbstractSignal
 
-#= MODULATED SIGNAL =#
+"""
+    ModulatedSignal(components::AbstractVector{<:AbstractSignal{P,R}})
 
+A signal which is the product of each sub-signal in `components`.
+
+Note that each component must share the same type parameters `P` and `R`.
+
+"""
 struct ModulatedSignal{P,R} <: AbstractSignal{P,R}
     components::Vector{AbstractSignal{P,R}}
 
@@ -11,9 +18,17 @@ struct ModulatedSignal{P,R} <: AbstractSignal{P,R}
     end
 end
 
+"""
+    ModulatedSignal(components::AbstractSignal...)
+
+Alternate constructor, letting each component be passed as its own argument.
+
+"""
 function ModulatedSignal(components::AbstractSignal{P,R}...) where {P,R}
     return ModulatedSignal(AbstractSignal{P,R}[component for component in components])
 end
+
+#= `Parameters` INTERFACE =#
 
 function Parameters.count(signal::ModulatedSignal)
     return sum(Parameters.count(component)::Int for component in signal.components)
@@ -45,6 +60,8 @@ function Parameters.bind(signal::ModulatedSignal{P,R}, x̄::AbstractVector{P}) w
         offset += L
     end
 end
+
+#= `Signals` INTERFACE =#
 
 function (signal::ModulatedSignal{P,R})(t::Real) where {P,R}
     return prod(component(t)::R for component in signal.components)
