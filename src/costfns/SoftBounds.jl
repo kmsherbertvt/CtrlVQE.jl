@@ -1,5 +1,22 @@
 import ..AbstractCostFunction, ..AbstractGradientFunction
 
+"""
+    functions(λ̄, x̄L, x̄R, σ̄)
+
+A shallow quadratic penalty for each parameter's deviation from mean.
+
+# Arguments
+- `λ̄`: vector of weights for each penalty
+        Set `λ̄[i]=0` to skip penalties for the ith parameter.
+
+- `μ̄`: vector of lower bounds for each parameter
+- `σ̄`: vector of scalings (smaller=steeper) for each penalty
+
+# Returns
+- `f`: the cost function
+- `g`: the gradient function
+
+"""
 function functions(λ̄, μ̄, σ̄)
     f = CostFunction(λ̄, μ̄, σ̄)
     g = GradientFunction(f)

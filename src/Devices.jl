@@ -571,7 +571,7 @@ end
 
 The number type of each annihilation operator ``a_j`` represented in the given basis.
 
-When omitted, the basis defaults to Bases.OCCUPATION.
+When omitted, the basis defaults to `Bases.OCCUPATION`.
 
 """
 function eltype_algebra(device::Device, ::Bases.BasisType=Bases.OCCUPATION)
@@ -592,7 +592,7 @@ end
 
 A matrix list `ā`, where `ā[:,:,q]` represents the annihilation operator ``a_q``.
 
-When omitted, the basis defaults to Bases.OCCUPATION.
+When omitted, the basis defaults to `Bases.OCCUPATION`.
 
 Each `ā[:,:,q]` acts globally on the full Hilbert space of the device,
     even in bases where it acts trivially on states outside the local space of qubit `q`.
@@ -622,7 +622,7 @@ end
 
 A matrix list `ā`, where `ā[:,:,q]` represents the annihilation operator ``a_q``.
 
-When omitted, the basis defaults to Bases.OCCUPATION.
+When omitted, the basis defaults to `Bases.OCCUPATION`.
 
 Each `ā[:,:,q]` acts locally on the physical Hilbert space of qubit `q`.
 Note that you can construct global operators in a local basis by using `algebra` instead.

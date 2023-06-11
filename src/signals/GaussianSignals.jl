@@ -4,7 +4,7 @@ import ...Signals
 """
     Gaussian(A::F, σ::F, s::F) where {F<:AbstractFloat}
 
-A Gaussian real signal ``Ω(t) = A exp( -((t-s)/σ)^2 / 2)``.
+A Gaussian real signal ``Ω(t) = A \\exp( -((t-s)/σ)^2 / 2)``.
 
 """
 mutable struct Gaussian{F} <: Signals.ParametricSignal{F,F}

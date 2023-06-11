@@ -48,7 +48,7 @@ end
 """
     PolarComplexConstant(r::F, ϕ::F) where {F<:AbstractFloat}
 
-The constant complex signal ``Ω(t) = r exp(iϕ)``.
+The constant complex signal ``Ω(t) = r \\exp(iϕ)``.
 
 """
 mutable struct PolarComplexConstant{F} <: Signals.ParametricSignal{F,Complex{F}}

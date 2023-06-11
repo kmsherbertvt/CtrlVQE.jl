@@ -10,7 +10,7 @@ const LABEL = Symbol(@__MODULE__)
 
 Semantic alias for `Matrix` which explicitly represents a distinct vector in each column.
 
-In other words, think of a `VectorList` v̄ as a list where each v[i] = v̄[:,i] is a vector.
+Think of a `VectorList` `v̄` as a list where each `v[i] = v̄[:,i]` is a vector.
 
 """
 const VectorList{T} = Array{T,2}
@@ -20,7 +20,7 @@ const VectorList{T} = Array{T,2}
 
 Semantic alias for a 3d array which explicitly represents a list of matrices.
 
-Think of a `MatrixList` Ā as a list where each A[i] = Ā[:,:,i] is a matrix.
+Think of a `MatrixList` `Ā` as a list where each `A[i] = Ā[:,:,i]` is a matrix.
 
 """
 const MatrixList{T} = Array{T,3}
@@ -92,9 +92,9 @@ end
 """
     cis!(A::AbstractMatrix, x=1)
 
-Calculates ``exp(ixA)`` for a Hermitian matrix `A`.
+Calculates ``\\exp(ixA)`` for a Hermitian matrix `A`.
 
-The name comes from the identity exp(ix) = Cos(x) + I Sin(x).
+The name comes from the identity `exp(ix) = Cos(x) + I Sin(x)`.
 
 Note that this method mutates `A` itself to the calculated exponential.
 Therefore, `A` must have a complex float type, and it must not be an immutable view.
@@ -223,7 +223,7 @@ end
 """
     expectation(A::AbstractMatrix, x::AbstractVector)
 
-Compute the braket ⟨x|A|x⟩.
+Compute the braket ``⟨x|A|x⟩``.
 
 """
 expectation(A::AbstractMatrix, x::AbstractVector) = braket(x, A, x)
@@ -231,7 +231,7 @@ expectation(A::AbstractMatrix, x::AbstractVector) = braket(x, A, x)
 """
     expectation(ā::MatrixList, x::AbstractVector)
 
-Compute the braket ⟨x|kron(ā)|x⟩, but somewhat more efficiently.
+Compute the braket `⟨x|kron(ā)|x⟩`, but somewhat more efficiently.
 
 """
 expectation(ā::MatrixList, x::AbstractVector) = braket(x, ā, x)

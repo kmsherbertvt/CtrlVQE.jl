@@ -3,23 +3,79 @@ import LinearAlgebra: norm
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
-abstract type AbstractCostFunction end
-(::AbstractCostFunction)(x̄::AbstractVector)::Real = error("Not Implemented")
+"""
+    AbstractCostFunction
 
+Super-type for "cost functions", to be plugged directly into optimization algorithms.
+
+# Implementation
+
+Any concrete sub-type `CF` must be a callable object, accepting a vector of parameters.
+That is, it must implement the function `(f::CF)(x̄::AbstractVector)`.
+
+"""
+abstract type AbstractCostFunction end
+
+"""
+    (f::AbstractCostFunction)(x̄::AbstractVector)
+
+A cost function evaluated at the point in parameter space given by `x̄`.
+
+"""
+function (::AbstractCostFunction)(x̄::AbstractVector)
+    error("Not Implemented")
+    return 0
+end
+
+"""
+    AbstractGradientFunction
+
+Super-type for "gradient functions", to be plugged directly into optimization algorithms.
+
+Each gradient function is implicitly associated with a cost function.
+
+# Implementation
+
+Any concrete sub-type `GF` must be a callable object,
+    accepting a vector of partial derivatives (to be calculated and filled in),
+    and a vector of parameters.
+That is, it must implement the function `(g::GF)(∇f̄::AbstractVector,x̄::AbstractVector)`.
+
+"""
 abstract type AbstractGradientFunction end
+
+"""
+    (g::AbstractGradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
+
+The gradient of a function at the point in parameter space given by `x̄`.
+
+The result is stored in the first argument `∇f̄`, as well as returned.
+
+"""
 function (::AbstractGradientFunction)(
     ∇f̄::AbstractVector,
     x̄::AbstractVector,
 )::AbstractVector
-    return error("Not Implemented")
+    error("Not Implemented")
+    return ∇f̄
 end
 
+"""
+    (g::AbstractGradientFunction)(x̄::AbstractVector)
+
+The gradient of a function at the point in parameter space given by `x̄`.
+
+"""
 (g::AbstractGradientFunction)(x̄::AbstractVector) = g(copy(x̄),x̄)
 
+"""
+    CompositeCostFunction(f̄::Vector{AbstractCostFunction})
 
+The sum of several other cost-functions.
 
-#= COMPOSITE FUNCTIONS - useful for combining energy with penalties =#
+Use this eg. to combine an energy function with one or more penalty functions.
 
+"""
 struct CompositeCostFunction <: AbstractCostFunction
     f̄::Vector{AbstractCostFunction}
 
@@ -31,6 +87,12 @@ struct CompositeCostFunction <: AbstractCostFunction
     end
 end
 
+"""
+    CompositeCostFunction(f̄...)
+
+Alternate constructor, letting each function be passed as its own argument.
+
+"""
 function CompositeCostFunction(f̄...)
     return CompositeCostFunction(AbstractCostFunction[f for f in f̄])
 end
@@ -44,6 +106,13 @@ end
 
 
 
+
+"""
+    CompositeGradientFunction(ḡ::Vector{AbstractCostFunction})
+
+The sum of several other gradient-functions.
+
+"""
 struct CompositeGradientFunction <: AbstractGradientFunction
     ḡ::Vector{AbstractGradientFunction}
 
@@ -55,6 +124,13 @@ struct CompositeGradientFunction <: AbstractGradientFunction
     end
 end
 
+
+"""
+    CompositeGradientFunction(ḡ...)
+
+Alternate constructor, letting each function be passed as its own argument.
+
+"""
 function CompositeGradientFunction(ḡ...)
     return CompositeGradientFunction(AbstractGradientFunction[g for g in ḡ])
 end

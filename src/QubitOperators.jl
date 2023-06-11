@@ -4,15 +4,41 @@ import ..Operators, ..LinearAlgebraTools, ..Devices
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
+"""
+    qubitprojector(device::Devices.Device)
+
+A projector from the physical Hilbert space of a device onto a logical two-level space.
+
+The projector `Π` does not reduce the *size* of its operand;
+    it only removes *support* on the non-logical states.
+If you want to change the size, use `qubitisometry` instead.
+
+"""
 function qubitprojector(device::Devices.Device)
     return LinearAlgebraTools.kron(localqubitprojectors(device))
 end
 
+"""
+    qubitisometry(device::Devices.Device)
+
+An isometry from the physical Hilbert space of a device onto a logical two-level space.
+
+If `Φ` is the isometry, and `|ψ⟩` is a statevector living in the full Hilbert space,
+    the vector `Φ|ψ⟩` is a smaller vector living in the two-level space.
+
+"""
 function qubitisometry(device::Devices.Device)
     # NOTE: Acts on qubit space, projects up to device space.
     return LinearAlgebraTools.kron(localqubitisometries(device))
 end
 
+
+"""
+    localqubitprojectors(device::Devices.Device)
+
+A matrix list of local qubit projectors for each individual qubit in the device.
+
+"""
 function localqubitprojectors(device::Devices.Device)
     m = Devices.nlevels(device)
     n = Devices.nqubits(device)
@@ -27,6 +53,12 @@ function localqubitprojectors(device::Devices.Device)
     return π̄
 end
 
+"""
+    localqubitprojectors(device::Devices.Device)
+
+A matrix list of local qubit isometries for each individual qubit in the device.
+
+"""
 function localqubitisometries(device::Devices.Device)
     # NOTE: Acts on qubit space, projects up to device space.
     m = Devices.nlevels(device)
@@ -39,11 +71,22 @@ function localqubitisometries(device::Devices.Device)
     return ϕ̄
 end
 
+"""
+    nqubits(H)
 
+Infer the number of qubits of a statevector or matrix living in a logical qubit space.
 
+In other words, calculates `n` assuming the dimension of `H` is `2^n`.
 
+"""
 nqubits(H::AbstractVecOrMat) = round(Int, log2(size(H,1)))
 
+"""
+    reference(H)
+
+The basis state which minimizes the matrix `H`.
+
+"""
 function reference(H::AbstractMatrix)
     ix = argmin(diag(real.(H)))
     LinearAlgebraTools.basisvector(size(H,1), ix)
@@ -57,7 +100,12 @@ end
 
 
 
+"""
+    project(A, device::Devices.Device)
 
+Extend a statevector or matrix living in a two-level space onto a physical Hilbert space.
+
+"""
 function project(ψ::AbstractVector{F}, device::Devices.Device) where {F}
     N0 = length(ψ)
     N = Devices.nstates(device)
@@ -91,12 +139,31 @@ function project(H::AbstractMatrix{F}, device::Devices.Device) where {F}
 end
 
 
+"""
+    driveframe(H::AbstractMatrix, device::Devices.Device, T::Real)
+
+Rewrite a molcular Hamiltonian in the drive frame of a device at time T.
+
+This first projects `H` onto the physical Hilbert space,
+    then evolves by the device's static Hamiltonian.
+
+"""
 function driveframe(H::AbstractMatrix, device::Devices.Device, T::Real)
     O = project(H, device)
     O = Devices.evolve!(Operators.STATIC, device, T, O)
     return O
 end
 
+"""
+    interactionframe(H::AbstractMatrix, device::Devices.Device, T::Real)
+
+Rewrite a molcular Hamiltonian in the interaction frame of a device at time T.
+
+This first projects `H` onto the physical Hilbert space,
+    then evolves by the *uncoupled* parts of a device's static Hamiltonian.
+This is supposed to approximate the drive frame while remaining classically tractable.
+
+"""
 function interactionframe(H::AbstractMatrix, device::Devices.Device, T::Real)
     O = project(H, device)
     O = Devices.evolve!(Operators.UNCOUPLED, device, T, O)

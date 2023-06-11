@@ -4,6 +4,30 @@ import ....Parameters, ....LinearAlgebraTools, ....Devices, ....Evolutions
 import ....QubitOperators
 import ....Bases: BasisType, OCCUPATION
 
+"""
+    functions(ψ0, T, device, r; kwargs...)
+
+Cost and gradient functions for the norm of a statevector in a binary logical space.
+
+# Arguments
+- `ψ0`: the reference state, living in the physical Hilbert space of `device`.
+- `T::Real`: the total time for the state to evolve under the `device` Hamiltonian.
+- `device::Devices.Device`: the device
+- `r::Int`: the number of time steps to calculate the gradient signal
+
+# Keyword Arguments
+- `algorithm::Evolutions.Algorithm`: which algorithm to evolve `ψ0` with.
+        Defaults to `Evolutions.rotate(r)`.
+
+- `basis::Bases.BasisType`: which basis `O0` and `ψ0` are represented in.
+        ALSO determines the basis in which time-evolution is carried out.
+        Defaults to `Bases.OCCUPATION`.
+
+# Returns
+- `f`: the cost function
+- `g`: the gradient function
+
+"""
 function functions(
     ψ0::AbstractVector,
     T::Real,

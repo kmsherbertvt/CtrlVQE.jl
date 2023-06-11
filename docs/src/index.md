@@ -17,6 +17,8 @@ Pages = [
     "Devices.md",
     "Signals.md",
     "Evolutions.md",
+    "QubitOperators.md",
+    "CostFunctions.md",
 ]
 ```
 

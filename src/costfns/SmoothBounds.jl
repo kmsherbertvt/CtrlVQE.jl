@@ -4,6 +4,24 @@ import ..AbstractCostFunction, ..AbstractGradientFunction
 smoothwall(u) = u ≤ 0 ? 0 : exp(u - 1/u)
 smoothgrad(u) = u ≤ 0 ? 0 : (1 + 1/u^2) * smoothwall(u)
 
+"""
+    functions(λ̄, x̄L, x̄R, σ̄)
+
+A smooth exponential penalty for each parameter exceeding its bounds.
+
+# Arguments
+- `λ̄`: vector of weights for each penalty
+        Set `λ̄[i]=0` to skip penalties for the ith parameter.
+
+- `μ̄R`: vector of lower bounds for each parameter
+- `μ̄L`: vector of upper bounds for each parameter
+- `σ̄`: vector of scalings (smaller=steeper) for each penalty
+
+# Returns
+- `f`: the cost function
+- `g`: the gradient function
+
+"""
 function functions(λ̄, μ̄R, μ̄L, σ̄)
     f = CostFunction(λ̄, μ̄R, μ̄L, σ̄)
     g = GradientFunction(f)

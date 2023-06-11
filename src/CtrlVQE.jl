@@ -173,7 +173,7 @@ module Operators
     The component of the static Hamiltonian which is local to qubit `q`.
 
     For example, in a transmon device,
-        `Qubit(2)` represents a term ``ω_q a_q'a_q - δ_q/2 a_q'a_q'a_q a_q``.
+        `Qubit(2)` represents a term ``ω_q a_q'a_q - δ_q/2~ a_q'a_q'a_q a_q``.
 
     """
     struct Qubit <: StaticOperator
@@ -201,7 +201,7 @@ module Operators
         where `q` iterates over each qubit in the device.
 
     For example, in a transmon device,
-        `Uncoupled()` represents the sum ``∑_q (ω_q a_q'a_q - δ_q/2 a_q'a_q'a_q a_q)``.
+        `Uncoupled()` represents the sum ``∑_q (ω_q a_q'a_q - δ_q/2~ a_q'a_q'a_q a_q)``.
 
     """
     struct Uncoupled <: StaticOperator end
@@ -224,7 +224,7 @@ module Operators
     An individual drive term (indexed by `i`) at a specific time `t`.
 
     For example, in a transmon device,
-        `Channel(q,t)` might represent ``Ω_q(t) [exp(iν_qt) a_q + exp(-iν_qt) a_q']``,
+        `Channel(q,t)` might represent ``Ω_q(t) [\\exp(iν_qt) a_q + \\exp(-iν_qt) a_q']``,
         the drive for a single qubit.
 
     Note that you are free to have multiple channels for each qubit,
@@ -245,7 +245,7 @@ module Operators
         where `i` iterates over each drive term in the device.
 
     For example, in a transmon device,
-        `Drive(t)` might represent ``∑_q Ω_q(t) [exp(iν_qt) a_q + exp(-iν_qt) a_q']``.
+        `Drive(t)` might represent ``∑_q Ω_q(t) [\\exp(iν_qt) a_q + \\exp(-iν_qt) a_q']``.
 
     """
     struct Drive{R<:Real} <: OperatorType
@@ -275,10 +275,10 @@ module Operators
         but sufficiently distinct that they need to be treated separately.
 
     For example, for a transmon device,
-        each channel operator ``Ω_q(t) [exp(iν_qt) a_q + exp(-iν_qt) a_q']``
+        each channel operator ``Ω_q(t) [\\exp(iν_qt) a_q + \\exp(-iν_qt) a_q']``
         is associated with *two* gradient operators:
-    - ``exp(iν_qt) a_q + exp(-iν_qt) a_q'``
-    - ``i[exp(iν_qt) a_q - exp(-iν_qt) a_q']``
+    - ``\\exp(iν_qt) a_q + \\exp(-iν_qt) a_q'``
+    - ``i[\\exp(iν_qt) a_q - \\exp(-iν_qt) a_q']``
 
     """
     struct Gradient{R<:Real} <: OperatorType
@@ -404,7 +404,10 @@ import .Evolutions: trapezoidaltimegrid, evolve, evolve!, gradientsignals, Rotat
 """
     QubitOperators
 
-Interfaces aribitary physical Hilbert space with a strictly binary logical Hilbert space.
+Interfaces arbitrary physical Hilbert space with a strictly binary logical Hilbert space.
+
+NOTE: I don't especially like how this module is organized,
+    so consider this code subject to change.
 
 """
 module QubitOperators
@@ -414,7 +417,16 @@ end
 """
     CostFunctions
 
-Convenience wrappers for time-evolution code to interface directly with optimizations.
+Interfaces time-evolution and penalty functions to interface directly with optimization.
+
+Each distinct cost function is implemented in a sub-module,
+    alongside its gradient function.
+The sub-module implements a `functions` method which constructs a cost function
+    and its corresponding gradient function.
+Thus, all you need to run a gradient based optimization is:
+
+    import CostFunctions.MySubModule: functions
+    f, g = functions(args...)
 
 """
 module CostFunctions

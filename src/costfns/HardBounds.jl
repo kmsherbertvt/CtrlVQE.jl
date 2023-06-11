@@ -1,5 +1,23 @@
 import ..AbstractCostFunction, ..AbstractGradientFunction
 
+"""
+    functions(λ̄, x̄L, x̄R, σ̄)
+
+A steep exponential penalty for each parameter exceeding its bounds.
+
+# Arguments
+- `λ̄`: vector of weights for each penalty
+        Set `λ̄[i]=0` to skip penalties for the ith parameter.
+
+- `x̄L`: vector of lower bounds for each parameter
+- `x̄R`: vector of upper bounds for each parameter
+- `σ̄`: vector of scalings (smaller=steeper) for each penalty
+
+# Returns
+- `f`: the cost function
+- `g`: the gradient function
+
+"""
 function functions(λ̄, x̄L, x̄R, σ̄)
     f = CostFunction(λ̄, x̄L, x̄R, σ̄)
     g = GradientFunction(f)
