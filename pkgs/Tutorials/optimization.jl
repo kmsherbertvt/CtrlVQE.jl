@@ -1,61 +1,66 @@
+#= Optimize a pulse to find the ground-state energy of a molecular Hamiltonian. =#
+
+##########################################################################################
+#= PREAMBLE =#
 import CtrlVQE
+import Random, LinearAlgebra
+import NPZ, Optim, LineSearches, Plots
 
-import Random: seed!
-import LinearAlgebra: eigen, Hermitian
+matrix = "H2_sto-3g_singlet_1.5_P-m"    # MATRIX FILE
+T = 5.0 # ns                # TOTAL DURATION OF PULSE
+W = 10                      # NUMBER OF WINDOWS IN EACH PULSE
 
-import NPZ: npzread
-import Optim, LineSearches
-import Plots
+r = round(Int,20T)          # NUMBER OF STEPS IN TIME EVOLUTION
+m = 2                       # NUMBER OF LEVELS PER TRANSMON
 
-##########################################################################################
-#= INITIALIZE PARAMETERS =#
+seed = 9999                 # RANDOM SEED FOR PULSE INTIALIZATION
+init_Ω = 0.0 # 2π GHz       # AMPLITUDE RANGE FOR PULSE INITIALIZATION
+init_φ = 0.0                # PHASE RANGE FOR PULSE INITIALIZATION
+init_Δ = 0.0 # 2π GHz       # FREQUENCY RANGE FOR PULSE INITIALIZATION
 
-matrix = "H2_sto-3g_singlet_1.5_P-m"    # NAME OF MATRIX FILE IN `pkgs/Tutorials/matrix`
-T = 5.0 # ns                            # TOTAL DURATION OF PULSE
-W = 10                                  # NUMBER OF WINDOWS IN EACH PULSE
+ΩMAX = 2π * 0.02 # 2π GHz   # AMPLITUDE BOUNDS
+λΩ = 1.0 # Ha               # PENALTY WEIGHT FOR EXCEEDING AMPLITUDE BOUNDS
+σΩ = ΩMAX                   # PENALTY STEEPNESS FOR EXCEEDING AMPLITUDE BOUNDS
 
-r = round(Int,20T)                      # NUMBER OF STEPS IN TIME EVOLUTION
-m = 2                                   # NUMBER OF LEVELS PER TRANSMON
+ΔMAX = 2π * 1.00 # 2π GHz   # FREQUENCY BOUNDS
+λΔ = 1.0 # Ha               # PENALTY WEIGHT FOR EXCEEDING FREQUENCY BOUNDS
+σΔ = ΔMAX                   # PENALTY STEEPNESS FOR EXCEEDING FREQUENCY BOUNDS
 
-seed = 9999                             # RANDOM SEED FOR PULSE INTIALIZATION
-init_Ω = 0.0 # 2π GHz                   # AMPLITUDE RANGE FOR PULSE INITIALIZATION
-init_φ = 0.0                            # PHASE RANGE FOR PULSE INITIALIZATION
-init_Δ = 0.0 # 2π GHz                   # FREQUENCY RANGE FOR PULSE INITIALIZATION
-
-ΩMAX = 2π * 0.02 # 2π GHz               # AMPLITUDE BOUNDS
-λΩ = 1.0 # Ha                           # PENALTY WEIGHT FOR EXCEEDING AMPLITUDE BOUNDS
-σΩ = ΩMAX                               # PENALTY STEEPNESS FOR EXCEEDING AMPLITUDE BOUNDS
-
-ΔMAX = 2π * 1.00 # 2π GHz               # FREQUENCY BOUNDS
-λΔ = 1.0 # Ha                           # PENALTY WEIGHT FOR EXCEEDING FREQUENCY BOUNDS
-σΔ = ΔMAX                               # PENALTY STEEPNESS FOR EXCEEDING FREQUENCY BOUNDS
-
-f_tol = 0.0                             # TOLERANCE IN FUNCTION EVALUATION
-g_tol = 1e-6                            # TOLERANCE IN GRADIENT NORM
-maxiter = 10000                         # MAXIMUM NUMBER OF ITERATIONS
+f_tol = 0.0                 # TOLERANCE IN FUNCTION EVALUATION
+g_tol = 1e-6                # TOLERANCE IN GRADIENT NORM
+maxiter = 10000             # MAXIMUM NUMBER OF ITERATIONS
 
 ##########################################################################################
-#= PRE-SETUP =#
+#= SETUP =#
 
 # LOAD MATRIX AND EXTRACT REFERENCE STATES
-H = npzread("pkgs/Tutorials/matrix/$(matrix).npy")
+H = NPZ.npzread("$(@__DIR__)/matrix/$matrix.npy")
 n = CtrlVQE.QubitOperators.nqubits(H)
 ψ_REF = CtrlVQE.QubitOperators.reference(H) # REFERENCE STATE
 REF = real(ψ_REF' * H * ψ_REF)              # REFERENCE STATE ENERGY
 
 # IDENTIFY EXACT RESULTS
-Λ, U = eigen(Hermitian(H))
+Λ, U = LinearAlgebra.eigen(LinearAlgebra.Hermitian(H))
 ψ_FCI = U[:,1]                              # GROUND STATE
 FCI = Λ[1]                                  # GROUND STATE ENERGY
 FES = Λ[2]                                  # FIRST EXCITED STATE
 
 # CONSTRUCT THE MAJOR PACKAGE OBJECTS
+
 pulse = CtrlVQE.UniformWindowed(CtrlVQE.Signals.ComplexConstant(0.0, 0.0), T, W)
+ΩMAX /= √2  # Re-scale max amplitude so that bounds inscribe the complex circle.
+            # Not needed for real or polar-parameterized amplitudes.
+# pulse = CtrlVQE.UniformWindowed(CtrlVQE.Signals.Constant(0.0), T, W)
+# pulse = CtrlVQE.UniformWindowed(CtrlVQE.Signals.PolarComplexConstant(0.0, 0.0), T, W)
+
+
 device = CtrlVQE.Systematic(CtrlVQE.Devices.FixedFrequencyTransmonDevice, n, pulse)
+# device = CtrlVQE.Systematic(CtrlVQE.Devices.TransmonDevice, n, pulse)
+
 algorithm = CtrlVQE.Rotate(r)
 
 # INITIALIZE PARAMETERS
-seed!(seed)
+Random.seed!(seed)
 xi = CtrlVQE.Parameters.values(device)
 
 L = length(xi)                      # NUMBER OF PARAMETERS
@@ -82,8 +87,8 @@ fn_energy, gd_energy = CtrlVQE.ProjectedEnergy.functions(
 
 # PENALTY FUNCTIONS
 λ  = zeros(L);  λ[Ω] .=    λΩ                               # PENALTY WEIGHTS
-μR = zeros(L); μR[Ω] .= +ΩMAX ./ √2                         # PENALTY LOWER BOUNDS
-μL = zeros(L); μL[Ω] .= -ΩMAX ./ √2                         # PENALTY UPPER BOUNDS
+μR = zeros(L); μR[Ω] .= +ΩMAX                               # PENALTY LOWER BOUNDS
+μL = zeros(L); μL[Ω] .= -ΩMAX                               # PENALTY UPPER BOUNDS
 σ  = zeros(L);  σ[Ω] .=    σΩ                               # PENALTY SCALINGS
 fn_penalty, gd_penalty = CtrlVQE.SmoothBounds.functions(λ, μR, μL, σ)
 
@@ -120,8 +125,8 @@ Ef = fn_energy(xf)      # CURRENT ENERGY
 cE = 1-εE/(REF-FCI)     # CORRELATION ENERGY
 
 Ωsat = sum((
-    count(xf[Ω] .≥ ( ΩMAX/√2)),
-    count(xf[Ω] .≤ (-ΩMAX/√2)),
+    count(xf[Ω] .≥ ( ΩMAX)),
+    count(xf[Ω] .≤ (-ΩMAX)),
 ))
 
 println("""
@@ -155,7 +160,8 @@ for i in 1:nD
 end
 
 # SET UP PLOT OBJECT
-yMAX = (ΩMAX / 2π) / √2 * 1.1
+yMAX = (ΩMAX / 2π) * 1.1        # Divide by 2π to convert angular frequency to frequency.
+                                # Multiply by 1.1 to add a little buffer to the plot.
 plot = Plots.plot(;
     xlabel= "Time (ns)",
     ylabel= "|Amplitude| (GHz)",
