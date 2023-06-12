@@ -17,7 +17,8 @@ Enter package mode by typing `]`, then:
 pkg> add https://github.com/kmsherbertvt/CtrlVQE.jl
 ```
 
-To use your own version of the code, first clone the repo into your Julia dev folder:
+To use your own version of the code, first clone the repo into your Julia dev folder
+  (mine is `~/.julia/dev`; yours may be different):
 
 ```
 > cd ~/.julia/dev
@@ -55,7 +56,7 @@ If you are using your own local version of the repository:
 
 ```
 julia> import Pkg
-julia> Pkg.develop(url="$(ENV[HOME])/.julia/dev/CtrlVQE", subdir="pkgs/{thesubpackage}")
+julia> Pkg.develop(url="$(ENV["HOME"])/.julia/dev/CtrlVQE", subdir="pkgs/{thesubpackage}")
 ```
 
 ## Getting Started
