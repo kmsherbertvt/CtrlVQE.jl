@@ -433,28 +433,27 @@ module CostFunctions
     include("CostFunctions.jl")
 
     #= ENERGY FUNCTIONS =#
-    module EnergyFunctions
-        import ..CostFunctions: AbstractCostFunction
-        abstract type AbstractEnergyFunction <: AbstractCostFunction end
-        function evaluate(::AbstractEnergyFunction, ψ::AbstractVector)
-            return error("Not Implemented")
-        end
-        function evaluate(::AbstractEnergyFunction, ψ::AbstractVector, t::Real)
-            return error("Not Implemented")
-        end
+    module BareEnergies; include("costfns/BareEnergies.jl"); end
+    import .BareEnergies: BareEnergy
 
-        module BareEnergy; include("costfns/BareEnergy.jl"); end
-        module ProjectedEnergy; include("costfns/ProjectedEnergy.jl"); end
-        module Normalization; include("costfns/Normalization.jl"); end
-        module NormalizedEnergy; include("costfns/NormalizedEnergy.jl"); end
-    end
-    import .EnergyFunctions: evaluate
-    import .EnergyFunctions: BareEnergy, ProjectedEnergy, Normalization, NormalizedEnergy
+    module ProjectedEnergies; include("costfns/ProjectedEnergies.jl"); end
+    import .ProjectedEnergies: ProjectedEnergy
+
+    module Normalizations; include("costfns/Normalizations.jl"); end
+    import .Normalizations: Normalization
+
+    module NormalizedEnergies; include("costfns/NormalizedEnergies.jl"); end
+    import .NormalizedEnergies: NormalizedEnergy
 
     #= PENALTY FUNCTIONS =#
     module SoftBounds; include("costfns/SoftBounds.jl"); end
+    import .SoftBounds: SoftBound
+
     module HardBounds; include("costfns/HardBounds.jl"); end
+    import .HardBounds: HardBound
+
     module SmoothBounds; include("costfns/SmoothBounds.jl"); end
+    import .SmoothBounds: SmoothBound
 
     #= TODO (mid): Global RMS penalty on selected parameters. =#
     #= TODO (mid): Global RMS penalty on diff of selected parameters. =#
@@ -463,9 +462,10 @@ module CostFunctions
         Eg. activator function, see tensorflow tutorial for inspiration. =#
 
 end
-import .CostFunctions: CompositeCostFunction, CompositeGradientFunction
-import .CostFunctions: evaluate, BareEnergy, ProjectedEnergy, Normalization
-import .CostFunctions: HardBounds, SoftBounds, SmoothBounds
+import .CostFunctions: cost_function, grad_function, grad_function_byvalue
+import .CostFunctions: CompositeCostFunction
+import .CostFunctions: BareEnergy, ProjectedEnergy, Normalization, NormalizedEnergy
+import .CostFunctions: HardBound, SoftBound, SmoothBound
 
 
 

@@ -1,7 +1,10 @@
-import ..AbstractCostFunction, ..AbstractGradientFunction
+import ...CostFunctions
+
+wall(u) = exp(log(2) * u^2) - 1
+grad(u) = exp(log(2) * u^2) * 2*log(2) * u
 
 """
-    functions(λ̄, x̄L, x̄R, σ̄)
+    HardBound(λ̄, x̄L, x̄R, σ̄)
 
 A steep exponential penalty for each parameter exceeding its bounds.
 
@@ -13,24 +16,14 @@ A steep exponential penalty for each parameter exceeding its bounds.
 - `x̄R`: vector of upper bounds for each parameter
 - `σ̄`: vector of scalings (smaller=steeper) for each penalty
 
-# Returns
-- `f`: the cost function
-- `g`: the gradient function
-
 """
-function functions(λ̄, x̄L, x̄R, σ̄)
-    f = CostFunction(λ̄, x̄L, x̄R, σ̄)
-    g = GradientFunction(f)
-    return f, g
-end
-
-struct CostFunction{F<:AbstractFloat} <: AbstractCostFunction
+struct HardBound{F} <: CostFunctions.CostFunctionType{F}
     λ̄::Vector{F}
     x̄L::Vector{F}
     x̄R::Vector{F}
     σ̄::Vector{F}
 
-    function CostFunction(
+    function HardBound(
         λ̄::AbstractVector,
         x̄L::AbstractVector,
         x̄R::AbstractVector,
@@ -47,35 +40,32 @@ struct CostFunction{F<:AbstractFloat} <: AbstractCostFunction
     end
 end
 
-function (f::CostFunction)(x̄::AbstractVector)
-    χ̄L = (f.x̄L .- x̄) ./ f.σ̄
-    χ̄R = (x̄ .- f.x̄R) ./ f.σ̄
-    λ̄ = f.λ̄
+Base.length(fn::HardBound) = length(fn.λ̄)
 
-    value = 0
-    for i in eachindex(x̄)
-        λ, χL, χR = λ̄[i], χ̄L[i], χ̄R[i]
-        λ > 0 && χL > 0 && (value += λ * (exp( log(2) * χL^2 ) - 1))
-        λ > 0 && χR > 0 && (value += λ * (exp( log(2) * χR^2 ) - 1))
-    end
-    return value
+function CostFunctions.cost_function(fn::HardBound)
+    return (x̄) -> (
+        total = 0;
+        for i in 1:length(fn);
+            x, λ, xL, xR, σ = x̄[i], fn.λ̄[i], fn.x̄L[i], fn.x̄R[i], fn.σ̄[i];
+            u = (x-xR)/σ;
+            λ > 0 && u > 0 && (total += λ * wall(u));
+            u = (xL-x)/σ;
+            λ > 0 && u > 0 && (total += λ * wall(u));
+        end;
+        total
+    )
 end
 
-struct GradientFunction{F<:AbstractFloat} <: AbstractGradientFunction
-    f::CostFunction{F}
-end
-
-function (g::GradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
-    # TODO (mid): THESE ARE ALLOCATIONS!!!!
-    χ̄L = (g.f.x̄L .- x̄) ./ g.f.σ̄
-    χ̄R = (x̄ .- g.f.x̄R) ./ g.f.σ̄
-    λ̄ = g.f.λ̄
-
-    ∇f̄ .= 0
-    for i in eachindex(x̄)
-        λ, σ, χL, χR = λ̄[i], g.f.σ̄[i], χ̄L[i], χ̄R[i]
-        λ > 0 && χL > 0 && (∇f̄[i] -= (2log(2)) * λ * χL / σ * exp( log(2) * χL^2 ))
-        λ > 0 && χR > 0 && (∇f̄[i] += (2log(2)) * λ * χR / σ * exp( log(2) * χR^2 ))
-    end
-    return ∇f̄
+function CostFunctions.grad_function(fn::HardBound)
+    return (∇f̄, x̄) -> (
+        ∇f̄ .= 0;
+        for i in 1:length(fn);
+            x, λ, xL, xR, σ = x̄[i], fn.λ̄[i], fn.x̄L[i], fn.x̄R[i], fn.σ̄[i];
+            u = (x-xR)/σ;
+            λ > 0 && u > 0 && (∇f̄[i] += λ * grad(u) / σ);
+            u = (xL-x)/σ;
+            λ > 0 && u > 0 && (∇f̄[i] -= λ * grad(u) / σ);
+        end;
+        ∇f̄
+    )
 end

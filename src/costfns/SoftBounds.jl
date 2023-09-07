@@ -1,7 +1,10 @@
-import ..AbstractCostFunction, ..AbstractGradientFunction
+import ...CostFunctions
+
+wall(u) = u^2
+grad(u) = 2u
 
 """
-    functions(λ̄, x̄L, x̄R, σ̄)
+    SoftBound(λ̄, μ̄, σ̄)
 
 A shallow quadratic penalty for each parameter's deviation from mean.
 
@@ -9,26 +12,16 @@ A shallow quadratic penalty for each parameter's deviation from mean.
 - `λ̄`: vector of weights for each penalty
         Set `λ̄[i]=0` to skip penalties for the ith parameter.
 
-- `μ̄`: vector of lower bounds for each parameter
+- `μ̄`: vector of means for each parameter
 - `σ̄`: vector of scalings (smaller=steeper) for each penalty
 
-# Returns
-- `f`: the cost function
-- `g`: the gradient function
-
 """
-function functions(λ̄, μ̄, σ̄)
-    f = CostFunction(λ̄, μ̄, σ̄)
-    g = GradientFunction(f)
-    return f, g
-end
-
-struct CostFunction{F<:AbstractFloat} <: AbstractCostFunction
+struct SoftBound{F} <: CostFunctions.CostFunctionType{F}
     λ̄::Vector{F}
     μ̄::Vector{F}
     σ̄::Vector{F}
 
-    function CostFunction(λ̄::AbstractVector, μ̄::AbstractVector, σ̄::AbstractVector)
+    function SoftBound(λ̄::AbstractVector, μ̄::AbstractVector, σ̄::AbstractVector)
         F = promote_type(Float16, eltype(λ̄), eltype(μ̄), eltype(σ̄))
         return new{F}(
             convert(Array{F}, λ̄),
@@ -38,19 +31,28 @@ struct CostFunction{F<:AbstractFloat} <: AbstractCostFunction
     end
 end
 
-function (f::CostFunction)(x̄::AbstractVector)
-    λ̄ = f.λ̄
-    χ̄ = (x̄ .- f.μ̄) ./ f.σ̄
-    return sum(λ̄ .* χ̄.^2)
+Base.length(fn::SoftBound) = length(fn.λ̄)
+
+function CostFunctions.cost_function(fn::SoftBound)
+    return (x̄) -> (
+        total = 0;
+        for i in 1:length(fn);
+            x, λ, μ, σ = x̄[i], fn.λ̄[i], fn.μ̄[i], fn.σ̄[i];
+            u = (x-μ)/σ;
+            total += λ * wall(u);
+        end;
+        total
+    )
 end
 
-struct GradientFunction{F<:AbstractFloat} <: AbstractGradientFunction
-    f::CostFunction{F}
-end
-
-function (g::GradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
-    λ̄ = g.f.λ̄
-    χ̄ = (x̄ .- g.f.μ̄) ./ g.f.σ̄
-    ∇f̄ .= 2 .* λ̄ .* χ̄ ./ g.f.σ̄
-    return ∇f̄
+function CostFunctions.grad_function(fn::SoftBound)
+    return (∇f̄, x̄) -> (
+        ∇f̄ .= 0;
+        for i in 1:length(fn);
+            x, λ, μ, σ = x̄[i], fn.λ̄[i], fn.μ̄[i], fn.σ̄[i];
+            u = (x-μ)/σ;
+            ∇f̄[i] .= λ * grad(u) / σ;
+        end;
+        ∇f̄
+    )
 end

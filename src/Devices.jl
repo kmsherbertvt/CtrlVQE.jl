@@ -1195,6 +1195,8 @@ function propagate!(
     τ::Real,
     ψ::Evolvable,
 )
+    isa(ψ, AbstractMatrix) && return ψ  # CONJUGATION CANCELS ACCUMULATED PHASE
+
     ψ .*= exp(-im*τ)   # Include global phase.
     return ψ
 end
@@ -1429,6 +1431,8 @@ function evolve!(
     τ::Real,
     ψ::Evolvable,
 )
+    isa(ψ, AbstractMatrix) && return ψ  # CONJUGATION CANCELS ACCUMULATED PHASE
+    
     ψ .*= exp(-im*τ)   # Include global phase.
     return ψ
 end

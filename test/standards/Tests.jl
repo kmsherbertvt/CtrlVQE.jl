@@ -1,8 +1,10 @@
 using Test
-import FiniteDifferences: grad, central_fdm
-import LinearAlgebra: I
 
-import CtrlVQE: Parameters, Devices, Signals
+import Random
+import LinearAlgebra: I
+import FiniteDifferences: grad, central_fdm
+
+import CtrlVQE: Parameters, Signals, Devices, CostFunctions
 import CtrlVQE.Devices: LocallyDrivenDevices
 import CtrlVQE.Bases: DRESSED, OCCUPATION
 import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
@@ -303,4 +305,32 @@ function validate(signal::Signals.AbstractSignal{P,R}) where {P,R}
 
     #= TODO (lo): Test integrate functions. =#
 
+end
+
+function validate(fn::CostFunctions.CostFunctionType{F}) where {F}
+    L = length(fn)
+    F_ = eltype(fn)
+    @test F_ == F
+
+    Random.seed!(0)
+    x̄ = rand(F, L)
+    ∇f̄ = Vector{F}(undef, L)
+    
+    f  = CostFunctions.cost_function(fn)
+    g! = CostFunctions.grad_function(fn)
+    g  = CostFunctions.grad_function_byvalue(fn)
+
+    # CONSISTENCY OF THE TWO FUNCTION INTERFACES
+    @test f(x̄) == fn(x̄)
+
+    # CONSISTENCY OF THE TWO GRADIENT METHODS
+    g!(∇f̄, x̄)
+    @test ∇f̄ == g(x̄)
+
+    # ACCURACY OF THE GRADIENT, COMPARED TO FINITE DIFFERENCE
+    gΔ = grad(central_fdm(5, 1), f, x̄)[1]
+
+    εg = ∇f̄ .- gΔ
+    rms_error = √(sum(abs2.(εg))./length(εg))
+    @test rms_error < 1e-5
 end

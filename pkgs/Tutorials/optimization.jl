@@ -80,7 +80,7 @@ xi[ν] .+= init_Δ .* (2 .* rand(length(ν)) .- 1)
 O0 = CtrlVQE.QubitOperators.project(H, device)              # MOLECULAR HAMILTONIAN
 ψ0 = CtrlVQE.QubitOperators.project(ψ_REF, device)          # REFERENCE STATE
 
-fn_energy, gd_energy = CtrlVQE.ProjectedEnergy.functions(
+fn_energy = CtrlVQE.ProjectedEnergy(
     O0, ψ0, T, device, r;
     frame=CtrlVQE.STATIC,
 )
@@ -90,11 +90,12 @@ fn_energy, gd_energy = CtrlVQE.ProjectedEnergy.functions(
 μR = zeros(L); μR[Ω] .= +ΩMAX                               # PENALTY LOWER BOUNDS
 μL = zeros(L); μL[Ω] .= -ΩMAX                               # PENALTY UPPER BOUNDS
 σ  = zeros(L);  σ[Ω] .=    σΩ                               # PENALTY SCALINGS
-fn_penalty, gd_penalty = CtrlVQE.SmoothBounds.functions(λ, μR, μL, σ)
+fn_penalty = CtrlVQE.SmoothBound(λ, μR, μL, σ)
 
 # OPTIMIZATION FUNCTIONS
-fn = CtrlVQE.CompositeCostFunction(fn_energy, fn_penalty)
-gd = CtrlVQE.CompositeGradientFunction(gd_energy, gd_penalty)
+fn_total = CtrlVQE.CompositeCostFunction(fn_energy, fn_penalty)
+f  = CtrlVQE.cost_function(fn_total)
+g! = CtrlVQE.grad_function(fn_total)
 
 # OPTIMIZATION ALGORITHM
 linesearch = LineSearches.MoreThuente()
@@ -112,13 +113,13 @@ options = Optim.Options(
 ##########################################################################################
 #= RUN OPTIMIZATION =#
 
-optimization = Optim.optimize(fn, gd, xi, optimizer, options)
+optimization = Optim.optimize(f, g!, xi, optimizer, options)
 xf = Optim.minimizer(optimization)      # FINAL PARAMETERS
 
 ##########################################################################################
 #= REPORT RESULTS =#
 
-ff = fn(xf)             # LOSS FUNCTION
+ff = fn_total(xf)       # LOSS FUNCTION
 Ef = fn_energy(xf)      # CURRENT ENERGY
 λf = fn_penalty(xf)     # PENALTY CONTRIBUTION
 εE = Ef - FCI           # ENERGY ERROR

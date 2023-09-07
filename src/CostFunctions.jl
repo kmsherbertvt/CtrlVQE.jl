@@ -4,145 +4,196 @@ import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
 """
-    AbstractCostFunction
+    CostFunctionType{F}
 
 Super-type for "cost functions", to be plugged directly into optimization algorithms.
 
 # Implementation
 
-Any concrete sub-type `CF` must be a callable object, accepting a vector of parameters.
-That is, it must implement the function `(f::CF)(x̄::AbstractVector)`.
+Any concrete sub-type `CF` must implement the following methods:
+- `Base.length(::CF)`:
+        the number of parameters this cost function takes
+- `cost_function(::CF)`:
+        returns a `Function` which takes a parameter vector
+            and returns the output of the cost function
+        ie. a callable expression (x::Vector) -> f(x)
+- `grad_function(::CF)`:
+        returns a mutating `Function` which takes a gradient vector (to be mutated)
+            and a parameter vector, and writes the gradient vector to the first argument.
+        As a matter of habit, the resulting gradient vector should also be returned.
 
 """
-abstract type AbstractCostFunction end
+abstract type CostFunctionType{F} end
 
 """
-    (f::AbstractCostFunction)(x̄::AbstractVector)
+    Base.length(fn::CostFunctionType)
 
-A cost function evaluated at the point in parameter space given by `x̄`.
-
+Gives the number of parameters for this cost function.
 """
-function (::AbstractCostFunction)(x̄::AbstractVector)
+function Base.length(fn::CostFunctionType)
     error("Not Implemented")
     return 0
 end
 
 """
-    AbstractGradientFunction
+    cost_function(fn::CostFunctionType)
 
-Super-type for "gradient functions", to be plugged directly into optimization algorithms.
+Converts the struct `fn` into a literal `Function` of a parameter vector.
 
-Each gradient function is implicitly associated with a cost function.
-
-# Implementation
-
-Any concrete sub-type `GF` must be a callable object,
-    accepting a vector of partial derivatives (to be calculated and filled in),
-    and a vector of parameters.
-That is, it must implement the function `(g::GF)(∇f̄::AbstractVector,x̄::AbstractVector)`.
+The function accepts a parameter vector `x̄`
+    which should have the type and length given by `eltype(fn)` and `length(fn)`.
+The function returns the value of `fn` at the point `x̄`.
 
 """
-abstract type AbstractGradientFunction end
-
-"""
-    (g::AbstractGradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
-
-The gradient of a function at the point in parameter space given by `x̄`.
-
-The result is stored in the first argument `∇f̄`, as well as returned.
-
-"""
-function (::AbstractGradientFunction)(
-    ∇f̄::AbstractVector,
-    x̄::AbstractVector,
-)::AbstractVector
+function cost_function(fn::CostFunctionType{F}) where {F}
     error("Not Implemented")
-    return ∇f̄
+    return (x̄) -> zero(F)
 end
 
 """
-    (g::AbstractGradientFunction)(x̄::AbstractVector)
+    grad_function(fn::CostFunctionType)
 
-The gradient of a function at the point in parameter space given by `x̄`.
+Constructs a (mutating) `Function` to calculate the gradient of `fn` at a particular point.
+
+The function accepts a gradient vector `∇f̄` (to be mutated) and a parameter vector `x̄`.
+Both should have the type and length given by `eltype(fn)` and `length(fn)`.
+After the function is called, `∇f̄` contains the gradient of `fn` at the point `x̄`.
 
 """
-(g::AbstractGradientFunction)(x̄::AbstractVector) = g(copy(x̄),x̄)
+function grad_function(fn::CostFunctionType{F}) where {F}
+    error("Not Implemented")
+    return (∇f̄, x̄) -> Vector{F}(undef, length(fn))
+end
+
+
+
+# IMPLEMENTED INTERFACE
 
 """
-    CompositeCostFunction(f̄::Vector{AbstractCostFunction})
+    Base.eltype(fn::CostFunctionType)
 
-The sum of several other cost-functions.
+Gives the number type for parameters of this cost function.
+"""
+function Base.eltype(::CostFunctionType{F}) where {F}
+    return F
+end
+
+"""
+    (fn::CostFunctionType)(x̄::AbstractVector)
+
+Evaluate the value of `fn` at the point `x̄`.
+
+This is syntactic sugar for constructing a dedicated `cost_function` and calling it.
+It will not normally take advantage of cached work variables,
+    so avoid using it in high-performance code.
+
+"""
+function (fn::CostFunctionType)(x̄::AbstractVector)
+    return cost_function(fn)(x̄)
+end
+
+"""
+    grad_function_byvalue(fn::CostFunctionType)
+
+Constructs a `Function` to calculate the gradient of `fn` at a particular point.
+
+The function accepts a parameter vector `x̄`
+    which should have the type and length given by `eltype(fn)` and `length(fn)`.
+The function returns the gradient (a vector) of `fn` at the point `x̄`.
+
+"""
+function grad_function_byvalue(fn::CostFunctionType{F}) where {F}
+    gd = grad_function(fn)
+    ∇f̄ = Vector{F}(undef, length(fn))
+    return (x̄) -> (gd(∇f̄, x̄); ∇f̄)
+end
+
+
+
+
+
+"""
+    CompositeCostFunction(components::AbstractVector{CostFunctionType})
+
+The sum of several cost-functions.
 
 Use this eg. to combine an energy function with one or more penalty functions.
 
+Note that all components must have matching `eltype` and `length`.
+
+As a practical convenience, this struct maintains some dynamic attributes
+    so that results for each component function can be inspected
+    in the middle of an optimization.
+I don't really consider them an official part of the interface,
+    but feel free to use them. Although...they aren't technically "thread-safe". ^_^
+
 """
-struct CompositeCostFunction <: AbstractCostFunction
-    f̄::Vector{AbstractCostFunction}
+struct CompositeCostFunction{F} <: CostFunctionType{F}
+    components::Vector{CostFunctionType{F}}
 
-    counter::Ref{Int}
-    values::Vector{Float64}
+    L::Int                  # NUMBER OF PARAMETERS
 
-    function CompositeCostFunction(f̄::Vector{AbstractCostFunction})
-        return new(f̄, 0, Vector{Float64}(undef, size(f̄)))
+    f_counter::Ref{Int}     # NUMBER OF TIMES ANY COST FUNCTION IS CALLED
+    g_counter::Ref{Int}     # NUMBER OF TIMES ANY GRAD FUNCTION IS CALLED
+    values::Vector{F}       # STORES VALUES OF EACH COMPONENT FROM THE LAST CALL
+    gnorms::Vector{F}       # STORES NORMS OF EACH GRADIENT FROM THE LAST CALL
+
+    function CompositeCostFunction(
+        components::AbstractVector{CostFunctionType{F}},
+    ) where {F}
+        if length(components) == 0
+            return new{F}(CostFunctionType{F}[], 0, Ref(0), Ref(0), F[], F[])
+        end
+        
+        L = length(first(components))
+        for component in components; @assert length(component) == L; end
+
+        return new{F}(
+            convert(Vector{CostFunctionType{F}}, components),
+            L, Ref(0), Ref(0),
+            Vector{F}(undef, L),
+            Vector{F}(undef, L),
+        )
     end
 end
 
 """
-    CompositeCostFunction(f̄...)
+    CompositeCostFunction(f̄::CostFunctionType{F}...)
 
 Alternate constructor, letting each function be passed as its own argument.
 
 """
-function CompositeCostFunction(f̄...)
-    return CompositeCostFunction(AbstractCostFunction[f for f in f̄])
+function CompositeCostFunction(components::CostFunctionType{F}...) where {F}
+    return CompositeCostFunction(CostFunctionType{F}[component for component in components])
 end
 
-function (f::CompositeCostFunction)(x̄::AbstractVector)
-    f.counter[] += 1
-    f.values .= [f_(x̄) for f_ in f.f̄]
-    return sum(f.values)
+Base.length(fn::CompositeCostFunction) = fn.L
+
+function cost_function(fn::CompositeCostFunction)
+    fs = [cost_function(component) for component in fn.components]
+    return (x̄) -> (
+        fn.f_counter[] += 1;
+        total = 0;
+        for (i, f) in enumerate(fs);
+            fx = f(x̄);          # EVALUATE EACH COMPONENT
+            fn.values[i] = fx;
+            total += fx;        # TALLY RESULTS FOR THE COMPONENT
+        end;
+        total
+    )
 end
 
-
-
-
-
-"""
-    CompositeGradientFunction(ḡ::Vector{AbstractCostFunction})
-
-The sum of several other gradient-functions.
-
-"""
-struct CompositeGradientFunction <: AbstractGradientFunction
-    ḡ::Vector{AbstractGradientFunction}
-
-    counter::Ref{Int}
-    norms::Vector{Float64}
-
-    function CompositeGradientFunction(ḡ::Vector{AbstractGradientFunction})
-        return new(ḡ, 0, Vector{Float64}(undef, size(ḡ)))
-    end
-end
-
-
-"""
-    CompositeGradientFunction(ḡ...)
-
-Alternate constructor, letting each function be passed as its own argument.
-
-"""
-function CompositeGradientFunction(ḡ...)
-    return CompositeGradientFunction(AbstractGradientFunction[g for g in ḡ])
-end
-
-function (g::CompositeGradientFunction)(∇f̄::AbstractVector, x̄::AbstractVector)
-    g.counter[] += 1
-    ∇f̄_ = array(eltype(x̄), size(x̄), LABEL)
-    ∇f̄ .= 0
-    for (i, g_) in enumerate(g.ḡ)
-        ∇f̄_ = g_(∇f̄_, x̄)
-        g.norms[i] = norm(∇f̄_)
-        ∇f̄ .+= ∇f̄_
-    end
-    return ∇f̄
+function grad_function(fn::CompositeCostFunction{F}) where {F}
+    g!s = [grad_function(component) for component in fn.components]
+    ∇f̄_ = zeros(F, fn.L)        # USE THIS AS THE GRADIENT VECTOR FOR EACH COMPONENT CALL
+    return (∇f̄, x̄) -> (
+        fn.g_counter[] += 1;
+        ∇f̄ .= 0;
+        for (i, g!) in enumerate(g!s);
+            g!(∇f̄_, x̄);         # EVALUATE EACH COMPONENT. WRITES GRADIENT TO ∇f̄_
+            fn.gnorms[i] = norm(∇f̄_);
+            ∇f̄ .+= ∇f̄_;         # TALLY RESULTS FOR THE COMPONENT
+        end;
+        ∇f̄;
+    )
 end
