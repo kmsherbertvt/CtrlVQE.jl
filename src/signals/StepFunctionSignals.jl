@@ -1,5 +1,6 @@
 # TODO (hi): add exports
-import ...Signals
+import ..Signals
+import ..ParametricSignal, ..parameters
 
 """
     StepFunction(A::F, s::F) where {F<:AbstractFloat}
@@ -7,7 +8,7 @@ import ...Signals
 The piecewise signal ``Ω(t) = A⋅Θ(t-s)``, where ``Θ`` is the Heaviside step function.
 
 """
-mutable struct StepFunction{F} <: Signals.ParametricSignal{F,F}
+mutable struct StepFunction{F} <: ParametricSignal{F,F}
     A::F    # CONSTANT VALUE AFTER STEP
     s::F    # TIME COORDINATE OF STEP
 end
@@ -19,7 +20,7 @@ function (signal::StepFunction{F})(t::Real) where {F}
 end
 
 function Signals.partial(i::Int, signal::StepFunction, t::Real)
-    field = Signals.parameters(signal)[i]
+    field = parameters(signal)[i]
     return (field == :A ?   partial_A(signal, t)
         :   field == :s ?   partial_s(signal, t)
         :                   error("Not Implemented"))

@@ -8,6 +8,7 @@ import Pkg; Pkg.add(url="https://github.com/kmsherbertvt/AnalyticPulses.jl")
 
 import AnalyticPulses: OneQubitSquarePulses
 
+import CtrlVQE
 import CtrlVQE.Quples: Quple
 import CtrlVQE: Parameters, Signals, Devices, Evolutions
 import CtrlVQE.Bases: OCCUPATION, DRESSED
@@ -27,8 +28,8 @@ T = 3.5^2       # NOTE: Do NOT let T be a multiple of ω-ν!
 ψT = OneQubitSquarePulses.evolve_transmon(ω, δ, Ω, ν, T, ψ0)
 
 # TEST DEVICE
-Ω̄ = [Signals.Constant(Ω)]
-device = Devices.TransmonDevice([ω], [0], Int[], Quple[], [1], [ν], Ω̄, 2)
+Ω̄ = [CtrlVQE.Constant(Ω)]
+device = CtrlVQE.TransmonDevice([ω], [0], Int[], Quple[], [1], [ν], Ω̄, 2)
 
 # VALIDATE `evolve!`: rotate/direct algorithms
 res = convert(Array{ComplexF64}, copy(ψ0))
@@ -57,8 +58,8 @@ T = 3.5^2       # NOTE: Do NOT let T be a multiple of ω-ν!
 ψT = OneQubitSquarePulses.evolve_transmon(ω, δ, Ω, ν, T, ψ0)
 
 # CONVERT STATEVECTORS TO DRESSED BASIS
-Ω̄ = [Signals.Constant(Ω)]
-device = Devices.TransmonDevice([ω], [δ], Int[], Quple[], [1], [ν], Ω̄, 3)
+Ω̄ = [CtrlVQE.Constant(Ω)]
+device = CtrlVQE.TransmonDevice([ω], [δ], Int[], Quple[], [1], [ν], Ω̄, 3)
 
 # VALIDATE `evolve!`: rotate/direct algorithms
 res = convert(Array{ComplexF64}, copy(ψ0))
@@ -81,11 +82,11 @@ Pkg.rm("AnalyticPulses")
 #= TWO-QUBIT TESTS =#
 
 Ω̄ = [
-    Signals.Constant( 0.020*2π),
-    Signals.Constant(-0.020*2π),
+    CtrlVQE.Constant( 0.020*2π),
+    CtrlVQE.Constant(-0.020*2π),
 ]
 
-device = Devices.TransmonDevice(
+device = CtrlVQE.TransmonDevice(
     2π * [4.50, 4.52],      # ω̄
     2π * [0.33, 0.34],      # δ̄
     2π * [0.020],           # ḡ

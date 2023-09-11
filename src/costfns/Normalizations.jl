@@ -1,9 +1,9 @@
 import ..CostFunctions
 
-import ...Parameters, ...LinearAlgebraTools, ...Devices, ...Evolutions
-import ...QubitOperators
-import ...Operators: StaticOperator, IDENTITY
-import ...Bases: BasisType, OCCUPATION
+import ..Parameters, ..LinearAlgebraTools, ..Devices, ..Evolutions
+import ..QubitOperators
+import ..Operators: StaticOperator, IDENTITY
+import ..Bases: BasisType, OCCUPATION
 
 """
     Normalization(ψ0, T, device, r; kwargs...)
@@ -59,7 +59,7 @@ function CostFunctions.cost_function(fn::Normalization)
     ψ = copy(fn.ψ0)
     # OBSERVABLE - IT'S THE PROJECTION OPERATOR
     π̄ = QubitOperators.localqubitprojectors(fn.device)
-    
+
     return (x̄) -> (
         Parameters.bind(fn.device, x̄);
         Evolutions.evolve(

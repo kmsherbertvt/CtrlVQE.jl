@@ -1,6 +1,6 @@
 # TODO (hi): add exports
-import ...Parameters, ...Signals
-import ...Signals: AbstractSignal
+import ..Parameters, ..Signals
+import ..Signals: AbstractSignal
 
 
 """

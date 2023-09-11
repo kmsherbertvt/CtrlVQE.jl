@@ -1,4 +1,4 @@
-import ...CostFunctions
+import ..CostFunctions
 
 wall(u) = exp(u - 1/u)
 grad(u) = exp(u - 1/u) * (1 + 1/u^2)

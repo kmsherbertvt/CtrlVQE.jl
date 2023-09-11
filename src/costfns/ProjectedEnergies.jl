@@ -1,9 +1,9 @@
 import ..CostFunctions
 
-import ...Parameters, ...LinearAlgebraTools, ...Devices, ...Evolutions
-import ...QubitOperators
-import ...Operators: StaticOperator, IDENTITY
-import ...Bases: BasisType, OCCUPATION
+import ..Parameters, ..LinearAlgebraTools, ..Devices, ..Evolutions
+import ..QubitOperators
+import ..Operators: StaticOperator, IDENTITY
+import ..Bases: BasisType, OCCUPATION
 
 """
     ProjectedEnergy(O0, ψ0, T, device, r; kwargs...)
@@ -75,12 +75,12 @@ Base.length(fn::ProjectedEnergy) = Parameters.count(fn.device)
 
 function CostFunctions.cost_function(fn::ProjectedEnergy)
     # DYNAMICALLY UPDATED STATEVECTOR
-    ψ = copy(fn.ψ0)     
+    ψ = copy(fn.ψ0)
     # OBSERVABLE, IN MEASUREMENT FRAME
     OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.T, OT)
     # INCLUDE PROJECTION ONTO COMPUTATIONAL SUBSPACE IN THE MEASUREMENT
     LinearAlgebraTools.rotate!(QubitOperators.localqubitprojectors(fn.device), OT)
-    
+
     return (x̄) -> (
         Parameters.bind(fn.device, x̄);
         Evolutions.evolve(
@@ -95,7 +95,7 @@ function CostFunctions.cost_function(fn::ProjectedEnergy)
     )
 end
 
-function CostFunctions.grad_function(fn::ProjectedEnergy{F}) where {F}       
+function CostFunctions.grad_function(fn::ProjectedEnergy{F}) where {F}
     # TIME GRID
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, fn.r)
     # OBSERVABLE, IN MEASUREMENT FRAME

@@ -1,66 +1,66 @@
 using Test
 import .StandardTests
 
-import CtrlVQE: Signals
+import CtrlVQE
 
 @testset "Constant" begin
-    signal = Signals.Constant(0.5)
+    signal = CtrlVQE.Constant(0.5)
     StandardTests.validate(signal)
 end
 
 @testset "CompositeSignal" begin
-    signal = Signals.CompositeSignal(
-        Signals.Constant(0.75),
-        Signals.Constant(0.25),
+    signal = CtrlVQE.CompositeSignal(
+        CtrlVQE.Constant(0.75),
+        CtrlVQE.Constant(0.25),
     )
     StandardTests.validate(signal)
 end
 
 @testset "ModulatedSignal" begin
-    signal = Signals.ModulatedSignal(
-        Signals.Constant(0.75),
-        Signals.Constant(0.25),
+    signal = CtrlVQE.ModulatedSignal(
+        CtrlVQE.Constant(0.75),
+        CtrlVQE.Constant(0.25),
     )
     StandardTests.validate(signal)
 end
 
 @testset "WindowedSignal" begin
-    signal = Signals.WindowedSignal([
-        Signals.Constant(0.75),
-        Signals.Constant(0.25),
+    signal = CtrlVQE.WindowedSignal([
+        CtrlVQE.Constant(0.75),
+        CtrlVQE.Constant(0.25),
     ], [0.0, 0.5])
     StandardTests.validate(signal)
 end
 
 # NOTE: This signal has ill-defined gradients, so test it with ConstrainedSignal.
 @testset "Interval" begin
-    signal = Signals.Interval(0.5, 0.25, 1.25)
-    StandardTests.validate(Signals.ConstrainedSignal(signal, :s1, :s2))
+    signal = CtrlVQE.Interval(0.5, 0.25, 1.25)
+    StandardTests.validate(CtrlVQE.ConstrainedSignal(signal, :s1, :s2))
 end
 
 # NOTE: This signal has ill-defined gradients, so test it with ConstrainedSignal.
 @testset "ComplexInterval" begin
-    signal = Signals.ComplexInterval(0.75, 0.25, 0.25, 1.25)
-    StandardTests.validate(Signals.ConstrainedSignal(signal, :s1, :s2))
+    signal = CtrlVQE.ComplexInterval(0.75, 0.25, 0.25, 1.25)
+    StandardTests.validate(CtrlVQE.ConstrainedSignal(signal, :s1, :s2))
 end
 
 # NOTE: This signal has ill-defined gradients, so test it with ConstrainedSignal.
 @testset "StepFunction" begin
-    signal = Signals.StepFunction(0.75, 0.75)
-    StandardTests.validate(Signals.ConstrainedSignal(signal, :s))
+    signal = CtrlVQE.StepFunction(0.75, 0.75)
+    StandardTests.validate(CtrlVQE.ConstrainedSignal(signal, :s))
 end
 
 @testset "ComplexConstant" begin
-    signal = Signals.ComplexConstant(0.75, 0.25)
+    signal = CtrlVQE.ComplexConstant(0.75, 0.25)
     StandardTests.validate(signal)
 end
 
 @testset "PolarComplexConstant" begin
-    signal = Signals.PolarComplexConstant(0.75, 0.25)
+    signal = CtrlVQE.PolarComplexConstant(0.75, 0.25)
     StandardTests.validate(signal)
 end
 
 @testset "Gaussian" begin
-    signal = Signals.Gaussian(0.75, 0.25, 0.75)
+    signal = CtrlVQE.Gaussian(0.75, 0.25, 0.75)
     StandardTests.validate(signal)
 end

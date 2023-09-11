@@ -1,8 +1,8 @@
 import ..CostFunctions
 
-import ...Parameters, ...LinearAlgebraTools, ...Devices, ...Evolutions
-import ...Operators: StaticOperator, IDENTITY
-import ...Bases: BasisType, OCCUPATION
+import ..Parameters, ..LinearAlgebraTools, ..Devices, ..Evolutions
+import ..Operators: StaticOperator, IDENTITY
+import ..Bases: BasisType, OCCUPATION
 
 """
     BareEnergy(O0, ψ0, T, device, r; kwargs...)
@@ -71,10 +71,10 @@ Base.length(fn::BareEnergy) = Parameters.count(fn.device)
 
 function CostFunctions.cost_function(fn::BareEnergy)
     # DYNAMICALLY UPDATED STATEVECTOR
-    ψ = copy(fn.ψ0)     
+    ψ = copy(fn.ψ0)
     # OBSERVABLE, IN MEASUREMENT FRAME
     OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.T, OT)
-    
+
     return (x̄) -> (
         Parameters.bind(fn.device, x̄);
         Evolutions.evolve(

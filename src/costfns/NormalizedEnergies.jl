@@ -1,9 +1,9 @@
 import ..CostFunctions
 
-import ...Parameters, ...LinearAlgebraTools, ...Devices, ...Evolutions
-import ...QubitOperators
-import ...Operators: StaticOperator, IDENTITY
-import ...Bases: BasisType, OCCUPATION
+import ..Parameters, ..LinearAlgebraTools, ..Devices, ..Evolutions
+import ..QubitOperators
+import ..Operators: StaticOperator, IDENTITY
+import ..Bases: BasisType, OCCUPATION
 
 """
     NormalizedEnergy(O0, ψ0, T, device, r; kwargs...)
@@ -76,14 +76,14 @@ Base.length(fn::NormalizedEnergy) = Parameters.count(fn.device)
 
 function CostFunctions.cost_function(fn::NormalizedEnergy)
     # DYNAMICALLY UPDATED STATEVECTOR
-    ψ = copy(fn.ψ0)     
+    ψ = copy(fn.ψ0)
     # OBSERVABLE, IN MEASUREMENT FRAME
     OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.T, OT)
     # INCLUDE PROJECTION ONTO COMPUTATIONAL SUBSPACE IN THE MEASUREMENT
     LinearAlgebraTools.rotate!(QubitOperators.localqubitprojectors(fn.device), OT)
     # THE PROJECTION OPERATOR
     π̄ = QubitOperators.localqubitprojectors(fn.device)
-    
+
     return (x̄) -> (
         Parameters.bind(fn.device, x̄);
         Evolutions.evolve(

@@ -326,9 +326,7 @@ Much of this functionality is available in Julia's standard `LinearAlgebra` libr
     and (sometimes) efficient tensor contractions.
 
 """
-module LinearAlgebraTools
-    include("LinearAlgebraTools.jl")
-end
+module LinearAlgebraTools; include("LinearAlgebraTools.jl"); end
 
 """
     Signals
@@ -339,33 +337,31 @@ The main motivation of this module
     is to provide a common interface for analytical gradients and optimization.
 
 """
-module Signals
-    include("Signals.jl")
+module Signals; include("Signals.jl"); end
 
-    module ParametricSignals; include("signals/ParametricSignals.jl"); end
-    import .ParametricSignals: ParametricSignal, parameters, ConstrainedSignal
+module ParametricSignals; include("signals/ParametricSignals.jl"); end
+import .ParametricSignals: ParametricSignal, parameters, ConstrainedSignal
 
-    module CompositeSignals; include("signals/CompositeSignals.jl"); end
-    import .CompositeSignals: CompositeSignal
+module CompositeSignals; include("signals/CompositeSignals.jl"); end
+import .CompositeSignals: CompositeSignal
 
-    module ModulatedSignals; include("signals/ModulatedSignals.jl"); end
-    import .ModulatedSignals: ModulatedSignal
+module ModulatedSignals; include("signals/ModulatedSignals.jl"); end
+import .ModulatedSignals: ModulatedSignal
 
-    module WindowedSignals; include("signals/WindowedSignals.jl"); end
-    import .WindowedSignals: WindowedSignal
+module WindowedSignals; include("signals/WindowedSignals.jl"); end
+import .WindowedSignals: WindowedSignal
 
-    module ConstantSignals; include("signals/ConstantSignals.jl"); end
-    import .ConstantSignals: Constant, ComplexConstant, PolarComplexConstant
+module ConstantSignals; include("signals/ConstantSignals.jl"); end
+import .ConstantSignals: Constant, ComplexConstant, PolarComplexConstant
 
-    module IntervalSignals; include("signals/IntervalSignals.jl"); end
-    import .IntervalSignals: Interval, ComplexInterval
+module IntervalSignals; include("signals/IntervalSignals.jl"); end
+import .IntervalSignals: Interval, ComplexInterval
 
-    module StepFunctionSignals; include("signals/StepFunctionSignals.jl"); end
-    import .StepFunctionSignals: StepFunction
+module StepFunctionSignals; include("signals/StepFunctionSignals.jl"); end
+import .StepFunctionSignals: StepFunction
 
-    module GaussianSignals; include("signals/GaussianSignals.jl"); end
-    import .GaussianSignals: Gaussian
-end
+module GaussianSignals; include("signals/GaussianSignals.jl"); end
+import .GaussianSignals: Gaussian
 
 """
     Devices
@@ -379,16 +375,15 @@ In this package,
 All you need to know how a quantum state `ψ` evolves up time `T` is in the device.
 
 """
-module Devices
-    include("Devices.jl")
-
-    module LocallyDrivenDevices; include("devices/LocallyDrivenDevices.jl"); end
-    import .LocallyDrivenDevices: LocallyDrivenDevice
-
-    module TransmonDevices; include("devices/TransmonDevices.jl"); end
-    import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice
-end
+module Devices; include("Devices.jl"); end
 import .Devices: nqubits, nstates, nlevels, ndrives, ngrades
+
+module LocallyDrivenDevices; include("devices/LocallyDrivenDevices.jl"); end
+import .LocallyDrivenDevices: LocallyDrivenDevice
+
+module TransmonDevices; include("devices/TransmonDevices.jl"); end
+import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice
+
 
 """
     Evolutions
@@ -396,9 +391,7 @@ import .Devices: nqubits, nstates, nlevels, ndrives, ngrades
 Algorithms to run time evolution, and related constructs like gradient signals.
 
 """
-module Evolutions
-    include("Evolutions.jl")
-end
+module Evolutions; include("Evolutions.jl"); end
 import .Evolutions: trapezoidaltimegrid, evolve, evolve!, gradientsignals, Rotate
 
 """
@@ -429,43 +422,38 @@ Thus, all you need to run a gradient based optimization is:
     f, g = functions(args...)
 
 """
-module CostFunctions
-    include("CostFunctions.jl")
-
-    #= ENERGY FUNCTIONS =#
-    module BareEnergies; include("costfns/BareEnergies.jl"); end
-    import .BareEnergies: BareEnergy
-
-    module ProjectedEnergies; include("costfns/ProjectedEnergies.jl"); end
-    import .ProjectedEnergies: ProjectedEnergy
-
-    module Normalizations; include("costfns/Normalizations.jl"); end
-    import .Normalizations: Normalization
-
-    module NormalizedEnergies; include("costfns/NormalizedEnergies.jl"); end
-    import .NormalizedEnergies: NormalizedEnergy
-
-    #= PENALTY FUNCTIONS =#
-    module SoftBounds; include("costfns/SoftBounds.jl"); end
-    import .SoftBounds: SoftBound
-
-    module HardBounds; include("costfns/HardBounds.jl"); end
-    import .HardBounds: HardBound
-
-    module SmoothBounds; include("costfns/SmoothBounds.jl"); end
-    import .SmoothBounds: SmoothBound
-
-    #= TODO (mid): Global RMS penalty on selected parameters. =#
-    #= TODO (mid): Global RMS penalty on diff of selected parameters. =#
-
-    #= TODO (lo): Some way to pre-constrain x̄ BEFORE energy function
-        Eg. activator function, see tensorflow tutorial for inspiration. =#
-
-end
+module CostFunctions; include("CostFunctions.jl"); end
 import .CostFunctions: cost_function, grad_function, grad_function_byvalue
 import .CostFunctions: CompositeCostFunction
-import .CostFunctions: BareEnergy, ProjectedEnergy, Normalization, NormalizedEnergy
-import .CostFunctions: HardBound, SoftBound, SmoothBound
+
+#= ENERGY FUNCTIONS =#
+module BareEnergies; include("costfns/BareEnergies.jl"); end
+import .BareEnergies: BareEnergy
+
+module ProjectedEnergies; include("costfns/ProjectedEnergies.jl"); end
+import .ProjectedEnergies: ProjectedEnergy
+
+module Normalizations; include("costfns/Normalizations.jl"); end
+import .Normalizations: Normalization
+
+module NormalizedEnergies; include("costfns/NormalizedEnergies.jl"); end
+import .NormalizedEnergies: NormalizedEnergy
+
+#= PENALTY FUNCTIONS =#
+module SoftBounds; include("costfns/SoftBounds.jl"); end
+import .SoftBounds: SoftBound
+
+module HardBounds; include("costfns/HardBounds.jl"); end
+import .HardBounds: HardBound
+
+module SmoothBounds; include("costfns/SmoothBounds.jl"); end
+import .SmoothBounds: SmoothBound
+
+#= TODO (mid): Global RMS penalty on selected parameters. =#
+#= TODO (mid): Global RMS penalty on diff of selected parameters. =#
+
+#= TODO (lo): Some way to pre-constrain x̄ BEFORE energy function
+    Eg. activator function, see tensorflow tutorial for inspiration. =#
 
 
 
@@ -493,7 +481,7 @@ The actual values of each constant are meant to roughly approximate a typical IB
 
 """
 function Systematic(
-    TransmonDeviceType::Type{<:Devices.TransmonDevices.AbstractTransmonDevice},
+    TransmonDeviceType::Type{<:TransmonDevices.AbstractTransmonDevice},
     n::Int,
     pulses;
     m=2,

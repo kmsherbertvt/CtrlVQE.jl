@@ -1,5 +1,6 @@
 # TODO (hi): add exports
-import ...Signals
+import ..Signals
+import ..ParametricSignal
 
 """
     Interval(A::F, s1::F, s2::F) where {F<:AbstractFloat}
@@ -7,7 +8,7 @@ import ...Signals
 The piecewise signal ``Ω(t) = A``, for times `t∈[s1,s2)`, and ``Ω(t) = 0`` otherwise.
 
 """
-mutable struct Interval{F} <: Signals.ParametricSignal{F,F}
+mutable struct Interval{F} <: ParametricSignal{F,F}
     A::F
     s1::F
     s2::F
@@ -42,7 +43,7 @@ end
 The piecewise signal ``Ω(t) = A + iB``, for times `t∈[s1,s2)`, and ``Ω(t) = 0`` otherwise.
 
 """
-mutable struct ComplexInterval{F} <: Signals.ParametricSignal{F,Complex{F}}
+mutable struct ComplexInterval{F} <: ParametricSignal{F,Complex{F}}
     A::F
     B::F
     s1::F

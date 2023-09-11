@@ -1,5 +1,6 @@
 # TODO (hi): add exports
-import ...Signals
+import ..Signals
+import ..ParametricSignal
 
 """
     Constant(A::F) where {F<:AbstractFloat}
@@ -7,7 +8,7 @@ import ...Signals
 The constant real signal ``Ω(t) = A``.
 
 """
-mutable struct Constant{F} <: Signals.ParametricSignal{F,F}
+mutable struct Constant{F} <: ParametricSignal{F,F}
     A::F    # CONSTANT VALUE
 end
 
@@ -26,7 +27,7 @@ Base.string(::Constant, names::AbstractVector{String}) = names[1]
 The constant complex signal ``Ω(t) = A + iB``.
 
 """
-mutable struct ComplexConstant{F} <: Signals.ParametricSignal{F,Complex{F}}
+mutable struct ComplexConstant{F} <: ParametricSignal{F,Complex{F}}
     A::F    # REAL PART
     B::F    # IMAGINARY PART
 end
@@ -51,7 +52,7 @@ end
 The constant complex signal ``Ω(t) = r \\exp(iϕ)``.
 
 """
-mutable struct PolarComplexConstant{F} <: Signals.ParametricSignal{F,Complex{F}}
+mutable struct PolarComplexConstant{F} <: ParametricSignal{F,Complex{F}}
     r::F    # MODULUS
     ϕ::F    # PHASE
 end

@@ -22,11 +22,11 @@ quples = [Quple(1, 2)]
 q̄ = [1, 2]
 ν̄ = 2π * [4.30, 4.80]
 Ω̄ = [
-    Signals.Constant( 0.020*2π),
-    Signals.Constant(-0.020*2π),
+    CtrlVQE.Constant( 0.020*2π),
+    CtrlVQE.Constant(-0.020*2π),
 ]
 m = 3
-device = Devices.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
+device = CtrlVQE.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
 
 # OBSERVABLE AND REFERENCE STATE
 N = Devices.nstates(device)

@@ -1,7 +1,7 @@
 #= We want to work out a systematic way of testing new devices. =#
 
 import CtrlVQE: Parameters, Signals, Devices
-import CtrlVQE.Devices: LocallyDrivenDevices
+import CtrlVQE: LocallyDrivenDevices
 import CtrlVQE.Bases: DRESSED, OCCUPATION
 import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
 import CtrlVQE.Operators: Qubit, Channel, Drive, Hamiltonian, Gradient
@@ -229,3 +229,5 @@ function check_types(signal::Signals.AbstractSignal{P,R}) where {P,R}
     @code_warntype Signals.integrate_signal(signal, τ̄, t̄, ϕ̄)
 
 end
+
+# TODO (hi): add method for CostFunctions

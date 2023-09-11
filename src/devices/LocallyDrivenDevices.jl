@@ -1,7 +1,7 @@
 import LinearAlgebra: I
-import ..Bases, ..Operators, ...LinearAlgebraTools, ...Devices
+import ..Bases, ..Operators, ..LinearAlgebraTools, ..Devices
 
-import ...TempArrays: array
+import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
 """

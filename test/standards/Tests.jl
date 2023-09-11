@@ -5,7 +5,7 @@ import LinearAlgebra: I
 import FiniteDifferences: grad, central_fdm
 
 import CtrlVQE: Parameters, Signals, Devices, CostFunctions
-import CtrlVQE.Devices: LocallyDrivenDevices
+import CtrlVQE: LocallyDrivenDevices
 import CtrlVQE.Bases: DRESSED, OCCUPATION
 import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
 import CtrlVQE.Operators: Qubit, Channel, Drive, Hamiltonian, Gradient
@@ -315,7 +315,7 @@ function validate(fn::CostFunctions.CostFunctionType{F}) where {F}
     Random.seed!(0)
     x̄ = rand(F, L)
     ∇f̄ = Vector{F}(undef, L)
-    
+
     f  = CostFunctions.cost_function(fn)
     g! = CostFunctions.grad_function(fn)
     g  = CostFunctions.grad_function_byvalue(fn)

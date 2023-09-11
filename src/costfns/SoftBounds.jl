@@ -1,4 +1,4 @@
-import ...CostFunctions
+import ..CostFunctions
 
 wall(u) = u^2
 grad(u) = 2u
