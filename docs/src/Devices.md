@@ -5,13 +5,10 @@ CurrentModule = CtrlVQE
 # Devices
 
 ```@autodocs
-Modules = [
-    CtrlVQE.Devices,
-    CtrlVQE.Devices.LocallyDrivenDevices,
-]
+Modules = [CtrlVQE.Devices]
 ```
 
 ## Transmon Devices
 ```@autodocs
-Modules = [CtrlVQE.Devices.TransmonDevices]
+Modules = [CtrlVQE.TransmonDevices]
 ```

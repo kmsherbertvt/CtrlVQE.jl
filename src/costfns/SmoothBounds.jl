@@ -1,4 +1,5 @@
 import ..CostFunctions
+export SmoothBound
 
 wall(u) = exp(u - 1/u)
 grad(u) = exp(u - 1/u) * (1 + 1/u^2)

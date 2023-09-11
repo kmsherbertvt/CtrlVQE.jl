@@ -1,6 +1,8 @@
-# TODO (hi): add exports
-import Memoization: @memoize
 import ..Parameters, ..Signals
+export ParametricSignal, ConstrainedSignal
+export parameters
+
+using Memoization: @memoize
 
 
 """

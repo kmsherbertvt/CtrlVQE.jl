@@ -11,18 +11,18 @@ Modules = [CtrlVQE.CostFunctions]
 ## Energy Functions
 ```@autodocs
 Modules = [
-    CtrlVQE.CostFunctions.BareEnergies,
-    CtrlVQE.CostFunctions.ProjectedEnergies,
-    CtrlVQE.CostFunctions.NormalizedEnergies,
-    CtrlVQE.CostFunctions.Normalizations,
+    CtrlVQE.BareEnergies,
+    CtrlVQE.ProjectedEnergies,
+    CtrlVQE.NormalizedEnergies,
+    CtrlVQE.Normalizations,
 ]
 ```
 
 ## Penalty Functions
 ```@autodocs
 Modules = [
-    CtrlVQE.CostFunctions.HardBounds,
-    CtrlVQE.CostFunctions.SoftBounds,
-    CtrlVQE.CostFunctions.SmoothBounds,
+    CtrlVQE.HardBounds,
+    CtrlVQE.SoftBounds,
+    CtrlVQE.SmoothBounds,
 ]
 ```

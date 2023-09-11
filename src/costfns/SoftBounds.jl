@@ -1,4 +1,5 @@
 import ..CostFunctions
+export SoftBound
 
 wall(u) = u^2
 grad(u) = 2u

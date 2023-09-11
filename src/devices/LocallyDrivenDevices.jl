@@ -1,3 +1,5 @@
+#= DEPRECATED: All this was copied into the Devices.jl file. =#
+
 import LinearAlgebra: I
 import ..Bases, ..Operators, ..LinearAlgebraTools, ..Devices
 

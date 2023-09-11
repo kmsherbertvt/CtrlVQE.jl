@@ -1,6 +1,7 @@
-# TODO (hi): add exports
 import ..Signals
-import ..ParametricSignal
+export Constant, ComplexConstant, PolarComplexConstant
+
+import ..ParametricSignals: ParametricSignal
 
 """
     Constant(A::F) where {F<:AbstractFloat}

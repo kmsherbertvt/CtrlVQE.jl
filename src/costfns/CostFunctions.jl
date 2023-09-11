@@ -1,4 +1,7 @@
-import LinearAlgebra: norm
+export CostFunctionType, CompositeCostFunction
+export cost_function, grad_function, grad_function_byvalue
+
+import LinearAlgebra
 
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
@@ -144,7 +147,7 @@ struct CompositeCostFunction{F} <: CostFunctionType{F}
         if length(components) == 0
             return new{F}(CostFunctionType{F}[], 0, Ref(0), Ref(0), F[], F[])
         end
-        
+
         L = length(first(components))
         for component in components; @assert length(component) == L; end
 
@@ -191,7 +194,7 @@ function grad_function(fn::CompositeCostFunction{F}) where {F}
         ∇f̄ .= 0;
         for (i, g!) in enumerate(g!s);
             g!(∇f̄_, x̄);         # EVALUATE EACH COMPONENT. WRITES GRADIENT TO ∇f̄_
-            fn.gnorms[i] = norm(∇f̄_);
+            fn.gnorms[i] = LinearAlgebra.norm(∇f̄_);
             ∇f̄ .+= ∇f̄_;         # TALLY RESULTS FOR THE COMPONENT
         end;
         ∇f̄;

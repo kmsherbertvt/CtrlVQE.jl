@@ -1,8 +1,8 @@
-import Memoization: @memoize
-import LinearAlgebra: I, mul!
+import ..Parameters, ..Devices
+export TransmonDevice, FixedFrequencyTransmonDevice
 
-import ..Parameters, ..Quples, ..LinearAlgebraTools, ..Signals, ..Devices
-import ..LocallyDrivenDevices
+import ..LinearAlgebraTools
+import ..Signals
 
 import ..Signals: AbstractSignal
 import ..LinearAlgebraTools: MatrixList
@@ -10,6 +10,9 @@ import ..Quples: Quple
 
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
+
+using Memoization: @memoize
+using LinearAlgebra: I, mul!
 
 #=
 
@@ -26,7 +29,7 @@ Therefore, I don't recommend looking too closely to this file as a model to emul
 
 =#
 
-abstract type AbstractTransmonDevice{F,FΩ} <: LocallyDrivenDevices.LocallyDrivenDevice end
+abstract type AbstractTransmonDevice{F,FΩ} <: Devices.LocallyDrivenDevice end
 
 # THE INTERFACE TO IMPLEMENT
 
@@ -40,7 +43,7 @@ couplingpair(::AbstractTransmonDevice, k::Int)::Quple = error("Not Implemented")
 couplingstrength(::AbstractTransmonDevice, k::Int)::Real = error("Not Implemented")
 
 # Devices.ndrives
-# LocallyDrivenDevices.drivequbit
+# Devices.drivequbit
 drivefrequency(::AbstractTransmonDevice, i::Int)::Real = error("Not Implemented")
 drivesignal(::AbstractTransmonDevice, i::Int)::AbstractSignal = error("Not Implemented")
 
@@ -53,8 +56,8 @@ function Devices.ngrades(device::AbstractTransmonDevice)
     return 2 * Devices.ndrives(device)
 end
 
-function LocallyDrivenDevices.gradequbit(device::AbstractTransmonDevice, j::Int)
-    return LocallyDrivenDevices.drivequbit(device, ((j-1) >> 1) + 1)
+function Devices.gradequbit(device::AbstractTransmonDevice, j::Int)
+    return Devices.drivequbit(device, ((j-1) >> 1) + 1)
 end
 
 Devices.eltype_localloweringoperator(::AbstractTransmonDevice{F,FΩ}) where {F,FΩ} = F
@@ -129,7 +132,7 @@ function Devices.driveoperator(
     t::Real;
     result=nothing,
 )
-    a = @view(ā[:,:,LocallyDrivenDevices.drivequbit(device, i)])
+    a = @view(ā[:,:,Devices.drivequbit(device, i)])
     e = exp(im * drivefrequency(device, i) * t)
     Ω = drivesignal(device, i)(t)
 
@@ -159,7 +162,7 @@ function Devices.gradeoperator(
     result=nothing,
 )
     i = ((j-1) >> 1) + 1
-    a = @view(ā[:,:,LocallyDrivenDevices.drivequbit(device, i)])
+    a = @view(ā[:,:,Devices.drivequbit(device, i)])
     e = exp(im * drivefrequency(device, i) * t)
 
     if result === nothing
@@ -397,7 +400,7 @@ couplingpair(device::TransmonDevice, k::Int) = device.quples[k]
 couplingstrength(device::TransmonDevice, k::Int) = device.ḡ[k]
 
 Devices.ndrives(device::TransmonDevice) = length(device.q̄)
-LocallyDrivenDevices.drivequbit(device::TransmonDevice, i::Int) = device.q̄[i]
+Devices.drivequbit(device::TransmonDevice, i::Int) = device.q̄[i]
 drivefrequency(device::TransmonDevice, i::Int) = device.ν̄[i]
 drivesignal(device::TransmonDevice, i::Int) = device.Ω̄[i]
 
@@ -500,7 +503,7 @@ couplingpair(device::FixedFrequencyTransmonDevice, k::Int) = device.quples[k]
 couplingstrength(device::FixedFrequencyTransmonDevice, k::Int) = device.ḡ[k]
 
 Devices.ndrives(device::FixedFrequencyTransmonDevice) = length(device.q̄)
-LocallyDrivenDevices.drivequbit(device::FixedFrequencyTransmonDevice, i::Int)=device.q̄[i]
+Devices.drivequbit(device::FixedFrequencyTransmonDevice, i::Int)=device.q̄[i]
 drivefrequency(device::FixedFrequencyTransmonDevice, i::Int) = device.ν̄[i]
 drivesignal(device::FixedFrequencyTransmonDevice, i::Int) = device.Ω̄[i]
 

@@ -1,6 +1,7 @@
-# TODO (hi): add exports
 import ..Signals
-import ..ParametricSignal
+export Interval, ComplexInterval
+
+import ..ParametricSignals: ParametricSignal
 
 """
     Interval(A::F, s1::F, s2::F) where {F<:AbstractFloat}

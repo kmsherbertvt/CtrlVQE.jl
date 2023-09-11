@@ -1,11 +1,13 @@
-import LinearAlgebra: norm
-import ..Bases, ..LinearAlgebraTools, ..Devices
+import ..LinearAlgebraTools
+import ..Devices
+import ..Bases
+
 import ..Operators: STATIC, Drive, Gradient
 
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
-using ..LinearAlgebraTools: MatrixList
+using LinearAlgebra: norm
 using Memoization: @memoize
 
 """
@@ -404,7 +406,7 @@ function gradientsignals(
     T::Real,
     ψ0::AbstractVector,
     r::Int,
-    Ō::MatrixList;
+    Ō::LinearAlgebraTools.MatrixList;
     result=nothing,
     evolution=Rotate(r),
     callback=nothing,

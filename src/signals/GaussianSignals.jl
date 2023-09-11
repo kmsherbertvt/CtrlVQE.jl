@@ -1,6 +1,7 @@
-# TODO (hi): add exports
 import ..Signals
-import ..ParametricSignal, ..parameters
+export Gaussian
+
+import ..ParametricSignals: ParametricSignal, parameters
 
 """
     Gaussian(A::F, σ::F, s::F) where {F<:AbstractFloat}

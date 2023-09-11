@@ -1,9 +1,11 @@
-# TODO (hi): add exports
 import ..Parameters
+export AbstractSignal
+export valueat, partial, integrate_signal, integrate_partials
 
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
+#= TODO: Change `AbstractSignal` to `SignalType`. =#
 """
     AbstractSignal{P,R}
 
@@ -66,6 +68,20 @@ function (signal::AbstractSignal{P,R})(
     isnothing(result) && return signal(t̄; result=Vector{R}(undef, size(t̄)))
     result .= signal.(t̄)
     return result
+end
+
+
+
+"""
+    TODO (hi): Let this be the method which new signals overwrite.
+        (ie. don't require users to be fluent in callable objects)
+    This method is the one which has the vectorized version.
+
+    Ω(t) method is implemented as a convenience, once, here.
+    Ω(t̄) doesn't need implementing if we don't strongly type the Ω(t) syntax.
+"""
+function valueat(signal::AbstractSignal, t)
+    return signal(t)
 end
 
 

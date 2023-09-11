@@ -1,5 +1,6 @@
-# TODO (hi): add exports
 import ..Parameters, ..Signals
+export ModulatedSignal
+
 import ..Signals: AbstractSignal
 
 """

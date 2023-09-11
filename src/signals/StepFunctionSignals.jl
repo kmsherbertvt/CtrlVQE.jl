@@ -1,6 +1,7 @@
-# TODO (hi): add exports
 import ..Signals
-import ..ParametricSignal, ..parameters
+export StepFunction
+
+import ..ParametricSignals: ParametricSignal, parameters
 
 """
     StepFunction(A::F, s::F) where {F<:AbstractFloat}

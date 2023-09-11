@@ -1,4 +1,5 @@
 import ..CostFunctions
+export HardBound
 
 wall(u) = exp(log(2) * u^2) - 1
 grad(u) = exp(log(2) * u^2) * 2*log(2) * u

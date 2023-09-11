@@ -7,29 +7,29 @@ CurrentModule = CtrlVQE
 ```@autodocs
 Modules = [
     CtrlVQE.Signals,
-    CtrlVQE.Signals.ParametricSignals,
-    CtrlVQE.Signals.WindowedSignals,
-    CtrlVQE.Signals.CompositeSignals,
-    CtrlVQE.Signals.ModulatedSignals,
+    CtrlVQE.ParametricSignals,
+    CtrlVQE.WindowedSignals,
+    CtrlVQE.CompositeSignals,
+    CtrlVQE.ModulatedSignals,
 ]
 ```
 
 ## Constant Signals
 ```@autodocs
-Modules = [CtrlVQE.Signals.ConstantSignals]
+Modules = [CtrlVQE.ConstantSignals]
 ```
 
 ## Interval Signals
 ```@autodocs
-Modules = [CtrlVQE.Signals.IntervalSignals]
+Modules = [CtrlVQE.IntervalSignals]
 ```
 
 ## Step Function Signals
 ```@autodocs
-Modules = [CtrlVQE.Signals.StepFunctionSignals]
+Modules = [CtrlVQE.StepFunctionSignals]
 ```
 
 ## Gaussian Signals
 ```@autodocs
-Modules = [CtrlVQE.Signals.GaussianSignals]
+Modules = [CtrlVQE.GaussianSignals]
 ```

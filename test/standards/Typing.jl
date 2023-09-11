@@ -1,10 +1,9 @@
-#= We want to work out a systematic way of testing new devices. =#
+#= Systematic and comprehensive type stability unit tests. =#
 
 import CtrlVQE: Parameters, Signals, Devices
-import CtrlVQE: LocallyDrivenDevices
-import CtrlVQE.Bases: DRESSED, OCCUPATION
-import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
-import CtrlVQE.Operators: Qubit, Channel, Drive, Hamiltonian, Gradient
+import CtrlVQE: DRESSED, OCCUPATION
+import CtrlVQE: StaticOperator, IDENTITY, COUPLING, STATIC
+import CtrlVQE: Qubit, Channel, Drive, Hamiltonian, Gradient
 
 const t = 0.0
 const r = 10
@@ -164,29 +163,29 @@ function check_types(device::Devices.Device)
     return nothing
 end
 
-function check_types(device::LocallyDrivenDevices.LocallyDrivenDevice)
+function check_types(device::Devices.LocallyDrivenDevice)
     invoke(check_types, Tuple{Devices.Device}, device)
     i = Devices.ndrives(device)
     j = Devices.ngrades(device)
 
-    @code_warntype LocallyDrivenDevices.drivequbit(device, i)
-    @code_warntype LocallyDrivenDevices.gradequbit(device, j)
+    @code_warntype Devices.drivequbit(device, i)
+    @code_warntype Devices.gradequbit(device, j)
 
     println("Local Drive Methods")
-    @code_warntype LocallyDrivenDevices.localdriveoperators(device, t)
-    W = LocallyDrivenDevices.localdriveoperators(device, t)
-    @code_warntype LocallyDrivenDevices.localdriveoperators(device, t; result=W)
-    @code_warntype LocallyDrivenDevices.localdriveoperators(device, OCCUPATION, t)
-    X = LocallyDrivenDevices.localdriveoperators(device, OCCUPATION, t)
-    @code_warntype LocallyDrivenDevices.localdriveoperators(device, OCCUPATION, t;
+    @code_warntype Devices.localdriveoperators(device, t)
+    W = Devices.localdriveoperators(device, t)
+    @code_warntype Devices.localdriveoperators(device, t; result=W)
+    @code_warntype Devices.localdriveoperators(device, OCCUPATION, t)
+    X = Devices.localdriveoperators(device, OCCUPATION, t)
+    @code_warntype Devices.localdriveoperators(device, OCCUPATION, t;
             result=X)
 
-    @code_warntype LocallyDrivenDevices.localdrivepropagators(device, τ, t)
-    Y = LocallyDrivenDevices.localdrivepropagators(device, τ, t)
-    @code_warntype LocallyDrivenDevices.localdrivepropagators(device, τ, t; result=Y)
-    @code_warntype LocallyDrivenDevices.localdrivepropagators(device, OCCUPATION, τ, t)
-    Z = LocallyDrivenDevices.localdrivepropagators(device, OCCUPATION, τ, t)
-    @code_warntype LocallyDrivenDevices.localdrivepropagators(device, OCCUPATION, τ, t;
+    @code_warntype Devices.localdrivepropagators(device, τ, t)
+    Y = Devices.localdrivepropagators(device, τ, t)
+    @code_warntype Devices.localdrivepropagators(device, τ, t; result=Y)
+    @code_warntype Devices.localdrivepropagators(device, OCCUPATION, τ, t)
+    Z = Devices.localdrivepropagators(device, OCCUPATION, τ, t)
+    @code_warntype Devices.localdrivepropagators(device, OCCUPATION, τ, t;
             result=Z)
 
     return nothing

@@ -1,14 +1,13 @@
+#= Systematic and comprehensive accuracy/consistency unit tests. =#
 using Test
 
-import Random
-import LinearAlgebra: I
-import FiniteDifferences: grad, central_fdm
-
 import CtrlVQE: Parameters, Signals, Devices, CostFunctions
-import CtrlVQE: LocallyDrivenDevices
-import CtrlVQE.Bases: DRESSED, OCCUPATION
-import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
-import CtrlVQE.Operators: Qubit, Channel, Drive, Hamiltonian, Gradient
+import CtrlVQE: StaticOperator, IDENTITY, COUPLING, STATIC
+import CtrlVQE: Qubit, Channel, Drive, Hamiltonian, Gradient
+
+using Random: seed!
+using LinearAlgebra: I
+using FiniteDifferences: grad, central_fdm
 
 const t = 1.0
 const r = 10
@@ -102,14 +101,14 @@ function validate(device::Devices.Device)
     TODO (lo): Some meaningful consistency check on the dressed basis.
         I'm not sure how much I *care* about the dressed basis, though...
 
-    @time Devices.diagonalize(DRESSED, device)
-    @time Devices.diagonalize(OCCUPATION, device)
-    @time Devices.diagonalize(OCCUPATION, device, q)
+    @time Devices.diagonalize(CtrlVQE.DRESSED, device)
+    @time Devices.diagonalize(CtrlVQE.OCCUPATION, device)
+    @time Devices.diagonalize(CtrlVQE.OCCUPATION, device, q)
 
-    @time Devices.basisrotation(DRESSED, OCCUPATION, device)
-    @time Devices.basisrotation(OCCUPATION, OCCUPATION, device)
-    @time Devices.basisrotation(OCCUPATION, OCCUPATION, device, q)
-    @time Devices.localbasisrotations(OCCUPATION, OCCUPATION, device)
+    @time Devices.basisrotation(CtrlVQE.DRESSED, CtrlVQE.OCCUPATION, device)
+    @time Devices.basisrotation(CtrlVQE.OCCUPATION, CtrlVQE.OCCUPATION, device)
+    @time Devices.basisrotation(CtrlVQE.OCCUPATION, CtrlVQE.OCCUPATION, device, q)
+    @time Devices.localbasisrotations(CtrlVQE.OCCUPATION, CtrlVQE.OCCUPATION, device)
     =#
 
     # OPERATOR METHOD ACCURACIES
@@ -191,7 +190,7 @@ function validate(device::Devices.Device)
     return true
 end
 
-function validate(device::LocallyDrivenDevices.LocallyDrivenDevice)
+function validate(device::Devices.LocallyDrivenDevice)
     super = invoke(validate, Tuple{Devices.Device}, device)
     !super && return false
 
@@ -202,22 +201,22 @@ function validate(device::LocallyDrivenDevices.LocallyDrivenDevice)
 
     # QUBIT ASSIGNMENTS
 
-    for i in 1:nD; @test 1 ≤ LocallyDrivenDevices.drivequbit(device,i) ≤ n; end
-    for j in 1:nG; @test 1 ≤ LocallyDrivenDevices.gradequbit(device,j) ≤ n; end
+    for i in 1:nD; @test 1 ≤ Devices.drivequbit(device,i) ≤ n; end
+    for j in 1:nG; @test 1 ≤ Devices.gradequbit(device,j) ≤ n; end
 
     # LOCAL DRIVE METHODS
 
     ā = Devices.algebra(device)
     v̄ = [Devices.driveoperator(device, ā, i, t) for i in 1:nD]
 
-    v̄L = LocallyDrivenDevices.localdriveoperators(device, t)
+    v̄L = Devices.localdriveoperators(device, t)
     @test size(v̄L) == (m,m,n)
-    v̄L_ = zero(v̄L); LocallyDrivenDevices.localdriveoperators(device, t; result=v̄L_)
+    v̄L_ = zero(v̄L); Devices.localdriveoperators(device, t; result=v̄L_)
     @test v̄L ≈ v̄L_
 
-    ūL = LocallyDrivenDevices.localdrivepropagators(device, τ, t)
+    ūL = Devices.localdrivepropagators(device, τ, t)
     @test size(ūL) == (m,m,n)
-    ūL_ = zero(ūL); LocallyDrivenDevices.localdrivepropagators(device, τ, t; result=ūL_)
+    ūL_ = zero(ūL); Devices.localdrivepropagators(device, τ, t; result=ūL_)
     @test ūL ≈ ūL_
 
     for q in 1:n
@@ -312,7 +311,7 @@ function validate(fn::CostFunctions.CostFunctionType{F}) where {F}
     F_ = eltype(fn)
     @test F_ == F
 
-    Random.seed!(0)
+    seed!(0)
     x̄ = rand(F, L)
     ∇f̄ = Vector{F}(undef, L)
 

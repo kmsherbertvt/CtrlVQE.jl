@@ -1,46 +1,6 @@
 module CtrlVQE
 
 """
-    TempArrays
-
-Maintain caches for pre-allocated arrays used only temporarily within a function.
-
-Do NOT use this module for arrays
-    whose data are accessible outside the function in which they are created.
-
-"""
-module TempArrays
-    using Memoization: @memoize
-
-    """
-        array(::F, shape::Tuple, index=nothing)
-
-    Fetch a temporary array with type `F` and shape `shape`.
-
-    The `index` parameter is an additional unique key,
-        allowing the module to cache mulitple arrays of the same type and shape.
-    You should pass `index=Symbol(@__MODULE__)` to prevent collisions across modules.
-    You may pass a tuple, eg. `index=(Symbol(@__MODULE__), :otherkey)`
-        to prevent collisions within a module.
-
-    """
-    @memoize function array(::F, shape::Tuple, index=nothing) where {F<:Number}
-        # TODO (lo): Thread-safe and hands-off approach to this.
-        return Array{F}(undef, shape)
-    end
-
-    """
-        array(F::Type{<:Number}, shape::Tuple, index=nothing)
-
-    Same as above but passing the type directly, rather than an instance of the type.
-
-    """
-    function array(F::Type{<:Number}, shape::Tuple, index=nothing)
-        return array(zero(F), shape, index)
-    end
-end
-
-"""
     Parameters
 
 Standardized interface for interacting with variational parameters.
@@ -100,193 +60,19 @@ module Parameters
     function bind end
 end
 
+##########################################################################################
+#= UTILITIES =#
 
 """
-    Bases
+    TempArrays
 
-Enumerates various linear-algebraic bases for representing statevectors and matrices.
+Maintain caches for pre-allocated arrays used only temporarily within a function.
 
-"""
-module Bases
-    abstract type BasisType end
-
-    """
-        Dressed(), aka DRESSED
-
-    The eigenbasis of the static Hamiltonian associated with a `Device`.
-    Eigenvectors are ordered to maximize similarity with an identity matrix.
-    Phases are fixed so that the diagonal is real.
-
-    """
-    struct Dressed      <: BasisType end;       const DRESSED = Dressed()
-
-    abstract type LocalBasis <: BasisType end
-
-    """
-        Occupation(), aka OCCUPATION
-
-    The eigenbasis of local number operators ``n̂ ≡ a'a``.
-    Generally equivalent to what is called the "Z basis", or the "computational basis".
-
-    """
-    struct Occupation   <: LocalBasis end;      const OCCUPATION = Occupation()
-
-    """
-        Coordinate(), aka COORDINATE
-
-    The eigenbasis of local quadrature operators ``Q ≡ (a + a')/√2``.
-
-    """
-    struct Coordinate   <: LocalBasis end;      const COORDINATE = Coordinate()
-
-    """
-        Momentum(), aka MOMENTUM
-
-    The eigenbasis of local quadrature operators ``P ≡ i(a - a')/√2``.
-
-    """
-    struct Momentum     <: LocalBasis end;      const MOMENTUM   = Momentum()
-end
+Do NOT use this module for arrays
+    whose data are accessible outside the function in which they are created.
 
 """
-    Operators
-
-Enumerates various categories of Hermitian observable related to a device.
-
-"""
-module Operators
-    abstract type OperatorType end
-    abstract type StaticOperator <: OperatorType end
-
-    """
-        Identity(), aka IDENTITY
-
-    The identity operator.
-
-    """
-    struct Identity <: StaticOperator end
-    const IDENTITY = Identity()
-
-    """
-        Qubit(q)
-
-    The component of the static Hamiltonian which is local to qubit `q`.
-
-    For example, in a transmon device,
-        `Qubit(2)` represents a term ``ω_q a_q'a_q - δ_q/2~ a_q'a_q'a_q a_q``.
-
-    """
-    struct Qubit <: StaticOperator
-        q::Int
-    end
-
-    """
-        Coupling(), aka COUPLING
-
-    The components of the static Hamiltonian which are non-local to any one qubit.
-
-    For example, in a transmon device,
-        `Coupling()` represents the sum ``∑_{p,q} g_{pq} (a_p'a_q + a_q'a_p)``.
-
-    """
-    struct Coupling <: StaticOperator end
-    const COUPLING = Coupling()
-
-    """
-        Uncoupled(), aka UNCOUPLED
-
-    The components of the static Hamiltonian which are local to each qubit.
-
-    This represents the sum of each `Qubit(q)`,
-        where `q` iterates over each qubit in the device.
-
-    For example, in a transmon device,
-        `Uncoupled()` represents the sum ``∑_q (ω_q a_q'a_q - δ_q/2~ a_q'a_q'a_q a_q)``.
-
-    """
-    struct Uncoupled <: StaticOperator end
-    const UNCOUPLED = Uncoupled()
-
-    """
-        Static(), aka STATIC
-
-    All components of the static Hamiltonian.
-
-    This represents the sum of `Uncoupled()` and `Coupled()`
-
-    """
-    struct Static <: StaticOperator end
-    const STATIC = Static()
-
-    """
-        Channel(i,t)
-
-    An individual drive term (indexed by `i`) at a specific time `t`.
-
-    For example, in a transmon device,
-        `Channel(q,t)` might represent ``Ω_q(t) [\\exp(iν_qt) a_q + \\exp(-iν_qt) a_q']``,
-        the drive for a single qubit.
-
-    Note that you are free to have multiple channels for each qubit,
-        or channels which operate on multiple qubits.
-
-    """
-    struct Channel{R<:Real} <: OperatorType
-        i::Int
-        t::R
-    end
-
-    """
-        Drive(t)
-
-    The sum of all drive terms at a specific time `t`.
-
-    This represents the sum of each `Qubit(i)`,
-        where `i` iterates over each drive term in the device.
-
-    For example, in a transmon device,
-        `Drive(t)` might represent ``∑_q Ω_q(t) [\\exp(iν_qt) a_q + \\exp(-iν_qt) a_q']``.
-
-    """
-    struct Drive{R<:Real} <: OperatorType
-        t::R
-    end
-
-    """
-        Hamiltonian(t)
-
-    The full Hamiltonian at a specific time `t`.
-
-    This represents the sum of `Static()` and `Drive(t)`.
-
-    """
-    struct Hamiltonian{R<:Real} <: OperatorType
-        t::R
-    end
-
-    """
-        Gradient(j,t)
-
-    An individual gradient operator (indexed by `j`) at a specific time `t`.
-
-    The gradient operators appear in the derivation of each gradient signal,
-        which are used to calculate analytical gradients of each variational parameter.
-    The gradient operators are very closely related to individual channel operators,
-        but sufficiently distinct that they need to be treated separately.
-
-    For example, for a transmon device,
-        each channel operator ``Ω_q(t) [\\exp(iν_qt) a_q + \\exp(-iν_qt) a_q']``
-        is associated with *two* gradient operators:
-    - ``\\exp(iν_qt) a_q + \\exp(-iν_qt) a_q'``
-    - ``i[\\exp(iν_qt) a_q - \\exp(-iν_qt) a_q']``
-
-    """
-    struct Gradient{R<:Real} <: OperatorType
-        j::Int
-        t::R
-    end
-end
-import .Operators: IDENTITY, COUPLING, UNCOUPLED, STATIC
+module TempArrays; include("utils/TempArrays.jl"); end
 
 """
     Quples
@@ -294,26 +80,7 @@ import .Operators: IDENTITY, COUPLING, UNCOUPLED, STATIC
 Qubit tuples: simple types to represent couplings within a device.
 
 """
-module Quples
-    """
-        Quple(q1,q2)
-
-    A (symmetric) coupling between qubits indexed by `q1` and `q2`.
-
-    Note that the order is irrelevant: `Quple(q1,q2) == Quple(q2,q1)`.
-
-    """
-    struct Quple
-        q1::Int
-        q2::Int
-        # INNER CONSTRUCTOR: Constrain order so that `Quple(q1,q2) == Quple(q2,q1)`.
-        Quple(q1, q2) = q1 > q2 ? new(q2, q1) : new(q1, q2)
-    end
-
-    # IMPLEMENT ITERATION, FOR CONVENIENT UNPACKING
-    Base.iterate(quple::Quple) = quple.q1, true
-    Base.iterate(quple::Quple, state) = state ? (quple.q2, false) : nothing
-end
+module Quples; include("utils/Quples.jl"); end
 import .Quples: Quple
 
 """
@@ -326,7 +93,36 @@ Much of this functionality is available in Julia's standard `LinearAlgebra` libr
     and (sometimes) efficient tensor contractions.
 
 """
-module LinearAlgebraTools; include("LinearAlgebraTools.jl"); end
+module LinearAlgebraTools; include("utils/LinearAlgebraTools.jl"); end
+
+
+##########################################################################################
+#= ENUMERATIONS =#
+
+"""
+    Bases
+
+Enumerates various linear-algebraic bases for representing statevectors and matrices.
+
+"""
+module Bases; include("enums/Bases.jl"); end
+import .Bases: BasisType, LocalBasis
+import .Bases: DRESSED, OCCUPATION, COORDINATE, MOMENTUM
+
+"""
+    Operators
+
+Enumerates various categories of Hermitian observable related to a device.
+
+"""
+module Operators; include("enums/Operators.jl"); end
+import .Operators: OperatorType, StaticOperator
+import .Operators: Qubit, Channel, Drive, Hamiltonian, Gradient
+import .Operators: IDENTITY, COUPLING, UNCOUPLED, STATIC
+
+
+##########################################################################################
+#= SIGNALS =#
 
 """
     Signals
@@ -337,10 +133,13 @@ The main motivation of this module
     is to provide a common interface for analytical gradients and optimization.
 
 """
-module Signals; include("Signals.jl"); end
+module Signals; include("signals/Signals.jl"); end
+import .Signals: AbstractSignal
+import .Signals: valueat, partial, integrate_signal, integrate_partials
 
 module ParametricSignals; include("signals/ParametricSignals.jl"); end
-import .ParametricSignals: ParametricSignal, parameters, ConstrainedSignal
+import .ParametricSignals: ParametricSignal, ConstrainedSignal
+import .ParametricSignals: parameters
 
 module CompositeSignals; include("signals/CompositeSignals.jl"); end
 import .CompositeSignals: CompositeSignal
@@ -363,6 +162,9 @@ import .StepFunctionSignals: StepFunction
 module GaussianSignals; include("signals/GaussianSignals.jl"); end
 import .GaussianSignals: Gaussian
 
+##########################################################################################
+#= DEVICES =#
+
 """
     Devices
 
@@ -375,15 +177,21 @@ In this package,
 All you need to know how a quantum state `ψ` evolves up time `T` is in the device.
 
 """
-module Devices; include("Devices.jl"); end
-import .Devices: nqubits, nstates, nlevels, ndrives, ngrades
-
-module LocallyDrivenDevices; include("devices/LocallyDrivenDevices.jl"); end
-import .LocallyDrivenDevices: LocallyDrivenDevice
+module Devices; include("devices/Devices.jl"); end
+import .Devices: Device, LocallyDrivenDevice
+import .Devices: nqubits, nstates, nlevels, ndrives, ngrades, gradient
+import .Devices: operator, propagator, propagate!, expectation, braket
+import .Devices: drivequbit, gradequbit
 
 module TransmonDevices; include("devices/TransmonDevices.jl"); end
 import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice
 
+##########################################################################################
+#= TIME EVOLUTIONS =#
+
+#= TODO: Nick thinks all the evolutions should be promoted to the main module.
+        I'm not sold yet but if (...when...) we do that, make a folder for "evols".
+=#
 
 """
     Evolutions
@@ -392,7 +200,11 @@ Algorithms to run time evolution, and related constructs like gradient signals.
 
 """
 module Evolutions; include("Evolutions.jl"); end
-import .Evolutions: trapezoidaltimegrid, evolve, evolve!, gradientsignals, Rotate
+import .Evolutions: Algorithm, Rotate, Direct
+import .Evolutions: trapezoidaltimegrid, evolve, evolve!, gradientsignals
+
+##########################################################################################
+#= MORE UTILITIES =#
 
 """
     QubitOperators
@@ -403,9 +215,10 @@ NOTE: I don't especially like how this module is organized,
     so consider this code subject to change.
 
 """
-module QubitOperators
-    include("QubitOperators.jl")
-end
+module QubitOperators; include("utils/QubitOperators.jl"); end
+
+##########################################################################################
+#= COST FUNCTIONS =#
 
 """
     CostFunctions
@@ -422,9 +235,9 @@ Thus, all you need to run a gradient based optimization is:
     f, g = functions(args...)
 
 """
-module CostFunctions; include("CostFunctions.jl"); end
+module CostFunctions; include("costfns/CostFunctions.jl"); end
+import .CostFunctions: CostFunctionType, CompositeCostFunction
 import .CostFunctions: cost_function, grad_function, grad_function_byvalue
-import .CostFunctions: CompositeCostFunction
 
 #= ENERGY FUNCTIONS =#
 module BareEnergies; include("costfns/BareEnergies.jl"); end
@@ -458,6 +271,7 @@ import .SmoothBounds: SmoothBound
 
 
 
+##########################################################################################
 #= RECIPES =#
 
 """
@@ -517,7 +331,7 @@ Usually you'll want to use this with constant signals.
 function FullyTrotterized(signal::Signals.AbstractSignal, T::Real, r::Int)
     τ, _, t̄ = Evolutions.trapezoidaltimegrid(T,r)
     starttimes = t̄ .- (τ/2)
-    return Signals.WindowedSignal(
+    return WindowedSignal(
         [deepcopy(signal) for t in starttimes],
         starttimes,
     )
@@ -533,7 +347,7 @@ Usually you'll want to use this with constant signals.
 """
 function UniformWindowed(signal::Signals.AbstractSignal, T::Real, W::Int)
     starttimes = range(zero(T), T, W+1)[1:end-1]
-    return Signals.WindowedSignal(
+    return WindowedSignal(
         [deepcopy(signal) for t in starttimes],
         starttimes,
     )

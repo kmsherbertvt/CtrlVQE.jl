@@ -1,14 +1,10 @@
 using Test
-
-import Random, LinearAlgebra
-
 import .StandardTests
 
 import CtrlVQE
-import CtrlVQE: Operators, Signals, Devices, Evolutions, CostFunctions
-import CtrlVQE.Bases: OCCUPATION
-import CtrlVQE.Quples: Quple
 
+using Random: seed!
+using LinearAlgebra: Hermitian
 
 ##########################################################################################
 # ENERGY FUNCTION SELF-CONSISTENCY CHECKS
@@ -18,7 +14,7 @@ import CtrlVQE.Quples: Quple
 ω̄ = 2π * [4.50, 4.52]
 δ̄ = 2π * [0.33, 0.34]
 ḡ = 2π * [0.020]
-quples = [Quple(1, 2)]
+quples = [CtrlVQE.Quple(1, 2)]
 q̄ = [1, 2]
 ν̄ = 2π * [4.30, 4.80]
 Ω̄ = [
@@ -29,17 +25,17 @@ m = 3
 device = CtrlVQE.TransmonDevice(ω̄, δ̄, ḡ, quples, q̄, ν̄, Ω̄, m)
 
 # OBSERVABLE AND REFERENCE STATE
-N = Devices.nstates(device)
+N = CtrlVQE.nstates(device)
 
-Random.seed!(0)
-O0 = LinearAlgebra.Hermitian(rand(ComplexF64, N,N))
+seed!(0)
+O0 = Hermitian(rand(ComplexF64, N,N))
 ψ0 = zeros(ComplexF64, N); ψ0[1] = 1
 
 # ALGORITHM AND BASIS
 T = 10.0
 r = 1000
-algorithm = Evolutions.Rotate(r)
-basis = OCCUPATION
+algorithm = CtrlVQE.Rotate(r)
+basis = CtrlVQE.OCCUPATION
 
 # TEST ENERGY FUNCTIONS!
 

@@ -1,8 +1,9 @@
 import ..CostFunctions
+export BareEnergy
 
-import ..Parameters, ..LinearAlgebraTools, ..Devices, ..Evolutions
-import ..Operators: StaticOperator, IDENTITY
-import ..Bases: BasisType, OCCUPATION
+import ..LinearAlgebraTools
+import ..Parameters, ..Devices, ..Evolutions
+import ..Bases, ..Operators
 
 """
     BareEnergy(O0, ψ0, T, device, r; kwargs...)
@@ -41,8 +42,8 @@ struct BareEnergy{F} <: CostFunctions.CostFunctionType{F}
     device::Devices.Device
     r::Int
     algorithm::Evolutions.Algorithm
-    basis::BasisType
-    frame::StaticOperator
+    basis::Bases.BasisType
+    frame::Operators.StaticOperator
 
     function BareEnergy(
         O0::AbstractMatrix,
@@ -51,8 +52,8 @@ struct BareEnergy{F} <: CostFunctions.CostFunctionType{F}
         device::Devices.Device,
         r::Int;
         algorithm::Evolutions.Algorithm=Evolutions.Rotate(r),
-        basis::BasisType=OCCUPATION,
-        frame::StaticOperator=IDENTITY,
+        basis::Bases.BasisType=Bases.OCCUPATION,
+        frame::Operators.StaticOperator=Operators.IDENTITY,
     )
         # INFER FLOAT TYPE AND CONVERT ARGUMENTS
         F = real(promote_type(Float16, eltype(O0), eltype(ψ0), eltype(T)))

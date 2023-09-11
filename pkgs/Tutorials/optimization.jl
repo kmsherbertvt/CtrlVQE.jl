@@ -47,15 +47,15 @@ FES = Λ[2]                                  # FIRST EXCITED STATE
 
 # CONSTRUCT THE MAJOR PACKAGE OBJECTS
 
-pulse = CtrlVQE.UniformWindowed(CtrlVQE.Signals.ComplexConstant(0.0, 0.0), T, W)
+pulse = CtrlVQE.UniformWindowed(CtrlVQE.ComplexConstant(0.0, 0.0), T, W)
 ΩMAX /= √2  # Re-scale max amplitude so that bounds inscribe the complex circle.
             # Not needed for real or polar-parameterized amplitudes.
-# pulse = CtrlVQE.UniformWindowed(CtrlVQE.Signals.Constant(0.0), T, W)
-# pulse = CtrlVQE.UniformWindowed(CtrlVQE.Signals.PolarComplexConstant(0.0, 0.0), T, W)
+# pulse = CtrlVQE.UniformWindowed(CtrlVQE.Constant(0.0), T, W)
+# pulse = CtrlVQE.UniformWindowed(CtrlVQE.PolarComplexConstant(0.0, 0.0), T, W)
 
 
-device = CtrlVQE.Systematic(CtrlVQE.Devices.FixedFrequencyTransmonDevice, n, pulse)
-# device = CtrlVQE.Systematic(CtrlVQE.Devices.TransmonDevice, n, pulse)
+device = CtrlVQE.Systematic(CtrlVQE.FixedFrequencyTransmonDevice, n, pulse)
+# device = CtrlVQE.Systematic(CtrlVQE.TransmonDevice, n, pulse)
 
 algorithm = CtrlVQE.Rotate(r)
 
@@ -155,7 +155,7 @@ nD = CtrlVQE.ndrives(device)
 α = Array{Float64}(undef, r+1, nD)
 β = Array{Float64}(undef, r+1, nD)
 for i in 1:nD
-    Ωt = CtrlVQE.Devices.TransmonDevices.drivesignal(device, i)(t)
+    Ωt = CtrlVQE.TransmonDevices.drivesignal(device, i)(t)
     α[:,i] = real.(Ωt)
     β[:,i] = imag.(Ωt)
 end

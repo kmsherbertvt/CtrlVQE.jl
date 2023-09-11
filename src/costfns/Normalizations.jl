@@ -1,9 +1,9 @@
 import ..CostFunctions
+export Normalization
 
-import ..Parameters, ..LinearAlgebraTools, ..Devices, ..Evolutions
-import ..QubitOperators
-import ..Operators: StaticOperator, IDENTITY
-import ..Bases: BasisType, OCCUPATION
+import ..LinearAlgebraTools, ..QubitOperators
+import ..Parameters, ..Devices, ..Evolutions
+import ..Bases, ..Operators
 
 """
     Normalization(ψ0, T, device, r; kwargs...)
@@ -30,7 +30,7 @@ struct Normalization{F} <: CostFunctions.CostFunctionType{F}
     device::Devices.Device
     r::Int
     algorithm::Evolutions.Algorithm
-    basis::BasisType
+    basis::Bases.BasisType
 
     function Normalization(
         ψ0::AbstractVector,
@@ -38,7 +38,7 @@ struct Normalization{F} <: CostFunctions.CostFunctionType{F}
         device::Devices.Device,
         r::Int;
         algorithm::Evolutions.Algorithm=Evolutions.Rotate(r),
-        basis::BasisType=OCCUPATION,
+        basis::Bases.BasisType=Bases.OCCUPATION,
     )
         # INFER FLOAT TYPE AND CONVERT ARGUMENTS
         F = real(promote_type(Float16, eltype(ψ0), eltype(T)))

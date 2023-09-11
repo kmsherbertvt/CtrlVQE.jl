@@ -1,8 +1,10 @@
-import LinearAlgebra: I, diag
-import ..Operators, ..LinearAlgebraTools, ..Devices
+import ..LinearAlgebraTools
+import ..Devices
 
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
+
+using LinearAlgebra: I, diag
 
 """
     qubitprojector(device::Devices.Device)
@@ -137,42 +139,6 @@ function project(H::AbstractMatrix{F}, device::Devices.Device) where {F}
     end
     return result
 end
-
-
-"""
-    driveframe(H::AbstractMatrix, device::Devices.Device, T::Real)
-
-Rewrite a molcular Hamiltonian in the drive frame of a device at time T.
-
-This first projects `H` onto the physical Hilbert space,
-    then evolves by the device's static Hamiltonian.
-
-"""
-function driveframe(H::AbstractMatrix, device::Devices.Device, T::Real)
-    O = project(H, device)
-    O = Devices.evolve!(Operators.STATIC, device, T, O)
-    return O
-end
-
-"""
-    interactionframe(H::AbstractMatrix, device::Devices.Device, T::Real)
-
-Rewrite a molcular Hamiltonian in the interaction frame of a device at time T.
-
-This first projects `H` onto the physical Hilbert space,
-    then evolves by the *uncoupled* parts of a device's static Hamiltonian.
-This is supposed to approximate the drive frame while remaining classically tractable.
-
-"""
-function interactionframe(H::AbstractMatrix, device::Devices.Device, T::Real)
-    O = project(H, device)
-    O = Devices.evolve!(Operators.UNCOUPLED, device, T, O)
-    return O
-end
-
-
-
-
 
 
 

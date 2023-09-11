@@ -1,10 +1,9 @@
-#= We want to work out a systematic way of testing new devices. =#
+#= Systematic and comprehensive timing/allocation unit tests. =#
 
 import CtrlVQE: Parameters, Signals, Devices
-import CtrlVQE: LocallyDrivenDevices
-import CtrlVQE.Bases: DRESSED, OCCUPATION
-import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
-import CtrlVQE.Operators: Qubit, Channel, Drive, Hamiltonian, Gradient
+import CtrlVQE: DRESSED, OCCUPATION
+import CtrlVQE: StaticOperator, IDENTITY, COUPLING, STATIC
+import CtrlVQE: Qubit, Channel, Drive, Hamiltonian, Gradient
 
 const t = 0.0
 const r = 10
@@ -147,24 +146,24 @@ function check_times(device::Devices.Device)
     return nothing
 end
 
-function check_times(device::LocallyDrivenDevices.LocallyDrivenDevice)
+function check_times(device::Devices.LocallyDrivenDevice)
     invoke(check_times, Tuple{Devices.Device}, device)
     i = Devices.ndrives(device)
     j = Devices.ngrades(device)
 
-    @time qi = LocallyDrivenDevices.drivequbit(device, i)
-    @time qj = LocallyDrivenDevices.gradequbit(device, j)
+    @time qi = Devices.drivequbit(device, i)
+    @time qj = Devices.gradequbit(device, j)
 
     println("Local Drive Methods")
-    @time W = LocallyDrivenDevices.localdriveoperators(device, t)
-    @time LocallyDrivenDevices.localdriveoperators(device, t; result=W)
-    @time X = LocallyDrivenDevices.localdriveoperators(device, OCCUPATION, t)
-    @time LocallyDrivenDevices.localdriveoperators(device, OCCUPATION, t; result=X)
+    @time W = Devices.localdriveoperators(device, t)
+    @time Devices.localdriveoperators(device, t; result=W)
+    @time X = Devices.localdriveoperators(device, OCCUPATION, t)
+    @time Devices.localdriveoperators(device, OCCUPATION, t; result=X)
 
-    @time Y = LocallyDrivenDevices.localdrivepropagators(device, τ, t)
-    @time LocallyDrivenDevices.localdrivepropagators(device, τ, t; result=Y)
-    @time Z = LocallyDrivenDevices.localdrivepropagators(device, OCCUPATION, τ, t)
-    @time LocallyDrivenDevices.localdrivepropagators(device, OCCUPATION, τ, t; result=Z)
+    @time Y = Devices.localdrivepropagators(device, τ, t)
+    @time Devices.localdrivepropagators(device, τ, t; result=Y)
+    @time Z = Devices.localdrivepropagators(device, OCCUPATION, τ, t)
+    @time Devices.localdrivepropagators(device, OCCUPATION, τ, t; result=Z)
 
     return nothing
 end

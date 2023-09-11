@@ -1,9 +1,7 @@
-# TODO (hi): add exports
-
-using LinearAlgebra: kron!, eigen, Diagonal, Hermitian, mul!
-
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
+
+using LinearAlgebra: kron!, eigen, Diagonal, Hermitian, mul!
 
 """
     VectorList{T}

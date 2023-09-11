@@ -2,13 +2,12 @@ using Test
 import .StandardTests
 
 import CtrlVQE
-import CtrlVQE.Quples: Quple
 
 # TRANSMON DEVICE PARAMETERS
 ω̄ = 2π * [4.50, 4.52]
 δ̄ = 2π * [0.33, 0.34]
 ḡ = 2π * [0.020]
-quples = [Quple(1, 2)]
+quples = [CtrlVQE.Quple(1, 2)]
 q̄ = [1, 2]
 ν̄ = 2π * [4.30, 4.80]
 Ω̄ = [
