@@ -222,11 +222,16 @@ function check_types(signal::Signals.SignalType{P,R}) where {P,R}
     @code_warntype string(signal, names)
     @code_warntype string(signal)
 
-    @code_warntype Signals.integrate_partials(signal, τ̄, t̄, ϕ̄)
-    Ip = Signals.integrate_partials(signal, τ̄, t̄, ϕ̄)
-    @code_warntype Signals.integrate_partials(signal, τ̄, t̄, ϕ̄; result=Ip)
+    @code_warntype Signals.integrate_partials(signal, τ̄, t̄)
+    Ip = Signals.integrate_partials(signal, τ̄, t̄)
+    @code_warntype Signals.integrate_partials(signal, τ̄, t̄; result=Ip)
 
-    @code_warntype Signals.integrate_signal(signal, τ̄, t̄, ϕ̄)
+    @code_warntype Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄)
+    Ip = Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄)
+    @code_warntype Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄, result=Ip)
+
+    @code_warntype Signals.integrate_signal(signal, τ̄, t̄)
+    @code_warntype Signals.integrate_signal(signal, τ̄, t̄; ϕ̄=ϕ̄)
 
 end
 

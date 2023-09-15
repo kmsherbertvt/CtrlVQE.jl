@@ -2,8 +2,6 @@ module CtrlVQE
 
 #= TODO LIST
 
-- Signals
-  - Touch up the integrate functions in Signals
 - Evolutions
   - Match the code layout used for devices, signals, costfunctions.
   - Major refactor: distinguish basis from workbasis

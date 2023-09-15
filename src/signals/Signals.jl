@@ -143,7 +143,7 @@ end
 
 
 """
-    integrate_partials(signal::SignalType{P,R}, τ̄, t̄, ϕ̄; result=nothing)
+    integrate_partials(signal::SignalType{P,R}, τ̄, t̄; ϕ̄=1, result=nothing)
 
 Integrates each partial derivative ``∂Ω/∂x_i|_t``, modulated by a function ``ϕ(t)``.
 
@@ -160,25 +160,25 @@ This turns out to be the relevant quantity in many gradient calculations.
 - signal
 - τ̄: a vector of time spacings, as given by `Evolutions.trapezoidaltimegrid`.
 - t̄: a vector of time points, as given by `Evolutions.trapezoidaltimegrid`.
-- ϕ̄: a vector of the modulating function ``ϕ(t)`` evaluated at each point in `t̄`.
 
-Optionally, pass a pre-allocated array of compatible type and shape as `result`.
+# Keyword Arguments
+- ϕ̄: a vector of the modulating function ``ϕ(t)`` evaluated at each point in `t̄`.
+    Alternatively, ϕ̄ may be scalar to represent a constant function.
+- result: a pre-allocated array of compatible type and shape (optional)
 
 """
 function integrate_partials(
     signal::SignalType{P,R},
     τ̄::AbstractVector,
-    t̄::AbstractVector,
-    ϕ̄::AbstractVector;
+    t̄::AbstractVector;
+    ϕ̄=1,
     result=nothing,
 ) where {P,R}
     isnothing(result) && return integrate_partials(
-        signal, τ̄, t̄, ϕ̄;
-        result=Vector{P}(undef, Parameters.count(signal))
+        signal, τ̄, t̄;
+        ϕ̄=ϕ̄,
+        result=Vector{real(R)}(undef, Parameters.count(signal))
     )
-
-    # TODO (hi): I think result should be type `real(R)`, no?
-    # TODO (mid): ϕ̄ defaults to ϕ(t)=1
 
     # TEMPORARY VARIABLES NEEDED IN GRADIENT INTEGRALS
     ∂̄ = array(R, size(t̄), (LABEL, :signal))
@@ -186,7 +186,6 @@ function integrate_partials(
 
     # CALCULATE GRADIENT FOR SIGNAL PARAMETERS
     for k in 1:Parameters.count(signal)
-
         ∂̄ = Signals.partial(k, signal, t̄; result=∂̄)
         integrand .= τ̄ .* real.(∂̄ .* ϕ̄)
         result[k] = sum(integrand)
@@ -196,9 +195,9 @@ function integrate_partials(
 end
 
 """
-    integrate_signal(signal::SignalType{P,R}, τ̄, t̄, ϕ̄; result=nothing)
+    integrate_signal(signal::SignalType{P,R}, τ̄, t̄; ϕ̄=1)
 
-Integrates a signal ``Ω(t)``, modulated by a function ``ϕ(t)``.
+Integrates a signal ``Ω(t)``, optionally modulated by a function ``ϕ(t)``.
 
 Specifically, this method returns the *real part* of ``∫ ϕ(t) ⋅ Ω(t) dt``.
 
@@ -212,17 +211,18 @@ This turns out to be the relevant quantity in transmon frequency gradient calcul
 - signal
 - τ̄: a vector of time spacings, as given by `Evolutions.trapezoidaltimegrid`.
 - t̄: a vector of time points, as given by `Evolutions.trapezoidaltimegrid`.
+
+# Keyword Arguments
 - ϕ̄: a vector of the modulating function ``ϕ(t)`` evaluated at each point in `t̄`.
+    Alternatively, ϕ̄ may be scalar to represent a constant function.
 
 """
 function integrate_signal(
     signal::SignalType{P,R},
     τ̄::AbstractVector,
-    t̄::AbstractVector,
-    ϕ̄::AbstractVector,
+    t̄::AbstractVector;
+    ϕ̄=1,
 ) where {P,R}
-    # TODO (mid): ϕ̄ defaults to ϕ(t)=1
-
     # USE PRE-ALLOCATED ARRAYS TO EXPLOIT DOT NOTATION WITHOUT ASYMPTOTIC PENALTY
     Ω̄ = array(R, size(t̄), (LABEL, :signal))
     integrand = array(P, size(t̄), (LABEL, :integrand))

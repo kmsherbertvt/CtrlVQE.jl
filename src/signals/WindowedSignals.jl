@@ -192,13 +192,14 @@ end
 function Signals.integrate_partials(
     signal::WindowedSignal{P,R},
     τ̄::AbstractVector,
-    t̄::AbstractVector,
-    ϕ̄::AbstractVector,;
+    t̄::AbstractVector;
+    ϕ̄=1,
     result=nothing,
 ) where {P,R}
     isnothing(result) && return Signals.integrate_partials(
-        signal, τ̄, t̄, ϕ̄;
-        result=Vector{P}(undef, Parameters.count(signal))
+        signal, τ̄, t̄;
+        ϕ̄=ϕ̄,
+        result=Vector{real(R)}(undef, Parameters.count(signal)),
     )
     result .= 0
 
@@ -210,7 +211,8 @@ function Signals.integrate_partials(
 
         for i in 1:Parameters.count(signal.windows[k])     # i INDEXES PARAMETER
             ∂ = Signals.partial(i, signal.windows[k], t)::R
-            result[i+signal.offsets[k]] += τ̄[j] * real(∂ * ϕ̄[j])
+            ϕ = length(size(ϕ̄)) > 0 ? ϕ̄[j] : ϕ̄
+            result[i+signal.offsets[k]] += τ̄[j] * real(∂ * ϕ)
         end
     end
 

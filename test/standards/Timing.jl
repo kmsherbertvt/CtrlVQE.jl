@@ -195,10 +195,14 @@ function check_times(signal::Signals.SignalType{P,R}) where {P,R}
     @time string(signal, names)
     @time string(signal)
 
-    @time Ip = Signals.integrate_partials(signal, τ̄, t̄, ϕ̄)
-    @time Signals.integrate_partials(signal, τ̄, t̄, ϕ̄; result=Ip)
+    @time Ip = Signals.integrate_partials(signal, τ̄, t̄)
+    @time Signals.integrate_partials(signal, τ̄, t̄; result=Ip)
 
-    @time Signals.integrate_signal(signal, τ̄, t̄, ϕ̄)
+    @time Ip = Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄)
+    @time Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄, result=Ip)
+
+    @time Signals.integrate_signal(signal, τ̄, t̄)
+    @time Signals.integrate_signal(signal, τ̄, t̄; ϕ̄=ϕ̄)
 
     return nothing
 end

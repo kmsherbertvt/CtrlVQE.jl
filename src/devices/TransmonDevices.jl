@@ -223,7 +223,8 @@ function gradient_for_signals!(
         =#
 
         Signals.integrate_partials(
-            Ω, τ̄, t̄, modulation;
+            Ω, τ̄, t̄;
+            ϕ̄=modulation,
             result=@view(result[1+offset:L+offset]),
         )
         offset += L
@@ -249,7 +250,7 @@ function gradient_for_frequencies!(
 
         modulation .= t̄ .* ϕ̄[:,j+1]
         (FΩ <: Complex) && (modulation .+= im .* t̄ .* ϕ̄[:,j])
-        result[i] = Signals.integrate_signal(Ω, τ̄, t̄, modulation)
+        result[i] = Signals.integrate_signal(Ω, τ̄, t̄; ϕ̄=modulation)
     end
 
     return result

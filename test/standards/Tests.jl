@@ -34,12 +34,13 @@ function validate(device::Devices.DeviceType)
     @test Parameters.values(device) ≈ 2 .* x̄
     Parameters.bind(device, x̄)
 
-    # TODO (hi): Check the *actual* gradient against finite difference, in another function. (Requires Evolutions.) =#
     ϕ̄_ = repeat(ϕ̄, 1, nG)
     grad = Devices.gradient(device, τ̄, t̄, ϕ̄_)
     @test length(grad) == L
     grad_ = zero(grad); Devices.gradient(device, τ̄, t̄, ϕ̄_; result=grad_)
     @test grad ≈ grad_
+
+    # NOTE: Accuracy of gradient is deferred to unit-tests on energy functions.
 
     # HAMILTONIAN OPERATORS
 
@@ -304,8 +305,17 @@ function validate(signal::Signals.SignalType{P,R}) where {P,R}
     # CONVENIENCE FUNCTIONS
     @test typeof(string(signal)) == String
 
-    #= TODO (lo): Test integrate functions. =#
+    # INTEGRAL FUNCTIONS
+    Ip = Signals.integrate_partials(signal, τ̄, t̄)
+    Ip_ = zero(Ip); Signals.integrate_partials(signal, τ̄, t̄; result=Ip_)
+    @test Ip ≈ Ip_
 
+    Ip = Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄)
+    Ip_ = zero(Ip); Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄, result=Ip_)
+    @test Ip ≈ Ip_
+
+    Is = Signals.integrate_signal(signal, τ̄, t̄)         # No self-consistency here,
+    Is = Signals.integrate_signal(signal, τ̄, t̄; ϕ̄=ϕ̄)    #   just check for errors.
 end
 
 function validate(fn::CostFunctions.CostFunctionType{F}) where {F}
