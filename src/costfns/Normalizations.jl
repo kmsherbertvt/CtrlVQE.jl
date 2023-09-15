@@ -13,7 +13,7 @@ The norm of a statevector in a binary logical space.
 # Arguments
 - `ψ0`: the reference state, living in the physical Hilbert space of `device`.
 - `T::Real`: the total time for the state to evolve under the `device` Hamiltonian.
-- `device::Devices.Device`: the device
+- `device::Devices.DeviceType`: the device
 - `r::Int`: the number of time steps to calculate the gradient signal
 
 # Keyword Arguments
@@ -27,7 +27,7 @@ The norm of a statevector in a binary logical space.
 struct Normalization{F} <: CostFunctions.CostFunctionType{F}
     ψ0::Vector{Complex{F}}
     T::F
-    device::Devices.Device
+    device::Devices.DeviceType
     r::Int
     algorithm::Evolutions.Algorithm
     basis::Bases.BasisType
@@ -35,7 +35,7 @@ struct Normalization{F} <: CostFunctions.CostFunctionType{F}
     function Normalization(
         ψ0::AbstractVector,
         T::Real,
-        device::Devices.Device,
+        device::Devices.DeviceType,
         r::Int;
         algorithm::Evolutions.Algorithm=Evolutions.Rotate(r),
         basis::Bases.BasisType=Bases.OCCUPATION,

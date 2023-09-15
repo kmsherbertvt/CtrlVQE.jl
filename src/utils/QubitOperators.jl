@@ -7,7 +7,7 @@ const LABEL = Symbol(@__MODULE__)
 using LinearAlgebra: I, diag
 
 """
-    qubitprojector(device::Devices.Device)
+    qubitprojector(device::Devices.DeviceType)
 
 A projector from the physical Hilbert space of a device onto a logical two-level space.
 
@@ -16,12 +16,12 @@ The projector `Π` does not reduce the *size* of its operand;
 If you want to change the size, use `qubitisometry` instead.
 
 """
-function qubitprojector(device::Devices.Device)
+function qubitprojector(device::Devices.DeviceType)
     return LinearAlgebraTools.kron(localqubitprojectors(device))
 end
 
 """
-    qubitisometry(device::Devices.Device)
+    qubitisometry(device::Devices.DeviceType)
 
 An isometry from the physical Hilbert space of a device onto a logical two-level space.
 
@@ -29,19 +29,19 @@ If `Φ` is the isometry, and `|ψ⟩` is a statevector living in the full Hilber
     the vector `Φ|ψ⟩` is a smaller vector living in the two-level space.
 
 """
-function qubitisometry(device::Devices.Device)
+function qubitisometry(device::Devices.DeviceType)
     # NOTE: Acts on qubit space, projects up to device space.
     return LinearAlgebraTools.kron(localqubitisometries(device))
 end
 
 
 """
-    localqubitprojectors(device::Devices.Device)
+    localqubitprojectors(device::Devices.DeviceType)
 
 A matrix list of local qubit projectors for each individual qubit in the device.
 
 """
-function localqubitprojectors(device::Devices.Device)
+function localqubitprojectors(device::Devices.DeviceType)
     m = Devices.nlevels(device)
     n = Devices.nqubits(device)
     π = Matrix(I, m, m)
@@ -56,12 +56,12 @@ function localqubitprojectors(device::Devices.Device)
 end
 
 """
-    localqubitprojectors(device::Devices.Device)
+    localqubitprojectors(device::Devices.DeviceType)
 
 A matrix list of local qubit isometries for each individual qubit in the device.
 
 """
-function localqubitisometries(device::Devices.Device)
+function localqubitisometries(device::Devices.DeviceType)
     # NOTE: Acts on qubit space, projects up to device space.
     m = Devices.nlevels(device)
     n = Devices.nqubits(device)
@@ -103,12 +103,12 @@ end
 
 
 """
-    project(A, device::Devices.Device)
+    project(A, device::Devices.DeviceType)
 
 Extend a statevector or matrix living in a two-level space onto a physical Hilbert space.
 
 """
-function project(ψ::AbstractVector{F}, device::Devices.Device) where {F}
+function project(ψ::AbstractVector{F}, device::Devices.DeviceType) where {F}
     N0 = length(ψ)
     N = Devices.nstates(device)
     m = Devices.nlevels(device)
@@ -124,7 +124,7 @@ function project(ψ::AbstractVector{F}, device::Devices.Device) where {F}
     return result
 end
 
-function project(H::AbstractMatrix{F}, device::Devices.Device) where {F}
+function project(H::AbstractMatrix{F}, device::Devices.DeviceType) where {F}
     N0 = size(H, 1)
     m̄ = fill(Devices.nlevels(device), Devices.nqubits(device))
     m̄0 = fill(2, Devices.nqubits(device))

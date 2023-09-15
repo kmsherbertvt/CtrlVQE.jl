@@ -21,7 +21,7 @@ The frame rotation (if provided) is applied to the molecular hamiltonian,
 - `O0`: a Hermitian matrix, living in the physical Hilbert space of `device`.
 - `ψ0`: the reference state, living in the physical Hilbert space of `device`.
 - `T::Real`: the total time for the state to evolve under the `device` Hamiltonian.
-- `device::Devices.Device`: the device
+- `device::Devices.DeviceType`: the device
 - `r::Int`: the number of time steps to calculate the gradient signal
 
 # Keyword Arguments
@@ -43,7 +43,7 @@ struct NormalizedEnergy{F} <: CostFunctions.CostFunctionType{F}
     O0::Matrix{Complex{F}}
     ψ0::Vector{Complex{F}}
     T::F
-    device::Devices.Device
+    device::Devices.DeviceType
     r::Int
     algorithm::Evolutions.Algorithm
     basis::Bases.BasisType
@@ -53,7 +53,7 @@ struct NormalizedEnergy{F} <: CostFunctions.CostFunctionType{F}
         O0::AbstractMatrix,
         ψ0::AbstractVector,
         T::Real,
-        device::Devices.Device,
+        device::Devices.DeviceType,
         r::Int;
         algorithm::Evolutions.Algorithm=Evolutions.Rotate(r),
         basis::Bases.BasisType=Bases.OCCUPATION,

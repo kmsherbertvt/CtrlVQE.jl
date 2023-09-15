@@ -10,6 +10,25 @@ const LABEL = Symbol(@__MODULE__)
 using LinearAlgebra: norm
 using Memoization: @memoize
 
+#= TODO: Major refactor
+
+Algorithm types need to implement a function `workbasis`;
+    workbasis(::Rotate) = Bases.OCCUPATION
+    workbasis(::each of the others) = Bases.DRESSED
+
+We only need to implement one evolve! method accepting `basis` arg.
+- If `basis` doesn't match workbasis, rotate ψ into workbasis
+- Call method w/out `basis`
+- If `basis` doesn't match workbasis, rotate ψ out of workbasis
+
+Implementing evolve! for each algorithm,
+    implicitly assume the basis is already the sensible one.
+
+We lose the ability to run the steps of the algorithm in a stupid basis.
+I dunno why I thought that was important to have. -_-
+
+=#
+
 """
     trapezoidaltimegrid(T::Real, r::Int)
 
@@ -82,7 +101,7 @@ This method both mutates and returns `ψ`.
 - `algorithm::Algorithm`: dispatches which evolution method to use.
         Defaults to `Rotate(1000)` if omitted.
 
-- `device::Devices.Device`: specifies which Hamiltonian to evolve under.
+- `device::Devices.DeviceType`: specifies which Hamiltonian to evolve under.
 
 - `basis::Bases.BasisType`: which basis `ψ` is represented in.
         ALSO determines the basis in which calculations are carried out.
@@ -119,7 +138,7 @@ Please see `evolve!` for detailed documentation.
 function evolve end
 
 function evolve(
-    device::Devices.Device,
+    device::Devices.DeviceType,
     T::Real,
     ψ0::AbstractVector;
     result=nothing,
@@ -132,7 +151,7 @@ function evolve(
 end
 
 function evolve(
-    device::Devices.Device,
+    device::Devices.DeviceType,
     basis::Bases.BasisType,
     T::Real,
     ψ0::AbstractVector;
@@ -147,7 +166,7 @@ end
 
 function evolve(
     algorithm::Algorithm,
-    device::Devices.Device,
+    device::Devices.DeviceType,
     T::Real,
     ψ0::AbstractVector;
     result=nothing,
@@ -161,7 +180,7 @@ end
 
 function evolve(
     algorithm::Algorithm,
-    device::Devices.Device,
+    device::Devices.DeviceType,
     basis::Bases.BasisType,
     T::Real,
     ψ0::AbstractVector;
@@ -193,13 +212,13 @@ function evolve!(args...; kwargs...)
     return evolve!(Rotate(1000), args...; kwargs...)
 end
 
-function evolve!(algorithm::Rotate, device::Devices.Device, args...; kwargs...)
+function evolve!(algorithm::Rotate, device::Devices.DeviceType, args...; kwargs...)
     return evolve!(algorithm, device, Bases.OCCUPATION, args...; kwargs...)
 end
 
 function evolve!(
     algorithm::Rotate,
-    device::Devices.Device,
+    device::Devices.DeviceType,
     basis::Bases.BasisType,
     T::Real,
     ψ::AbstractVector{<:Complex{<:AbstractFloat}};
@@ -248,13 +267,13 @@ struct Direct <: Algorithm
     r::Int
 end
 
-function evolve!(algorithm::Direct, device::Devices.Device, args...; kwargs...)
+function evolve!(algorithm::Direct, device::Devices.DeviceType, args...; kwargs...)
     return evolve!(algorithm, device, Bases.DRESSED, args...; kwargs...)
 end
 
 function evolve!(
     algorithm::Direct,
-    device::Devices.Device,
+    device::Devices.DeviceType,
     basis::Bases.BasisType,
     T::Real,
     ψ::AbstractVector{<:Complex{<:AbstractFloat}};
@@ -309,7 +328,7 @@ The gradient signals associated with a given `device` Hamiltonian, and an observ
 Gradient signals are used to calculate analytical derivatives of a control pulse.
 
 # Arguments
-- `device::Devices.Device`: specifies which Hamiltonian to evolve under.
+- `device::Devices.DeviceType`: specifies which Hamiltonian to evolve under.
         Also identifies each of the gradient operators used to calculate gradient signals.
 
 - `basis::Bases.BasisType`: which basis `ψ` is represented in.
@@ -374,12 +393,12 @@ For example, gradients with respect to a normalized molecular energy
 This method enables such calculations using only a single "pass" through time.
 
 """
-function gradientsignals(device::Devices.Device, args...; kwargs...)
+function gradientsignals(device::Devices.DeviceType, args...; kwargs...)
     return gradientsignals(device, Bases.OCCUPATION, args...; kwargs...)
 end
 
 function gradientsignals(
-    device::Devices.Device,
+    device::Devices.DeviceType,
     basis::Bases.BasisType,
     T::Real,
     ψ0::AbstractVector,
@@ -401,7 +420,7 @@ function gradientsignals(
 end
 
 function gradientsignals(
-    device::Devices.Device,
+    device::Devices.DeviceType,
     basis::Bases.BasisType,
     T::Real,
     ψ0::AbstractVector,

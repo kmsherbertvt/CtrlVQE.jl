@@ -1,5 +1,5 @@
 import ..Parameters
-export Device, LocallyDrivenDevice
+export DeviceType, LocallyDrivenDevice
 export nqubits, nstates, nlevels, ndrives, ngrades, gradient
 export operator, propagator, propagate!, expectation, braket
 export drivequbit, gradequbit
@@ -16,9 +16,8 @@ const Evolvable = AbstractVecOrMat{<:Complex{<:AbstractFloat}}
 using Memoization: @memoize
 using LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen
 
-#= TODO: Change `Device` to `DeviceType`. =#
 """
-    Device
+    DeviceType
 
 Super-type for all device objects.
 
@@ -145,67 +144,67 @@ If it can be done, it would require obtaining the actual `Dict`
     and manually removing elements matching your targeted method signature.
 
 """
-abstract type Device end
+abstract type DeviceType end
 
 """
-    nqubits(device::Device)
+    nqubits(device::DeviceType)
 
 The number of qubits in the device.
 
 """
-function nqubits(::Device)
+function nqubits(::DeviceType)
     error("Not Implemented")
     return 0
 end
 
 """
-    nlevels(device::Device)
+    nlevels(device::DeviceType)
 
 The number of physical levels in each "qubit".
 
 """
-function nlevels(::Device)
+function nlevels(::DeviceType)
     error("Not Implemented")
     return 0
 end
 
 """
-    ndrives(device::Device)
+    ndrives(device::DeviceType)
 
 The number of distinct drive channels.
 
 """
-function ndrives(::Device)
+function ndrives(::DeviceType)
     error("Not Implemented")
     return 0
 end
 
 """
-    ngrades(device::Device)
+    ngrades(device::DeviceType)
 
 The number of distinct gradient operators.
 
 """
-function ngrades(::Device)
+function ngrades(::DeviceType)
     error("Not Implemented")
     return 0
 end
 
 """
-    localloweringoperator(device::Device; result=nothing)
+    localloweringoperator(device::DeviceType; result=nothing)
 
 The lowering operator ``a`` acting on the Hilbert space of a single physical qubit.
 
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
-function localloweringoperator(::Device; result=nothing)
+function localloweringoperator(::DeviceType; result=nothing)
     error("Not Implemented")
     return zeros(eltype_localloweringoperator(device), nlevels(device), nlevels(device))
 end
 
 """
-    qubithamiltonian(device::Device, ā::MatrixList, q::Int; result=nothing)
+    qubithamiltonian(device::DeviceType, ā::MatrixList, q::Int; result=nothing)
 
 The static components of the device Hamiltonian local to qubit `q`.
 
@@ -215,13 +214,13 @@ This method is a function of annihilation operators ``a_q`` given by `ā[:,:,q]
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
-function qubithamiltonian(::Device, ā::MatrixList, q::Int; result=nothing)
+function qubithamiltonian(::DeviceType, ā::MatrixList, q::Int; result=nothing)
     error("Not Implemented")
     return zeros(eltype(ā), size(ā)[1:end-1])
 end
 
 """
-    staticcoupling(device::Device, ā::MatrixList, q::Int; result=nothing)
+    staticcoupling(device::DeviceType, ā::MatrixList, q::Int; result=nothing)
 
 The static components of the device Hamiltonian nonlocal to any one qubit.
 
@@ -231,13 +230,13 @@ This method is a function of annihilation operators ``a_q`` given by `ā[:,:,q]
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
-function staticcoupling(::Device, ā::MatrixList; result=nothing)
+function staticcoupling(::DeviceType, ā::MatrixList; result=nothing)
     error("Not Implemented")
     return zeros(eltype(ā), size(ā)[1:end-1])
 end
 
 """
-    driveoperator(device::Device, ā::MatrixList, i::Int, t::Real; result=nothing)
+    driveoperator(device::DeviceType, ā::MatrixList, i::Int, t::Real; result=nothing)
 
 The distinct drive operator for channel `i` at time `t`.
 
@@ -249,13 +248,13 @@ If `device` is a `LocallyDrivenDevice`,
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
-function driveoperator(::Device, ā::MatrixList, i::Int, t::Real; result=nothing)
+function driveoperator(::DeviceType, ā::MatrixList, i::Int, t::Real; result=nothing)
     error("Not Implemented")
     return zeros(eltype(ā), size(ā)[1:end-1])
 end
 
 """
-    gradeoperator(device::Device, ā::MatrixList, j::Int, t::Real; result=nothing)
+    gradeoperator(device::DeviceType, ā::MatrixList, j::Int, t::Real; result=nothing)
 
 The distinct gradient operator indexed by `j` at time `t`.
 
@@ -270,77 +269,77 @@ If `device` is a `LocallyDrivenDevice`,
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
-function gradeoperator(::Device, ā::MatrixList, j::Int, t::Real; result=nothing)
+function gradeoperator(::DeviceType, ā::MatrixList, j::Int, t::Real; result=nothing)
     error("Not Implemented")
     return zeros(eltype(ā), size(ā)[1:end-1])
 end
 
 
 """
-    eltype_localloweringoperator(device::Device)
+    eltype_localloweringoperator(device::DeviceType)
 
 The number type of a local lowering operator for this device.
 
 """
-function eltype_localloweringoperator(::Device)
+function eltype_localloweringoperator(::DeviceType)
     error("Not Implemented")
     return Bool
 end
 
 """
-    eltype_qubithamiltonian(device::Device)
+    eltype_qubithamiltonian(device::DeviceType)
 
 The number type of the local static components of the Hamiltonian for this device.
 
 The number type of the algebra `ā` is ignored for the purposes of this method.
 
 """
-function eltype_qubithamiltonian(::Device)
+function eltype_qubithamiltonian(::DeviceType)
     error("Not Implemented")
     return Bool
 end
 
 """
-    eltype_staticcoupling(device::Device)
+    eltype_staticcoupling(device::DeviceType)
 
 The number type of the non-local static components of the Hamiltonian for this device.
 
 The number type of the algebra `ā` is ignored for the purposes of this method.
 
 """
-function eltype_staticcoupling(::Device)
+function eltype_staticcoupling(::DeviceType)
     error("Not Implemented")
     return Bool
 end
 
 """
-    eltype_driveoperator(device::Device)
+    eltype_driveoperator(device::DeviceType)
 
 The number type of the time-dependent drive channels for this device.
 
 The number type of the algebra `ā` is ignored for the purposes of this method.
 
 """
-function eltype_driveoperator(::Device)
+function eltype_driveoperator(::DeviceType)
     error("Not Implemented")
     return Bool
 end
 
 """
-    eltype_gradeoperator(device::Device)
+    eltype_gradeoperator(device::DeviceType)
 
 The number type of the gradient operators for this device.
 
 The number type of the algebra `ā` is ignored for the purposes of this method.
 
 """
-function eltype_gradeoperator(::Device)
+function eltype_gradeoperator(::DeviceType)
     error("Not Implemented")
     return Bool
 end
 
 """
-    gradient(::Device, τ̄, t̄, ϕ̄; result=nothing)
+    gradient(::DeviceType, τ̄, t̄, ϕ̄; result=nothing)
 
 The gradient vector of partials for each variational parameter in the device.
 
@@ -353,7 +352,7 @@ The argument `ϕ̄` is a 2d array; `ϕ̄[:,:,j]` contains the jth gradient signa
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
-function gradient(device::Device,
+function gradient(device::DeviceType,
     τ̄::AbstractVector,
     t̄::AbstractVector,
     ϕ̄::AbstractMatrix;
@@ -372,7 +371,7 @@ All the methods below will work automatically.
 =#
 
 """
-    nstates(device::Device)
+    nstates(device::DeviceType)
 
 The total number of states in the physical Hilbert space of the device.
 
@@ -380,11 +379,11 @@ The total number of states in the physical Hilbert space of the device.
     the number of states in the physical Hilbert space of a single independent qubit.)
 
 """
-nstates(device::Device) = nlevels(device) ^ nqubits(device)
+nstates(device::DeviceType) = nlevels(device) ^ nqubits(device)
 
 
 """
-    globalize(device::Device, op::AbstractMatrix, q::Int; result=nothing)
+    globalize(device::DeviceType, op::AbstractMatrix, q::Int; result=nothing)
 
 Extend a local operator `op` acting on qubit `q` into the global Hilbert space.
 
@@ -392,7 +391,7 @@ Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
 function globalize(
-    device::Device, op::AbstractMatrix{F}, q::Int;
+    device::DeviceType, op::AbstractMatrix{F}, q::Int;
     result=nothing,
 ) where {F}
     if isnothing(result)
@@ -410,7 +409,7 @@ function globalize(
 end
 
 """
-    diagonalize(basis::Bases.BasisType, device::Device)
+    diagonalize(basis::Bases.BasisType, device::DeviceType)
 
 Compute the vector of eigenvalues `Λ` and the rotation matrix `U` for a given basis.
 
@@ -419,7 +418,7 @@ Compute the vector of eigenvalues `Λ` and the rotation matrix `U` for a given b
 The result is packed into a `LinearAlgebra.Eigen` object,
     but it may be unpacked by `Λ, U = diagonalize(basis, device)`.
 
-    diagonalize(basis::Bases.LocalBasis, device::Device, q::Int)
+    diagonalize(basis::Bases.LocalBasis, device::DeviceType, q::Int)
 
 Same as above, except that `U` acts on the local Hilbert space of qubit `q`.
 
@@ -429,7 +428,7 @@ Note that you can still construct
 """
 function diagonalize end
 
-@memoize Dict function diagonalize(::Bases.Dressed, device::Device)
+@memoize Dict function diagonalize(::Bases.Dressed, device::DeviceType)
     H0 = operator(Operators.STATIC, device)
 
     N = size(H0)[1]
@@ -465,7 +464,7 @@ function diagonalize end
     # TODO (mid): Strongly consider imposing phase on the local bases also.
 end
 
-@memoize Dict function diagonalize(basis::Bases.LocalBasis, device::Device)
+@memoize Dict function diagonalize(basis::Bases.LocalBasis, device::DeviceType)
     F = eltype_localloweringoperator(device)
         # NOTE: May not be correct, if we ever introduce a complex local basis!
 
@@ -483,27 +482,27 @@ end
     return Eigen(Λ, U)
 end
 
-@memoize Dict function diagonalize(::Bases.Occupation, device::Device, q::Int)
+@memoize Dict function diagonalize(::Bases.Occupation, device::DeviceType, q::Int)
     F = eltype_localloweringoperator(device)
     m = nlevels(device)
     identity = Matrix{F}(I, m, m)
     return eigen(Hermitian(identity))
 end
 
-@memoize Dict function diagonalize(::Bases.Coordinate, device::Device, q::Int)
+@memoize Dict function diagonalize(::Bases.Coordinate, device::DeviceType, q::Int)
     a = localloweringoperator(device)
     Q = (a + a') / eltype(a)(√2)
     return eigen(Hermitian(Q))
 end
 
-@memoize Dict function diagonalize(::Bases.Momentum, device::Device, q::Int)
+@memoize Dict function diagonalize(::Bases.Momentum, device::DeviceType, q::Int)
     a = localloweringoperator(device)
     P = im*(a - a') / eltype(a)(√2)
     return eigen(Hermitian(P))
 end
 
 """
-    basisrotation(tgt::Bases.BasisType, src::Bases.BasisType, device::Device)
+    basisrotation(tgt::Bases.BasisType, src::Bases.BasisType, device::DeviceType)
 
 Calculate the basis rotation `U` which transforms ``|ψ_{src}⟩ → |ψ_{tgt}⟩ = U|ψ_{src}⟩``.
 
@@ -511,7 +510,7 @@ Calculate the basis rotation `U` which transforms ``|ψ_{src}⟩ → |ψ_{tgt}�
 @memoize Dict function basisrotation(
     tgt::Bases.BasisType,
     src::Bases.BasisType,
-    device::Device,
+    device::DeviceType,
 )
     Λ0, U0 = diagonalize(src, device)
     Λ1, U1 = diagonalize(tgt, device)
@@ -523,14 +522,14 @@ end
 @memoize Dict function basisrotation(
     tgt::Bases.LocalBasis,
     src::Bases.LocalBasis,
-    device::Device,
+    device::DeviceType,
 )
     ū = localbasisrotations(tgt, src, device)
     return LinearAlgebraTools.kron(ū)
 end
 
 """
-    basisrotation(tgt::Bases.LocalBasis, src::Bases.LocalBasis, device::Device, q::Int)
+    basisrotation(tgt::Bases.LocalBasis, src::Bases.LocalBasis, device::DeviceType, q::Int)
 
 Same as above, except that `U` acts on the local Hilbert space of qubit `q`.
 
@@ -540,7 +539,7 @@ This is used elsewhere for more efficient rotations exploiting tensor structure.
 @memoize Dict function basisrotation(
     tgt::Bases.LocalBasis,
     src::Bases.LocalBasis,
-    device::Device,
+    device::DeviceType,
     q::Int,
 )
     Λ0, U0 = diagonalize(src, device, q)
@@ -551,7 +550,7 @@ This is used elsewhere for more efficient rotations exploiting tensor structure.
 end
 
 """
-    localbasisrotations(tgt::Bases.LocalBasis, src::Bases.LocalBasis, device::Device)
+    localbasisrotations(tgt::Bases.LocalBasis, src::Bases.LocalBasis, device::DeviceType)
 
 A matrix list `ū`, where `ū[:,:,q]` is a local basis rotation on qubit `q`.
 
@@ -559,7 +558,7 @@ A matrix list `ū`, where `ū[:,:,q]` is a local basis rotation on qubit `q`.
 @memoize Dict function localbasisrotations(
     tgt::Bases.LocalBasis,
     src::Bases.LocalBasis,
-    device::Device,
+    device::DeviceType,
 )
     F = eltype_localloweringoperator(device)
         # NOTE: May not be correct, if we ever introduce a complex local basis!
@@ -574,18 +573,18 @@ A matrix list `ū`, where `ū[:,:,q]` is a local basis rotation on qubit `q`.
 end
 
 """
-    eltype_algebra(device::Device[, basis::Bases.BasisType])
+    eltype_algebra(device::DeviceType[, basis::Bases.BasisType])
 
 The number type of each annihilation operator ``a_j`` represented in the given basis.
 
 When omitted, the basis defaults to `Bases.OCCUPATION`.
 
 """
-function eltype_algebra(device::Device, ::Bases.BasisType=Bases.OCCUPATION)
+function eltype_algebra(device::DeviceType, ::Bases.BasisType=Bases.OCCUPATION)
     return eltype_localloweringoperator(device)
 end
 
-function eltype_algebra(device::Device, ::Bases.Dressed)
+function eltype_algebra(device::DeviceType, ::Bases.Dressed)
     return promote_type(
         eltype_localloweringoperator(device),
         eltype_qubithamiltonian(device),
@@ -595,7 +594,7 @@ end
 
 
 """
-    algebra(device::Device[, basis::Bases.BasisType])
+    algebra(device::DeviceType[, basis::Bases.BasisType])
 
 A matrix list `ā`, where `ā[:,:,q]` represents the annihilation operator ``a_q``.
 
@@ -607,7 +606,7 @@ To construct local operators, use `localalgebra` instead.
 
 """
 function algebra(
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType=Bases.OCCUPATION,
 )
     F = eltype_algebra(device, basis)
@@ -625,7 +624,7 @@ function algebra(
 end
 
 """
-    localalgebra(device::Device[, basis::Bases.LocalBasis])
+    localalgebra(device::DeviceType[, basis::Bases.LocalBasis])
 
 A matrix list `ā`, where `ā[:,:,q]` represents the annihilation operator ``a_q``.
 
@@ -636,7 +635,7 @@ Note that you can construct global operators in a local basis by using `algebra`
 
 """
 @memoize Dict function localalgebra(
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis=Bases.OCCUPATION,
 )
     # DETERMINE THE NUMBER TYPE COMPATIBLE WITH ROTATION
@@ -655,57 +654,57 @@ Note that you can construct global operators in a local basis by using `algebra`
 end
 
 """
-    Base.eltype(op::Operators.OperatorType, device::Device[, basis::Bases.BasisType])
+    Base.eltype(op::Operators.OperatorType, device::DeviceType[, basis::Bases.BasisType])
 
 The number type of the matrix returned by `operator(op, device, basis)`.
 
 When omitted, the basis defaults to Bases.OCCUPATION.
 
 """
-function Base.eltype(op::Operators.OperatorType, device::Device)
+function Base.eltype(op::Operators.OperatorType, device::DeviceType)
     return Base.eltype(op, device, Bases.OCCUPATION)
 end
 
-function Base.eltype(op::Operators.Identity, device::Device, basis::Bases.BasisType)
+function Base.eltype(op::Operators.Identity, device::DeviceType, basis::Bases.BasisType)
     return Bool
 end
 
-function Base.eltype(::Operators.Qubit, device::Device, basis::Bases.BasisType)
+function Base.eltype(::Operators.Qubit, device::DeviceType, basis::Bases.BasisType)
     return promote_type(
         eltype_algebra(device, basis),
         eltype_qubithamiltonian(device),
     )
 end
 
-function Base.eltype(::Operators.Coupling, device::Device, basis::Bases.BasisType)
+function Base.eltype(::Operators.Coupling, device::DeviceType, basis::Bases.BasisType)
     return promote_type(
         eltype_algebra(device, basis),
         eltype_staticcoupling(device),
     )
 end
 
-function Base.eltype(::Operators.Channel, device::Device, basis::Bases.BasisType)
+function Base.eltype(::Operators.Channel, device::DeviceType, basis::Bases.BasisType)
     return promote_type(
         eltype_algebra(device, basis),
         eltype_driveoperator(device),
     )
 end
 
-function Base.eltype(::Operators.Gradient, device::Device, basis::Bases.BasisType)
+function Base.eltype(::Operators.Gradient, device::DeviceType, basis::Bases.BasisType)
     return promote_type(
         eltype_algebra(device, basis),
         eltype_gradeoperator(device),
     )
 end
 
-function Base.eltype(::Operators.Uncoupled, device::Device, basis::Bases.BasisType)
+function Base.eltype(::Operators.Uncoupled, device::DeviceType, basis::Bases.BasisType)
     return promote_type(
         eltype_algebra(device, basis),
         eltype_qubithamiltonian(device),
     )
 end
 
-function Base.eltype(::Operators.Static, device::Device, basis::Bases.BasisType)
+function Base.eltype(::Operators.Static, device::DeviceType, basis::Bases.BasisType)
     return promote_type(
         eltype_algebra(device, basis),
         eltype_qubithamiltonian(device),
@@ -713,14 +712,14 @@ function Base.eltype(::Operators.Static, device::Device, basis::Bases.BasisType)
     )
 end
 
-function Base.eltype(::Operators.Drive, device::Device, basis::Bases.BasisType)
+function Base.eltype(::Operators.Drive, device::DeviceType, basis::Bases.BasisType)
     return promote_type(
         eltype_algebra(device, basis),
         eltype_driveoperator(device),
     )
 end
 
-function Base.eltype(::Operators.Hamiltonian, device::Device, basis::Bases.BasisType)
+function Base.eltype(::Operators.Hamiltonian, device::DeviceType, basis::Bases.BasisType)
     return promote_type(
         eltype_algebra(device, basis),
         eltype_qubithamiltonian(device),
@@ -739,7 +738,7 @@ For example, to construct the static Hamiltonian of a device in the dressed basi
 
 # Arguments
 - `op::Operators.OperatorType`: which operator to construct (eg. static, drive, etc.).
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the operator will be represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 
@@ -752,13 +751,13 @@ For internal use only.
 The extra positional argument enables dispatch to a cached function when appropriate.
 
 """
-function operator(op::Operators.OperatorType, device::Device; kwargs...)
+function operator(op::Operators.OperatorType, device::DeviceType; kwargs...)
     return operator(op, device, Bases.OCCUPATION; kwargs...)
 end
 
 @memoize Dict function operator(
     op::Operators.StaticOperator,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     ::Symbol,
 )
@@ -770,7 +769,7 @@ end
 
 @memoize Dict function operator(
     op::Operators.Identity,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     ::Symbol,
 )
@@ -779,7 +778,7 @@ end
 
 function operator(
     op::Operators.Identity,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType;
     result=nothing,
 )
@@ -791,7 +790,7 @@ end
 
 function operator(
     op::Operators.Qubit,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType;
     result=nothing,
 )
@@ -802,7 +801,7 @@ end
 
 function operator(
     op::Operators.Coupling,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType;
     result=nothing,
 )
@@ -813,7 +812,7 @@ end
 
 function operator(
     op::Operators.Channel,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType;
     result=nothing,
 )
@@ -823,7 +822,7 @@ end
 
 function operator(
     op::Operators.Gradient,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType;
     result=nothing,
 )
@@ -833,7 +832,7 @@ end
 
 function operator(
     op::Operators.Uncoupled,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType;
     result=nothing,
 )
@@ -847,7 +846,7 @@ end
 
 function operator(
     op::Operators.Static,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType;
     result=nothing,
 )
@@ -860,7 +859,7 @@ end
 
 @memoize Dict function operator(
     op::Operators.Static,
-    device::Device,
+    device::DeviceType,
     basis::Bases.Dressed,
     ::Symbol,
 )
@@ -870,7 +869,7 @@ end
 
 function operator(
     op::Operators.Static,
-    device::Device,
+    device::DeviceType,
     ::Bases.Dressed;
     result=nothing,
 )
@@ -881,7 +880,7 @@ end
 
 function operator(
     op::Operators.Drive,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType;
     result=nothing,
 )
@@ -904,7 +903,7 @@ end
 
 function operator(
     op::Operators.Hamiltonian,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType;
     result=nothing,
 )
@@ -923,7 +922,7 @@ end
 A matrix list `h̄`, where each `h̄[:,:,q]` represents a local qubit hamiltonian.
 
 # Arguments
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the operators will be represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 
@@ -936,12 +935,12 @@ For internal use only.
 The extra positional argument enables dispatch to a cached function when appropriate.
 
 """
-function localqubitoperators(device::Device; kwargs...)
+function localqubitoperators(device::DeviceType; kwargs...)
     return localqubitoperators(device, Bases.OCCUPATION; kwargs...)
 end
 
 function localqubitoperators(
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis;
     result=nothing,
 )
@@ -955,7 +954,7 @@ function localqubitoperators(
 end
 
 @memoize Dict function localqubitoperators(
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     ::Symbol,
 )
@@ -973,7 +972,7 @@ A unitary propagator describing evolution under a Hermitian operator for a small
 
 # Arguments
 - `op::Operators.OperatorType`: which operator to evolve under (eg. static, drive, etc.).
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the operator will be represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `τ::Real`: the amount to move forward in time by.
@@ -989,13 +988,13 @@ For internal use only.
 The extra positional argument enables dispatch to a cached function when appropriate.
 
 """
-function propagator(op::Operators.OperatorType, device::Device, τ::Real; kwargs...)
+function propagator(op::Operators.OperatorType, device::DeviceType, τ::Real; kwargs...)
     return propagator(op, device, Bases.OCCUPATION, τ; kwargs...)
 end
 
 @memoize Dict function propagator(
     op::Operators.StaticOperator,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     τ::Real,
     ::Symbol,
@@ -1008,7 +1007,7 @@ end
 
 @memoize Dict function propagator(
     op::Operators.Identity,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     τ::Real,
     ::Symbol,
@@ -1022,7 +1021,7 @@ end
 
 function propagator(
     op::Operators.OperatorType,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     τ::Real;
     result=nothing,
@@ -1038,7 +1037,7 @@ end
 
 function propagator(
     op::Operators.StaticOperator,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     τ::Real;
     result=nothing,
@@ -1050,7 +1049,7 @@ end
 
 function propagator(
     op::Operators.Identity,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     τ::Real;
     result=nothing,
@@ -1063,7 +1062,7 @@ end
 
 function propagator(
     op::Operators.Uncoupled,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     τ::Real;
     result=nothing,
@@ -1080,7 +1079,7 @@ end
 
 function propagator(
     op::Operators.Qubit,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     τ::Real;
     result=nothing,
@@ -1102,7 +1101,7 @@ end
 A matrix list `ū`, where each `ū[:,:,q]` is a propagator for a local qubit hamiltonian.
 
 # Arguments
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the operator will be represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `τ::Real`: the amount to move forward in time by.
@@ -1116,12 +1115,12 @@ For internal use only.
 The extra positional argument enables dispatch to a cached function when appropriate.
 
 """
-function localqubitpropagators(device::Device, τ::Real; kwargs...)
+function localqubitpropagators(device::DeviceType, τ::Real; kwargs...)
     return localqubitpropagators(device, Bases.OCCUPATION, τ; kwargs...)
 end
 
 function localqubitpropagators(
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     τ::Real;
     result=nothing,
@@ -1136,7 +1135,7 @@ function localqubitpropagators(
 end
 
 @memoize Dict function localqubitpropagators(
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     τ::Real,
     ::Symbol,
@@ -1155,7 +1154,7 @@ Propagate a state `ψ` by a small time `τ` under the Hermitian `op` describing 
 
 # Arguments
 - `op::Operators.OperatorType`: which operator to evolve under (eg. static, drive, etc.).
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the state `ψ` is represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `τ::Real`: the amount to move forward in time by.
@@ -1165,7 +1164,7 @@ Propagate a state `ψ` by a small time `τ` under the Hermitian `op` describing 
 
 """
 function propagate!(
-    op::Operators.OperatorType, device::Device, τ::Real, ψ::Evolvable;
+    op::Operators.OperatorType, device::DeviceType, τ::Real, ψ::Evolvable;
     kwargs...
 )
     return propagate!(op, device, Bases.OCCUPATION, τ, ψ; kwargs...)
@@ -1173,7 +1172,7 @@ end
 
 function propagate!(
     op::Operators.OperatorType,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     τ::Real,
     ψ::Evolvable,
@@ -1186,7 +1185,7 @@ end
 
 function propagate!(
     op::Operators.StaticOperator,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     τ::Real,
     ψ::Evolvable,
@@ -1197,7 +1196,7 @@ end
 
 function propagate!(
     op::Operators.Identity,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     τ::Real,
     ψ::Evolvable,
@@ -1210,7 +1209,7 @@ end
 
 function propagate!(
     op::Operators.Uncoupled,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     τ::Real,
     ψ::Evolvable,
@@ -1226,7 +1225,7 @@ end
 
 function propagate!(
     op::Operators.Qubit,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     τ::Real,
     ψ::Evolvable,
@@ -1261,7 +1260,7 @@ It exists solely to perform rotating-frame rotations at every time-step
 
 # Arguments
 - `op::Operators.OperatorType`: which operator to evolve under (eg. static, drive, etc.).
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the operator will be represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `t::Real`: the amount to move forward in time by.
@@ -1270,13 +1269,13 @@ It exists solely to perform rotating-frame rotations at every time-step
 - `result`: a pre-allocated array of compatible type and shape, used to store the result.
 
 """
-function evolver(op::Operators.OperatorType, device::Device, t::Real; kwargs...)
+function evolver(op::Operators.OperatorType, device::DeviceType, t::Real; kwargs...)
     return evolver(op, device, Bases.OCCUPATION, t; kwargs...)
 end
 
 function evolver(
     op::Operators.OperatorType,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     t::Real;
     result=nothing
@@ -1286,7 +1285,7 @@ end
 
 function evolver(
     op::Operators.StaticOperator,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     t::Real;
     result=nothing
@@ -1299,7 +1298,7 @@ end
 
 function evolver(
     op::Operators.Identity,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     t::Real;
     result=nothing,
@@ -1315,7 +1314,7 @@ end
 
 function evolver(
     op::Operators.Uncoupled,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     t::Real;
     result=nothing
@@ -1330,7 +1329,7 @@ end
 
 function evolver(
     op::Operators.Qubit,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     t::Real;
     result=nothing
@@ -1353,7 +1352,7 @@ This function is identical to `localqubitevolvers`,
     except that the argument `t` is considered an absolute time so it is never cached.
 
 # Arguments
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the operator will be represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `τ::Real`: the amount to move forward in time by.
@@ -1364,12 +1363,12 @@ This function is identical to `localqubitevolvers`,
 - `result`: a pre-allocated array of compatible type and shape, used to store the result.
 
 """
-function localqubitevolvers(device::Device, t::Real; kwargs...)
+function localqubitevolvers(device::DeviceType, t::Real; kwargs...)
     return localqubitevolvers(device, Bases.OCCUPATION, t; kwargs...)
 end
 
 function localqubitevolvers(
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     t::Real;
     result=nothing
@@ -1398,19 +1397,19 @@ Look to the `Evolutions` module for algorithms compatible with time-dependence!
 
 # Arguments
 - `op::Operators.OperatorType`: which operator to evolve under (eg. static, drive, etc.).
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the state `ψ` is represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `t::Real`: the amount to move forward in time by.
 - `ψ`: Either a vector or a matrix, defined over the full Hilbert space of the device.
 
 """
-function evolve!(op::Operators.OperatorType, device::Device, t::Real, ψ::Evolvable)
+function evolve!(op::Operators.OperatorType, device::DeviceType, t::Real, ψ::Evolvable)
     return evolve!(op, device, Bases.OCCUPATION, t, ψ)
 end
 
 function evolve!(op::Operators.OperatorType,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     t::Real,
     ψ::Evolvable,
@@ -1420,7 +1419,7 @@ end
 
 function evolve!(
     op::Operators.StaticOperator,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     t::Real,
     ψ::Evolvable,
@@ -1433,7 +1432,7 @@ end
 
 function evolve!(
     op::Operators.Identity,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     τ::Real,
     ψ::Evolvable,
@@ -1446,7 +1445,7 @@ end
 
 function evolve!(
     op::Operators.Uncoupled,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     t::Real,
     ψ::Evolvable,
@@ -1461,7 +1460,7 @@ end
 
 function evolve!(
     op::Operators.Qubit,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     t::Real,
     ψ::Evolvable,
@@ -1492,19 +1491,19 @@ If ``A`` is the operator specified by `op`, this method calculates ``⟨ψ|A|ψ�
 
 # Arguments
 - `op::Operators.OperatorType`: which operator to estimate (eg. static, drive, etc.).
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the state `ψ` is represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `ψ`: A statevector defined over the full Hilbert space of the device.
 
 """
-function expectation(op::Operators.OperatorType, device::Device, ψ::AbstractVector)
+function expectation(op::Operators.OperatorType, device::DeviceType, ψ::AbstractVector)
     return expectation(op, device, Bases.OCCUPATION, ψ)
 end
 
 function expectation(
     op::Operators.OperatorType,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     ψ::AbstractVector,
 )
@@ -1520,7 +1519,7 @@ If ``A`` is the operator specified by `op`, this method calculates ``⟨ψ1|A|ψ
 
 # Arguments
 - `op::Operators.OperatorType`: which operator to estimate (eg. static, drive, etc.).
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the state `ψ` is represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `ψ1`, `ψ2`: Statevectors defined over the full Hilbert space of the device.
@@ -1528,7 +1527,7 @@ If ``A`` is the operator specified by `op`, this method calculates ``⟨ψ1|A|ψ
 """
 function braket(
     op::Operators.OperatorType,
-    device::Device,
+    device::DeviceType,
     ψ1::AbstractVector,
     ψ2::AbstractVector,
 )
@@ -1536,7 +1535,7 @@ function braket(
 end
 
 function braket(op::Operators.OperatorType,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     ψ1::AbstractVector,
     ψ2::AbstractVector,
@@ -1548,7 +1547,7 @@ function braket(op::Operators.OperatorType,
 end
 
 function braket(op::Operators.StaticOperator,
-    device::Device,
+    device::DeviceType,
     basis::Bases.BasisType,
     ψ1::AbstractVector,
     ψ2::AbstractVector,
@@ -1559,7 +1558,7 @@ end
 
 function braket(
     op::Operators.Uncoupled,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     ψ1::AbstractVector,
     ψ2::AbstractVector,
@@ -1571,7 +1570,7 @@ end
 
 function braket(
     op::Operators.Qubit,
-    device::Device,
+    device::DeviceType,
     basis::Bases.LocalBasis,
     ψ1::AbstractVector,
     ψ2::AbstractVector,
@@ -1603,8 +1602,9 @@ This enables more efficient propagation methods which exploit a tensor product s
 
 # Implementation
 
-Any concrete sub-type `D` must implement *everything* required in the `Device` interface,
-    so consult the documentation for `Device` carefully.
+Any concrete sub-type `D` must implement
+    *everything* required in the `DeviceType` interface,
+    so consult the documentation for `DeviceType` carefully.
 
 In addition, the following methods must be implemented:
 - `drivequbit(::D, i::Int)`: index of the qubit on which channel `i` is applied.
@@ -1615,7 +1615,7 @@ It's usually trivial to infer the channel index i associated with each gradient 
     but this is left as an implementation detail.
 
 """
-abstract type LocallyDrivenDevice <: Devices.Device end
+abstract type LocallyDrivenDevice <: DeviceType end
 
 """
     drivequbit(device, i::Int)
@@ -1645,7 +1645,7 @@ end
 A matrix list `v̄`, where `v̄[:,:,q]` represents a sum of all drives acting on qubit `q`.
 
 # Arguments
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the operators will be represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `t::Real`: the time each drive operator is evaluated at.
@@ -1661,16 +1661,16 @@ function localdriveoperators(
     t::Real;
     result=nothing,
 )
-    F = Devices.eltype(Operators.Drive(t), device, basis)
-    ā = Devices.localalgebra(device, basis)
+    F = eltype(Operators.Drive(t), device, basis)
+    ā = localalgebra(device, basis)
 
-    m = Devices.nlevels(device)
-    n = Devices.nqubits(device)
+    m = nlevels(device)
+    n = nqubits(device)
     isnothing(result) && (result = Array{F,3}(undef, m, m, n))
     result .= 0
     for i in 1:n
         q = drivequbit(device, i)
-        result[:,:,q] .+= Devices.driveoperator(device, ā, i, t)
+        result[:,:,q] .+= driveoperator(device, ā, i, t)
     end
     return result
 end
@@ -1681,7 +1681,7 @@ end
 A matrix list `ū`, where `ū[:,:,q]` is the propagator for a local drive term.
 
 # Arguments
-- `device::Device`: which device is being described.
+- `device::DeviceType`: which device is being described.
 - `basis::Bases.BasisType`: which basis the operators will be represented in.
         Defaults to `Bases.OCCUPATION` when omitted.
 - `τ::Real`: the amount to move forward in time by.
@@ -1701,10 +1701,10 @@ function localdrivepropagators(
     t::Real;
     result=nothing,
 )
-    F = Devices.eltype(Operators.Drive(t), device, basis)
+    F = eltype(Operators.Drive(t), device, basis)
 
-    m = Devices.nlevels(device)
-    n = Devices.nqubits(device)
+    m = nlevels(device)
+    n = nqubits(device)
     isnothing(result) && (result = Array{F,3}(undef, m, m, n))
     result = localdriveoperators(device, basis, t; result=result)
     for q in 1:n
@@ -1720,9 +1720,9 @@ function propagator(
     τ::Real;
     result=nothing,
 )
-    F = LinearAlgebraTools.cis_type(Devices.eltype(op, device, basis))
-    m = Devices.nlevels(device)
-    n = Devices.nqubits(device)
+    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
+    m = nlevels(device)
+    n = nqubits(device)
     ū = array(F, (m,m,n), LABEL)
     ū = localdrivepropagators(device, basis, τ, op.t; result=ū)
     return LinearAlgebraTools.kron(ū; result=result)
@@ -1735,15 +1735,15 @@ function propagator(
     τ::Real;
     result=nothing,
 )
-    F = LinearAlgebraTools.cis_type(Devices.eltype(op, device, basis))
-    ā = Devices.localalgebra(device, basis)
+    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
+    ā = localalgebra(device, basis)
     q = drivequbit(device, op.i)
 
-    m = Devices.nlevels(device)
+    m = nlevels(device)
     u = array(F, (m, m), LABEL)
-    u .= Devices.driveoperator(device, ā, op.i, op.t)
+    u .= driveoperator(device, ā, op.i, op.t)
     u = LinearAlgebraTools.cis!(u, -τ)
-    return Devices.globalize(device, u, q; result=result)
+    return globalize(device, u, q; result=result)
 end
 
 function propagate!(
@@ -1751,11 +1751,11 @@ function propagate!(
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
     τ::Real,
-    ψ::Devices.Evolvable,
+    ψ::Evolvable,
 )
-    F = LinearAlgebraTools.cis_type(Devices.eltype(op, device, basis))
-    m = Devices.nlevels(device)
-    n = Devices.nqubits(device)
+    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
+    m = nlevels(device)
+    n = nqubits(device)
     ū = array(F, (m,m,n), LABEL)
     ū = localdrivepropagators(device, basis, τ, op.t; result=ū)
     return LinearAlgebraTools.rotate!(ū, ψ)
@@ -1766,18 +1766,18 @@ function propagate!(
     device::LocallyDrivenDevice,
     basis::Bases.LocalBasis,
     τ::Real,
-    ψ::Devices.Evolvable,
+    ψ::Evolvable,
 )
-    F = LinearAlgebraTools.cis_type(Devices.eltype(op, device, basis))
-    ā = Devices.localalgebra(device, basis)
+    F = LinearAlgebraTools.cis_type(eltype(op, device, basis))
+    ā = localalgebra(device, basis)
     q = drivequbit(device, op.i)
 
-    m = Devices.nlevels(device)
-    n = Devices.nqubits(device)
+    m = nlevels(device)
+    n = nqubits(device)
     ops = array(F, (m,m,n), LABEL)
     for p in 1:n
         if p == q
-            Devices.driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
+            driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
             LinearAlgebraTools.cis!(@view(ops[:,:,p]), -τ)
         else
             ops[:,:,p] .= Matrix(I, m, m)
@@ -1794,10 +1794,10 @@ function braket(
     ψ2::AbstractVector,
 )
     return sum(
-        Devices.braket(
+        braket(
             Operators.Channel(i, op.t),
             device, basis, ψ1, ψ2
-        ) for i in 1:Devices.ndrives(device)
+        ) for i in 1:ndrives(device)
     )
 end
 
@@ -1808,16 +1808,16 @@ function braket(
     ψ1::AbstractVector,
     ψ2::AbstractVector,
 )
-    F = Devices.eltype(op, device, basis)
-    ā = Devices.localalgebra(device, basis)
+    F = eltype(op, device, basis)
+    ā = localalgebra(device, basis)
     q = drivequbit(device, op.i)
 
-    m = Devices.nlevels(device)
-    n = Devices.nqubits(device)
+    m = nlevels(device)
+    n = nqubits(device)
     ops = array(F, (m,m,n), LABEL)
     for p in 1:n
         if p == q
-            Devices.driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
+            driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
         else
             ops[:,:,p] .= Matrix(I, m, m)
         end
@@ -1832,16 +1832,16 @@ function braket(
     ψ1::AbstractVector,
     ψ2::AbstractVector,
 )
-    F = Devices.eltype(op, device, basis)
-    ā = Devices.localalgebra(device, basis)
+    F = eltype(op, device, basis)
+    ā = localalgebra(device, basis)
     q = gradequbit(device, op.j)
 
-    m = Devices.nlevels(device)
-    n = Devices.nqubits(device)
+    m = nlevels(device)
+    n = nqubits(device)
     ops = array(F, (m,m,n), LABEL)
     for p in 1:n
         if p == q
-            Devices.gradeoperator(device, ā, op.j, op.t; result=@view(ops[:,:,p]))
+            gradeoperator(device, ā, op.j, op.t; result=@view(ops[:,:,p]))
         else
             ops[:,:,p] .= Matrix(I, m, m)
         end

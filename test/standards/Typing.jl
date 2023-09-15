@@ -13,7 +13,7 @@ const τ̄ = fill(τ, r+1); τ̄[[1,end]] ./=2
 const t̄ = range(0.0, t, r+1)
 const ϕ̄ = ones(r+1)
 
-function check_types(device::Devices.Device)
+function check_types(device::Devices.DeviceType)
     @code_warntype Devices.nlevels(device)
     @code_warntype Devices.nqubits(device); q = Devices.nqubits(device)
     @code_warntype Devices.nstates(device); N = Devices.nstates(device)
@@ -164,7 +164,7 @@ function check_types(device::Devices.Device)
 end
 
 function check_types(device::Devices.LocallyDrivenDevice)
-    invoke(check_types, Tuple{Devices.Device}, device)
+    invoke(check_types, Tuple{Devices.DeviceType}, device)
     i = Devices.ndrives(device)
     j = Devices.ngrades(device)
 

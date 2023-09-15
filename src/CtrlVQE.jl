@@ -1,5 +1,23 @@
 module CtrlVQE
 
+#= TODO LIST
+
+- Signals
+  - Rename: AbstractSignal -> SignalType
+  - Signals.value is the go-to way of using signals
+  - Touch up the integrate functions in Signals
+- Evolutions
+  - Match the code layout used for devices, signals, costfunctions.
+  - Major refactor: distinguish basis from workbasis
+  - Consider folding in Lanczos and ODE into the main thing-y.
+  - Standardized tests for each evolution algorithm.
+  - Timing/typing tests
+- Cost Functions
+  - Proper use of basis in energy functions
+  - Timing/typing tests
+
+=#
+
 """
     Parameters
 
@@ -173,12 +191,12 @@ import .GaussianSignals: Gaussian
 In this package,
     the "static" components (ie. qubit frequencies, couplings, etc.)
     and the "drive" components (ie. control signal, variational parameters, etc.)
-    are *all* integrated into a single `Device` object.
+    are *all* integrated into a single `DeviceType` object.
 All you need to know how a quantum state `ψ` evolves up time `T` is in the device.
 
 """
 module Devices; include("devices/Devices.jl"); end
-import .Devices: Device, LocallyDrivenDevice
+import .Devices: DeviceType, LocallyDrivenDevice
 import .Devices: nqubits, nstates, nlevels, ndrives, ngrades, gradient
 import .Devices: operator, propagator, propagate!, expectation, braket
 import .Devices: drivequbit, gradequbit

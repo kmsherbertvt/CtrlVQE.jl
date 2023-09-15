@@ -13,7 +13,7 @@ const τ̄ = fill(τ, r+1); τ̄[[1,end]] ./=2
 const t̄ = range(0.0, t, r+1)
 const ϕ̄ = ones(r+1)
 
-function check_times(device::Devices.Device)
+function check_times(device::Devices.DeviceType)
     @time l = Devices.nlevels(device)
     @time q = Devices.nqubits(device)
     @time N = Devices.nstates(device)
@@ -147,7 +147,7 @@ function check_times(device::Devices.Device)
 end
 
 function check_times(device::Devices.LocallyDrivenDevice)
-    invoke(check_times, Tuple{Devices.Device}, device)
+    invoke(check_times, Tuple{Devices.DeviceType}, device)
     i = Devices.ndrives(device)
     j = Devices.ngrades(device)
 

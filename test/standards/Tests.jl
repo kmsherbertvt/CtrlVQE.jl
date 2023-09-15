@@ -17,7 +17,7 @@ const τ̄ = fill(τ, r+1); τ̄[[1,end]] ./=2
 const t̄ = range(0.0, t, r+1)
 const ϕ̄ = ones(r+1)
 
-function validate(device::Devices.Device)
+function validate(device::Devices.DeviceType)
     m = Devices.nlevels(device)
     n = Devices.nqubits(device)
     N = Devices.nstates(device)
@@ -191,7 +191,7 @@ function validate(device::Devices.Device)
 end
 
 function validate(device::Devices.LocallyDrivenDevice)
-    super = invoke(validate, Tuple{Devices.Device}, device)
+    super = invoke(validate, Tuple{Devices.DeviceType}, device)
     !super && return false
 
     m = Devices.nlevels(device)
