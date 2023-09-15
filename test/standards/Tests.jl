@@ -248,13 +248,15 @@ function validate(signal::Signals.SignalType{P,R}) where {P,R}
 
     # TEST FUNCTION CONSISTENCY
 
-    ft = signal(t)
+    ft = Signals.valueat(signal, t)
     @test eltype(ft) == R
 
-    ft̄ = signal(t̄)
+    @test ft ≈ signal(t)
+
+    ft̄ = Signals.valueat(signal, t̄)
     @test eltype(ft̄) == R
-    @test ft̄ ≈ [signal(t_) for t_ in t̄]
-    ft̄_ = zero(ft̄); signal(t̄; result=ft̄_)
+    @test ft̄ ≈ [Signals.valueat(signal, t_) for t_ in t̄]
+    ft̄_ = zero(ft̄); Signals.valueat(signal, t̄; result=ft̄_)
     @test ft̄ ≈ ft̄_
 
     # TEST GRADIENT CONSISTENCY
@@ -277,7 +279,7 @@ function validate(signal::Signals.SignalType{P,R}) where {P,R}
 
     function fℜ(x)
         Parameters.bind(signal, x)
-        fx = real(signal(t))
+        fx = real(Signals.valueat(signal, t))
         Parameters.bind(signal, x̄)  # RESTORE ORIGINAL VALUES
         return fx
     end
@@ -286,7 +288,7 @@ function validate(signal::Signals.SignalType{P,R}) where {P,R}
     if R <: Complex
         function fℑ(x)
             Parameters.bind(signal, x)
-            fx = imag(signal(t))
+            fx = imag(Signals.valueat(signal, t))
             Parameters.bind(signal, x̄)  # RESTORE ORIGINAL VALUES
             return fx
         end

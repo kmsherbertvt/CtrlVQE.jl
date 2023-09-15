@@ -3,7 +3,6 @@ module CtrlVQE
 #= TODO LIST
 
 - Signals
-  - Signals.value is the go-to way of using signals
   - Touch up the integrate functions in Signals
 - Evolutions
   - Match the code layout used for devices, signals, costfunctions.

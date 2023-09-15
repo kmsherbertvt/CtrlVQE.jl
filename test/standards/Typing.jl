@@ -206,9 +206,10 @@ function check_types(signal::Signals.SignalType{P,R}) where {P,R}
 
     # TEST FUNCTION CONSISTENCY
 
+    @code_warntype Signals.valueat(signal, t)
     @code_warntype signal(t)
-    @code_warntype signal(t̄); ft̄ = signal(t̄)
-    @code_warntype signal(t̄; result=ft̄)
+    @code_warntype Signals.valueat(signal, t̄); ft̄ = Signals.valueat(signal, t̄)
+    @code_warntype Signals.valueat(signal, t̄; result=ft̄)
 
     # TEST GRADIENT CONSISTENCY
 

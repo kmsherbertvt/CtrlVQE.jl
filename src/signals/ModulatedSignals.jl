@@ -64,8 +64,8 @@ end
 
 #= `Signals` INTERFACE =#
 
-function (signal::ModulatedSignal{P,R})(t::Real) where {P,R}
-    return prod(component(t)::R for component in signal.components)
+function Signals.valueat(signal::ModulatedSignal{P,R}, t::Real) where {P,R}
+    return prod(Signals.valueat(component, t)::R for component in signal.components)
 end
 
 function Signals.partial(i::Int, signal::ModulatedSignal{P,R}, t::Real) where {P,R}
@@ -75,7 +75,7 @@ function Signals.partial(i::Int, signal::ModulatedSignal{P,R}, t::Real) where {P
         if 1 <= i <= L
             ∂f *= Signals.partial(i, component, t)::R
         else
-            ∂f *= component(t)::R
+            ∂f *= Signals.valueat(component, t)::R
         end
         i -= L
     end

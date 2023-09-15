@@ -14,7 +14,7 @@ mutable struct StepFunction{F} <: ParametricSignal{F,F}
     s::F    # TIME COORDINATE OF STEP
 end
 
-function (signal::StepFunction{F})(t::Real) where {F}
+function Signals.valueat(signal::StepFunction{F}, t::Real) where {F}
     return (t < signal.s ?  zero(F)
         :   t > signal.s ?  signal.A
         :                   signal.A / 2)

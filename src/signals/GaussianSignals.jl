@@ -15,7 +15,7 @@ mutable struct Gaussian{F} <: ParametricSignal{F,F}
     s::F    # CENTRAL TIME
 end
 
-function (signal::Gaussian{F})(t::Real) where {F}
+function Signals.valueat(signal::Gaussian{F}, t::Real) where {F}
     A = signal.A; σ = signal.σ; s = signal.s
     χ = (t - s) / σ
     return A * exp( -χ^2 / 2 )

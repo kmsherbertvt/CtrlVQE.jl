@@ -24,7 +24,7 @@ Any concrete sub-type `S` must implement all functions in the `Parameters` modul
 
 In addition, the following methods must be implemented:
 
-- `(Ω::S)(t::Real)`:
+- `valueat(Ω::S, t::Real)`:
         the actual function ``Ω(t)``. Must return a number of type `R`.
 
 - `partial(i::Int, Ω::S, t::Real)`:
@@ -41,49 +41,45 @@ In addition, the following methods must be implemented:
 """
 abstract type SignalType{P<:AbstractFloat,R<:Number} end
 
+
 """
     (signal::SignalType{P,R})(t::Real)
 
 The signal at time `t`, ie. ``Ω(t)``. Returns a number of type `R`.
-
 """
-function (signal::SignalType{P,R})(t::Real)::Number where {P,R}
+function valueat(signal::SignalType{P,R}, t::Real) where {P,R}
     error("Not Implemented")
     return zero(R)
 end
 
 """
-    (signal::SignalType{P,R})(t̄::AbstractVector{<:Real}; result=nothing)
+    valueat(signal::SignalType{P,R}, t̄::AbstractVector{<:Real}; result=nothing)
 
 Vectorized version. Returns a vector of type `R`.
 
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
-function (signal::SignalType{P,R})(
+function valueat(
+    signal::SignalType{P,R},
     t̄::AbstractVector{<:Real};
     result=nothing,
 ) where {P,R}
-    isnothing(result) && return signal(t̄; result=Vector{R}(undef, size(t̄)))
-    result .= signal.(t̄)
+    isnothing(result) && return valueat(signal, t̄; result=Vector{R}(undef, size(t̄)))
+    for (i, t) in enumerate(t̄)
+        result[i] = valueat(signal, t)
+    end
     return result
 end
 
 
+"""
+    (signal::SignalType{P,R})(t::Real)
+
+Syntactic sugar: if Ω is a `SignalType`, then `Ω(t)` gives `valueat(Ω,t)`.
 
 """
-    TODO (hi): Let this be the method which new signals overwrite.
-        (ie. don't require users to be fluent in callable objects)
-    This method is the one which has the vectorized version.
-
-    Ω(t) method is implemented as a convenience, once, here.
-    Ω(t̄) doesn't need implementing if we don't strongly type the Ω(t) syntax.
-"""
-function valueat(signal::SignalType, t)
-    return signal(t)
-end
-
-
+(signal::SignalType)(t) = valueat(signal, t)
 
 
 """
@@ -232,7 +228,7 @@ function integrate_signal(
     integrand = array(P, size(t̄), (LABEL, :integrand))
 
     # CALCULATE GRADIENT FOR SIGNAL PARAMETERS
-    Ω̄ = signal(t̄; result=Ω̄)
+    Ω̄ = valueat(signal, t̄; result=Ω̄)
     integrand .= τ̄ .* real.(Ω̄ .* ϕ̄)
 
     return sum(integrand)

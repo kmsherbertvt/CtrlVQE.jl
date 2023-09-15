@@ -64,10 +64,10 @@ end
 
 #= `Signals` INTERFACE =#
 
-function (signal::CompositeSignal{P,R})(t::Real) where {P,R}
+function Signals.valueat(signal::CompositeSignal{P,R}, t::Real) where {P,R}
     total = zero(R)
     for component in signal.components
-        total += component(t)::R
+        total += Signals.valueat(component, t)::R
     end
     return total
 end

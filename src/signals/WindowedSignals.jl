@@ -110,9 +110,9 @@ end
 
 #= `Signals` INTERFACE =#
 
-function (signal::WindowedSignal{P,R})(t::Real) where {P,R}
+function Signals.valueat(signal::WindowedSignal{P,R}, t::Real) where {P,R}
     k = get_window_from_time(signal,t)
-    return signal.windows[k](t)::R
+    return Signals.valueat(signal.windows[k], t)::R
 end
 
 function Signals.partial(i::Int, signal::WindowedSignal{P,R}, t::Real) where {P,R}
@@ -143,17 +143,21 @@ More efficient implementations of functions over a full timegrid.
 
 =#
 
-function (signal::WindowedSignal{P,R})(
+function Signals.valueat(
+    signal::WindowedSignal{P,R},
     t̄::AbstractVector{<:Real};
     result=nothing,
 ) where {P,R}
-    isnothing(result) && return signal(t̄; result=Vector{R}(undef, size(t̄)))
+    if isnothing(result)
+        return Signals.valueat(signal, t̄; result=Vector{R}(undef, size(t̄)))
+    end
+
     k = 0
     for (i, t) in enumerate(t̄)
         while k < length(signal.windows) && t ≥ signal.starttimes[k+1]
             k += 1
         end
-        result[i] = signal.windows[k](t)::R
+        result[i] = Signals.valueat(signal.windows[k], t)::R
     end
     return result
 end

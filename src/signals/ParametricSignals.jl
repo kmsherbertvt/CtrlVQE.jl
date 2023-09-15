@@ -26,10 +26,10 @@ But before you do that,
 
 The following methods must be implemented:
 
-- `(Ω::S)(t::Real)`:
+- `Signals.valueat(Ω::S, t::Real)`:
         the actual function ``Ω(t)``. Must return a number of type `R`.
 
-- `partial(i::Int, Ω::S, t::Real)`:
+- `Signals.partial(i::Int, Ω::S, t::Real)`:
         the partial derivative ``∂Ω/∂x_i`` evaluated at time `t`,
         where ``x_i`` is Ω's i-th variational parameter (ie. `Parameters.names(Ω)[i]`).
         Must return a number of type `R`.
@@ -44,7 +44,7 @@ The following methods must be implemented:
 abstract type ParametricSignal{P,R} <: Signals.SignalType{P,R} end
 
 #= TO BE IMPLEMENTED BY SUB-CLASSES:
-    (::S)(t::Real)::R
+    Signals.valueat(::S, t::Real)::R
     Signals.partial(i::Int, ::S, t::Real)::R
     Base.string(::S, ::AbstractVector{String})::String
 =#
@@ -145,7 +145,10 @@ function Parameters.values(signal::ConstrainedSignal)
     return Parameters.values(signal.constrained)[collect(signal._map)]
 end
 
-function Parameters.bind(signal::ConstrainedSignal{P,R,S}, x̄::AbstractVector{P}) where {P,R,S}
+function Parameters.bind(
+    signal::ConstrainedSignal{P,R,S},
+    x̄::AbstractVector{P}
+) where {P,R,S}
     fields = parameters(signal.constrained)
     for i in eachindex(x̄)
         setfield!(signal.constrained, fields[signal._map[i]], x̄[i])
@@ -154,7 +157,10 @@ end
 
 #= `Signals` INTERFACE =#
 
-(signal::ConstrainedSignal)(t::Real) = signal.constrained(t)
+function Signals.valueat(signal::ConstrainedSignal, t::Real)
+    return Signals.valueat(signal.constrained, t)
+end
+
 function Signals.partial(i::Int, signal::ConstrainedSignal, t::Real)
     return Signals.partial(signal._map[i], signal.constrained, t)
 end

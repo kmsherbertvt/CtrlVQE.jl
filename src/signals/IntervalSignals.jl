@@ -15,7 +15,7 @@ mutable struct Interval{F} <: ParametricSignal{F,F}
     s2::F
 end
 
-function (signal::Interval{F})(t::Real) where {F}
+function Signals.valueat(signal::Interval{F}, t::Real) where {F}
     return signal.s1 ≤ t < signal.s2 ? signal.A : zero(F)
 end
 
@@ -51,7 +51,7 @@ mutable struct ComplexInterval{F} <: ParametricSignal{F,Complex{F}}
     s2::F
 end
 
-function (signal::ComplexInterval{F})(t::Real) where {F}
+function Signals.valueat(signal::ComplexInterval{F}, t::Real) where {F}
     return signal.s1 ≤ t < signal.s2 ? Complex(signal.A, signal.B) : zero(Complex{F})
 end
 

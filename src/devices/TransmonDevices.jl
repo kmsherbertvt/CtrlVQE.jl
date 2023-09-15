@@ -134,7 +134,7 @@ function Devices.driveoperator(
 )
     a = @view(ā[:,:,Devices.drivequbit(device, i)])
     e = exp(im * drivefrequency(device, i) * t)
-    Ω = drivesignal(device, i)(t)
+    Ω = Signals.valueat(drivesignal(device, i), t)
 
     if result === nothing
         F = promote_type(eltype(a), eltype(e))  # Ω is no more complex than e.

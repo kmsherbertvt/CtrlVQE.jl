@@ -181,9 +181,10 @@ function check_times(signal::Signals.SignalType{P,R}) where {P,R}
     @time Parameters.bind(signal, x̄)
 
     println("Functions")
+    @time Signals.valueat(signal, t)
     @time signal(t)
-    @time ft̄ = signal(t̄)
-    @time signal(t̄; result=ft̄)
+    @time ft̄ = Signals.valueat(signal, t̄)
+    @time Signals.valueat(signal, t̄; result=ft̄)
 
     println("Partials")
     @time Signals.partial(L, signal, t)
