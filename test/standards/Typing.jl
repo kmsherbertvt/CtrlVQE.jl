@@ -195,7 +195,7 @@ end
 
 
 
-function check_types(signal::Signals.AbstractSignal{P,R}) where {P,R}
+function check_types(signal::Signals.SignalType{P,R}) where {P,R}
 
     # TEST PARAMETERS
 

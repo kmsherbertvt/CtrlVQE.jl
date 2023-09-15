@@ -1,32 +1,32 @@
 import ..Parameters, ..Signals
 export CompositeSignal
 
-import ..Signals: AbstractSignal
+import ..Signals: SignalType
 
 """
-    CompositeSignal(components::AbstractVector{<:AbstractSignal{P,R}})
+    CompositeSignal(components::AbstractVector{<:SignalType{P,R}})
 
 A signal which is the sum of each sub-signal in `components`.
 
 Note that each component must share the same type parameters `P` and `R`.
 
 """
-struct CompositeSignal{P,R} <: AbstractSignal{P,R}
-    components::Vector{AbstractSignal{P,R}}
+struct CompositeSignal{P,R} <: SignalType{P,R}
+    components::Vector{SignalType{P,R}}
 
-    function CompositeSignal(components::AbstractVector{<:AbstractSignal{P,R}}) where {P,R}
-        return new{P,R}(convert(Vector{AbstractSignal{P,R}}, components))
+    function CompositeSignal(components::AbstractVector{<:SignalType{P,R}}) where {P,R}
+        return new{P,R}(convert(Vector{SignalType{P,R}}, components))
     end
 end
 
 """
-    CompositeSignal(components::AbstractSignal...)
+    CompositeSignal(components::SignalType...)
 
 Alternate constructor, letting each component be passed as its own argument.
 
 """
-function CompositeSignal(components::AbstractSignal{P,R}...) where {P,R}
-    return CompositeSignal(AbstractSignal{P,R}[component for component in components])
+function CompositeSignal(components::SignalType{P,R}...) where {P,R}
+    return CompositeSignal(SignalType{P,R}[component for component in components])
 end
 
 #= `Parameters` INTERFACE =#

@@ -233,7 +233,7 @@ end
 
 
 
-function validate(signal::Signals.AbstractSignal{P,R}) where {P,R}
+function validate(signal::Signals.SignalType{P,R}) where {P,R}
 
     # TEST PARAMETERS
 

@@ -1,32 +1,32 @@
 import ..Parameters, ..Signals
 export ModulatedSignal
 
-import ..Signals: AbstractSignal
+import ..Signals: SignalType
 
 """
-    ModulatedSignal(components::AbstractVector{<:AbstractSignal{P,R}})
+    ModulatedSignal(components::AbstractVector{<:SignalType{P,R}})
 
 A signal which is the product of each sub-signal in `components`.
 
 Note that each component must share the same type parameters `P` and `R`.
 
 """
-struct ModulatedSignal{P,R} <: AbstractSignal{P,R}
-    components::Vector{AbstractSignal{P,R}}
+struct ModulatedSignal{P,R} <: SignalType{P,R}
+    components::Vector{SignalType{P,R}}
 
-    function ModulatedSignal(components::AbstractVector{<:AbstractSignal{P,R}}) where {P,R}
-        return new{P,R}(convert(Vector{AbstractSignal{P,R}}, components))
+    function ModulatedSignal(components::AbstractVector{<:SignalType{P,R}}) where {P,R}
+        return new{P,R}(convert(Vector{SignalType{P,R}}, components))
     end
 end
 
 """
-    ModulatedSignal(components::AbstractSignal...)
+    ModulatedSignal(components::SignalType...)
 
 Alternate constructor, letting each component be passed as its own argument.
 
 """
-function ModulatedSignal(components::AbstractSignal{P,R}...) where {P,R}
-    return ModulatedSignal(AbstractSignal{P,R}[component for component in components])
+function ModulatedSignal(components::SignalType{P,R}...) where {P,R}
+    return ModulatedSignal(SignalType{P,R}[component for component in components])
 end
 
 #= `Parameters` INTERFACE =#

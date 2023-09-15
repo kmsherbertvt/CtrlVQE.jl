@@ -3,7 +3,6 @@ module CtrlVQE
 #= TODO LIST
 
 - Signals
-  - Rename: AbstractSignal -> SignalType
   - Signals.value is the go-to way of using signals
   - Touch up the integrate functions in Signals
 - Evolutions
@@ -152,7 +151,7 @@ The main motivation of this module
 
 """
 module Signals; include("signals/Signals.jl"); end
-import .Signals: AbstractSignal
+import .Signals: SignalType
 import .Signals: valueat, partial, integrate_signal, integrate_partials
 
 module ParametricSignals; include("signals/ParametricSignals.jl"); end
@@ -305,7 +304,7 @@ The actual values of each constant are meant to roughly approximate a typical IB
 # Arguments
 - `TransmonDeviceType`: the type of the device to be constructed
 - `n::Int`: the number of qubits in the device
-- `pulses`: a vector of control signals (`Signals.AbstractSignal`), or one to be copied
+- `pulses`: a vector of control signals (`Signals.SignalType`), or one to be copied
 
 # Keyword Arguments
 - `m::Int`: the number of transmon levels to include in simulations (defaults to 2)
@@ -320,7 +319,7 @@ function Systematic(
     F=Float64,
 )
     # INTERPRET SCALAR `pulses` AS A TEMPLATE TO BE COPIED
-    Ω̄ = (pulses isa Signals.AbstractSignal) ? [deepcopy(pulses) for _ in 1:n] : pulses
+    Ω̄ = (pulses isa Signals.SignalType) ? [deepcopy(pulses) for _ in 1:n] : pulses
 
     # DEFINE STANDARDIZED PARAMETERS
     ω0 = F(2π * 4.80)
@@ -339,14 +338,14 @@ function Systematic(
 end
 
 """
-    FullyTrotterized(signal::Signals.AbstractSignal, T::Real, r::Int)
+    FullyTrotterized(signal::Signals.SignalType, T::Real, r::Int)
 
 Break a signal up so that each time-step is parameterized separately.
 
 Usually you'll want to use this with constant signals.
 
 """
-function FullyTrotterized(signal::Signals.AbstractSignal, T::Real, r::Int)
+function FullyTrotterized(signal::Signals.SignalType, T::Real, r::Int)
     τ, _, t̄ = Evolutions.trapezoidaltimegrid(T,r)
     starttimes = t̄ .- (τ/2)
     return WindowedSignal(
@@ -356,14 +355,14 @@ function FullyTrotterized(signal::Signals.AbstractSignal, T::Real, r::Int)
 end
 
 """
-    UniformWindowed(signal::Signals.AbstractSignal, T::Real, W::Int)
+    UniformWindowed(signal::Signals.SignalType, T::Real, W::Int)
 
 Break a signal up into equal-sized windows.
 
 Usually you'll want to use this with constant signals.
 
 """
-function UniformWindowed(signal::Signals.AbstractSignal, T::Real, W::Int)
+function UniformWindowed(signal::Signals.SignalType, T::Real, W::Int)
     starttimes = range(zero(T), T, W+1)[1:end-1]
     return WindowedSignal(
         [deepcopy(signal) for t in starttimes],

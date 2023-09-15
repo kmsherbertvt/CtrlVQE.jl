@@ -1,13 +1,12 @@
 import ..Parameters
-export AbstractSignal
+export SignalType
 export valueat, partial, integrate_signal, integrate_partials
 
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
-#= TODO: Change `AbstractSignal` to `SignalType`. =#
 """
-    AbstractSignal{P,R}
+    SignalType{P,R}
 
 Super-type for all signal objects ``Ω(t)``.
 
@@ -40,28 +39,28 @@ In addition, the following methods must be implemented:
         where `A` and `B` are the "names" given by the `names` argument.
 
 """
-abstract type AbstractSignal{P<:AbstractFloat,R<:Number} end
+abstract type SignalType{P<:AbstractFloat,R<:Number} end
 
 """
-    (signal::AbstractSignal{P,R})(t::Real)
+    (signal::SignalType{P,R})(t::Real)
 
 The signal at time `t`, ie. ``Ω(t)``. Returns a number of type `R`.
 
 """
-function (signal::AbstractSignal{P,R})(t::Real)::Number where {P,R}
+function (signal::SignalType{P,R})(t::Real)::Number where {P,R}
     error("Not Implemented")
     return zero(R)
 end
 
 """
-    (signal::AbstractSignal{P,R})(t̄::AbstractVector{<:Real}; result=nothing)
+    (signal::SignalType{P,R})(t̄::AbstractVector{<:Real}; result=nothing)
 
 Vectorized version. Returns a vector of type `R`.
 
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
-function (signal::AbstractSignal{P,R})(
+function (signal::SignalType{P,R})(
     t̄::AbstractVector{<:Real};
     result=nothing,
 ) where {P,R}
@@ -80,7 +79,7 @@ end
     Ω(t) method is implemented as a convenience, once, here.
     Ω(t̄) doesn't need implementing if we don't strongly type the Ω(t) syntax.
 """
-function valueat(signal::AbstractSignal, t)
+function valueat(signal::SignalType, t)
     return signal(t)
 end
 
@@ -88,7 +87,7 @@ end
 
 
 """
-    partial(i::Int, signal::AbstractSignal{P,R}, t::Real)
+    partial(i::Int, signal::SignalType{P,R}, t::Real)
 
 The partial derivative ``∂Ω/∂x_i|_t``. Returns a number of type `R`.
 
@@ -96,14 +95,14 @@ Here ``x_i`` is the signal's i-th variational parameter
     (ie. `Parameters.names(signal)[i]`).
 
 """
-function partial(i::Int, signal::AbstractSignal{P,R}, t::Real) where {P,R}
+function partial(i::Int, signal::SignalType{P,R}, t::Real) where {P,R}
     error("Not Implemented")
     return zero(R)
 end
 
 """
     partial(
-        i::Int, signal::AbstractSignal{P,R}, t̄::AbstractVector{<:Real};
+        i::Int, signal::SignalType{P,R}, t̄::AbstractVector{<:Real};
         result=nothing,
     )
 
@@ -114,7 +113,7 @@ Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 """
 function partial(
     i::Int,
-    signal::AbstractSignal{P,R},
+    signal::SignalType{P,R},
     t̄::AbstractVector{<:Real};
     result=nothing,
 ) where {P,R}
@@ -125,22 +124,22 @@ end
 
 
 """
-    Base.string(Ω::AbstractSignal)
+    Base.string(Ω::SignalType)
 
 A human-readable description of the signal. Returns type `string`.
 
 """
-function Base.string(signal::AbstractSignal)
+function Base.string(signal::SignalType)
     return string(signal, Parameters.names(signal))
 end
 
 """
-    Base.string(Ω::AbstractSignal, names::AbstractVector{String})
+    Base.string(Ω::SignalType, names::AbstractVector{String})
 
 Substitutes the default name of each variational parameter for the ones in `names`.
 
 """
-function Base.string(Ω::AbstractSignal, names::AbstractVector{String})
+function Base.string(Ω::SignalType, names::AbstractVector{String})
     error("Not Implemented")
     return ""
 end
@@ -148,7 +147,7 @@ end
 
 
 """
-    integrate_partials(signal::AbstractSignal{P,R}, τ̄, t̄, ϕ̄; result=nothing)
+    integrate_partials(signal::SignalType{P,R}, τ̄, t̄, ϕ̄; result=nothing)
 
 Integrates each partial derivative ``∂Ω/∂x_i|_t``, modulated by a function ``ϕ(t)``.
 
@@ -171,7 +170,7 @@ Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
 function integrate_partials(
-    signal::AbstractSignal{P,R},
+    signal::SignalType{P,R},
     τ̄::AbstractVector,
     t̄::AbstractVector,
     ϕ̄::AbstractVector;
@@ -201,7 +200,7 @@ function integrate_partials(
 end
 
 """
-    integrate_signal(signal::AbstractSignal{P,R}, τ̄, t̄, ϕ̄; result=nothing)
+    integrate_signal(signal::SignalType{P,R}, τ̄, t̄, ϕ̄; result=nothing)
 
 Integrates a signal ``Ω(t)``, modulated by a function ``ϕ(t)``.
 
@@ -221,7 +220,7 @@ This turns out to be the relevant quantity in transmon frequency gradient calcul
 
 """
 function integrate_signal(
-    signal::AbstractSignal{P,R},
+    signal::SignalType{P,R},
     τ̄::AbstractVector,
     t̄::AbstractVector,
     ϕ̄::AbstractVector,

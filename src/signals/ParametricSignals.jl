@@ -41,7 +41,7 @@ The following methods must be implemented:
         where `A` and `B` are the "names" given by the `names` argument.
 
 """
-abstract type ParametricSignal{P,R} <: Signals.AbstractSignal{P,R} end
+abstract type ParametricSignal{P,R} <: Signals.SignalType{P,R} end
 
 #= TO BE IMPLEMENTED BY SUB-CLASSES:
     (::S)(t::Real)::R
@@ -106,7 +106,7 @@ In other words, they do not appear in `Parameters.names` or `Parameters.values`,
     and they are not mutated by `Parameters.bind`.
 
 """
-struct ConstrainedSignal{P,R,S<:ParametricSignal{P,R}} <: Signals.AbstractSignal{P,R}
+struct ConstrainedSignal{P,R,S<:ParametricSignal{P,R}} <: Signals.SignalType{P,R}
     constrained::S
     constraints::Vector{Symbol}
     _map::Vector{Int}

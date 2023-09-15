@@ -172,7 +172,7 @@ end
 
 
 
-function check_times(signal::Signals.AbstractSignal{P,R}) where {P,R}
+function check_times(signal::Signals.SignalType{P,R}) where {P,R}
 
     println("Parameters Interface")
     @time L = Parameters.count(signal)

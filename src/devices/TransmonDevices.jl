@@ -4,7 +4,7 @@ export TransmonDevice, FixedFrequencyTransmonDevice
 import ..LinearAlgebraTools
 import ..Signals
 
-import ..Signals: AbstractSignal
+import ..Signals: SignalType
 import ..LinearAlgebraTools: MatrixList
 import ..Quples: Quple
 
@@ -45,7 +45,7 @@ couplingstrength(::AbstractTransmonDevice, k::Int)::Real = error("Not Implemente
 # Devices.ndrives
 # Devices.drivequbit
 drivefrequency(::AbstractTransmonDevice, i::Int)::Real = error("Not Implemented")
-drivesignal(::AbstractTransmonDevice, i::Int)::AbstractSignal = error("Not Implemented")
+drivesignal(::AbstractTransmonDevice, i::Int)::SignalType = error("Not Implemented")
 
 bindfrequencies(::AbstractTransmonDevice, ν̄::AbstractVector) = error("Not Implemented")
 
@@ -344,7 +344,7 @@ struct TransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
     # DRIVE LISTS
     q̄::Vector{Int}
     ν̄::Vector{F}
-    Ω̄::Vector{AbstractSignal{F,FΩ}}
+    Ω̄::Vector{SignalType{F,FΩ}}
     # OTHER PARAMETERS
     m::Int
 
@@ -355,7 +355,7 @@ struct TransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
         quples::AbstractVector{Quple},
         q̄::AbstractVector{Int},
         ν̄::AbstractVector{<:AbstractFloat},
-        Ω̄::AbstractVector{<:AbstractSignal{F,FΩ}},
+        Ω̄::AbstractVector{<:SignalType{F,FΩ}},
         m::Int,
     ) where {F,FΩ}
         # VALIDATE PARALLEL LISTS ARE CONSISTENT SIZE
@@ -447,7 +447,7 @@ struct FixedFrequencyTransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
     # DRIVE LISTS
     q̄::Vector{Int}
     ν̄::Vector{F}
-    Ω̄::Vector{AbstractSignal{F,FΩ}}
+    Ω̄::Vector{SignalType{F,FΩ}}
     # OTHER PARAMETERS
     m::Int
 
@@ -458,7 +458,7 @@ struct FixedFrequencyTransmonDevice{F,FΩ} <: AbstractTransmonDevice{F,FΩ}
         quples::AbstractVector{Quple},
         q̄::AbstractVector{Int},
         ν̄::AbstractVector{<:AbstractFloat},
-        Ω̄::AbstractVector{<:AbstractSignal{F,FΩ}},
+        Ω̄::AbstractVector{<:SignalType{F,FΩ}},
         m::Int,
     ) where {F,FΩ}
         # VALIDATE PARALLEL LISTS ARE CONSISTENT SIZE

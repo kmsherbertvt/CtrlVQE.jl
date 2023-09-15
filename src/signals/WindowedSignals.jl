@@ -1,7 +1,7 @@
 import ..Parameters, ..Signals
 export WindowedSignal
 
-import ..Signals: AbstractSignal
+import ..Signals: SignalType
 
 
 """
@@ -22,14 +22,14 @@ Normally, `starttimes[1] == 0`.
 Note that each window must share the same type parameters `P` and `R`.
 
 """
-struct WindowedSignal{P,R} <: AbstractSignal{P,R}
-    windows::Vector{AbstractSignal{P,R}}
+struct WindowedSignal{P,R} <: SignalType{P,R}
+    windows::Vector{SignalType{P,R}}
     starttimes::Vector{P}
 
     offsets::Vector{Int}        # CONTAINS A CUMULATIVE SUM OF PARAMETER COUNTS
 
     function WindowedSignal(
-        windows::AbstractVector{<:AbstractSignal{P,R}},
+        windows::AbstractVector{<:SignalType{P,R}},
         starttimes::AbstractVector{<:Real},
     ) where {P,R}
         # CHECK THAT NUMBER OF WINDOWS AND STARTTIMES ARE COMPATIBLE
@@ -38,7 +38,7 @@ struct WindowedSignal{P,R} <: AbstractSignal{P,R}
         end
 
         # CONVERT windows TO VECTOR OF ABSTRACT TYPE
-        windows = convert(Vector{AbstractSignal{P,R}}, windows)
+        windows = convert(Vector{SignalType{P,R}}, windows)
 
         # ENSURE THAT starttimes ARE SORTED, AND MAKE TYPE CONSISTENT WITH WINDOWS
         starttimes = convert(Vector{P}, sort(starttimes))
