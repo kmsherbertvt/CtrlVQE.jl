@@ -1,12 +1,25 @@
 #= Systematic and comprehensive accuracy/consistency unit tests. =#
 using Test
 
-import CtrlVQE: Parameters, Signals, Devices, CostFunctions
-import CtrlVQE: StaticOperator, IDENTITY, COUPLING, STATIC
-import CtrlVQE: Qubit, Channel, Drive, Hamiltonian, Gradient
+#= TODO (lo): When Julia fixes url packages, use standard import,
+                and don't make accuracy optional. =#
+# import AnalyticPulses.OneQubitSquarePulses: evolve_transmon
+import ..loadedanalyticpulses, ..evolve_transmon
+
+import CtrlVQE: Parameters, LinearAlgebraTools
+import CtrlVQE: Signals, Devices, Evolutions, CostFunctions
+
+import CtrlVQE: TransmonDevices
+import CtrlVQE: ConstantSignals
+
+import CtrlVQE.Bases: OCCUPATION, DRESSED
+import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
+import CtrlVQE.Operators: Qubit, Channel, Drive, Hamiltonian, Gradient
+
+import CtrlVQE
 
 using Random: seed!
-using LinearAlgebra: I
+using LinearAlgebra: I, norm, Hermitian, eigen, Diagonal, diag
 using FiniteDifferences: grad, central_fdm
 
 const t = 1.0
@@ -98,30 +111,23 @@ function validate(device::Devices.DeviceType)
         @test aG ≈ aG_
     end
 
-    #=
-    TODO (lo): Some meaningful consistency check on the dressed basis.
-        I'm not sure how much I *care* about the dressed basis, though...
-
-    @time Devices.diagonalize(CtrlVQE.DRESSED, device)
-    @time Devices.diagonalize(CtrlVQE.OCCUPATION, device)
-    @time Devices.diagonalize(CtrlVQE.OCCUPATION, device, q)
-
-    @time Devices.basisrotation(CtrlVQE.DRESSED, CtrlVQE.OCCUPATION, device)
-    @time Devices.basisrotation(CtrlVQE.OCCUPATION, CtrlVQE.OCCUPATION, device)
-    @time Devices.basisrotation(CtrlVQE.OCCUPATION, CtrlVQE.OCCUPATION, device, q)
-    @time Devices.localbasisrotations(CtrlVQE.OCCUPATION, CtrlVQE.OCCUPATION, device)
-    =#
-
     # OPERATOR METHOD ACCURACIES
 
     @test Devices.operator(IDENTITY, device) ≈ Matrix(I, N, N)
     @test Devices.operator(COUPLING, device) ≈ G
-    @test Devices.operator(STATIC, device) ≈ sum(h̄) + G
+    H0 = sum(h̄) + G; @test Devices.operator(STATIC, device) ≈ H0
     for (q, h) in enumerate(h̄); @test Devices.operator(Qubit(q), device) ≈ h; end
     for (i, v) in enumerate(v̄); @test Devices.operator(Channel(i,t), device) ≈ v; end
     for (j, A) in enumerate(Ā); @test Devices.operator(Gradient(j,t), device) ≈ A; end
     @test Devices.operator(Drive(t), device) ≈ sum(v̄)
     @test Devices.operator(Hamiltonian(t), device) ≈ sum(h̄) + G + sum(v̄)
+
+    # CONSISTENCY OF DRESSED BASIS
+    Λ0, U0 = eigen(H0)
+    U = Devices.basisrotation(CtrlVQE.DRESSED, CtrlVQE.OCCUPATION, device)
+    Hd = CtrlVQE.LinearAlgebraTools.rotate!(U, H0)
+    @test Diagonal(Hd) ≈ Hd                 # STATIC HAMILONIAN DIAGONAL IN DRESSED BASIS
+    @test sort(diag(Hd)) ≈ Λ0               # EIGENSPECTRUM IS UNCHANGED IN EITHER BASIS
 
     # OPERATOR METHOD CONSISTENCIES
 
@@ -316,6 +322,175 @@ function validate(signal::Signals.SignalType{P,R}) where {P,R}
 
     Is = Signals.integrate_signal(signal, τ̄, t̄)         # No self-consistency here,
     Is = Signals.integrate_signal(signal, τ̄, t̄; ϕ̄=ϕ̄)    #   just check for errors.
+
+    return true
+end
+
+function validate(evolution::Evolutions.EvolutionType)
+    seed!(0)            # FOR GENERATING INITIAL STATEVECTORS AND OBSERVABLES
+    T = 5.0 # ns        # FIXED EVOLUTION TIME, FOR TESTING
+    Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
+
+    workbasis = Evolutions.workbasis(evolution)
+    newbasis = (workbasis == OCCUPATION) ? DRESSED : OCCUPATION
+
+    ######################################################################################
+    # CONSISTENCY TESTS: 2-QUBIT 3-LEVEL SYSTEM WITH COMPLEX PULSES
+
+    pulses = [
+        ConstantSignals.ComplexConstant( 2π * 0.02, -2π * 0.02),
+        ConstantSignals.ComplexConstant(-2π * 0.02,  2π * 0.02),
+    ]
+    device = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 2, pulses; m=3)
+
+    TransmonDevices.bindfrequencies(device, [
+        TransmonDevices.resonancefrequency(device, 1) + Δ,
+        TransmonDevices.resonancefrequency(device, 2) - Δ,
+    ])
+
+    N = Devices.nstates(device)
+    U = Devices.basisrotation(newbasis, workbasis, device)
+                                            # BASIS ROTATION, FOR VALIDATING CONSISTENCY
+
+    ψ0 = rand(ComplexF64, N)          # ARBITRARY INITIAL STATEVECTOR
+    ψ0n = copy(ψ0);                   # SAME VECTOR IN NEW BASIS
+        LinearAlgebraTools.rotate!(U, ψ0n)
+
+    Ō = rand(ComplexF64, (N,N,2));    # TWO OBSERVABLES TO TEST `gradientsignals`
+        for k in axes(Ō,3); Ō[:,:,k] .= Hermitian(@view(Ō[:,:,k])); end
+    Ōn = copy(Ō);                     # SAME OBSERVABLES IN NEW BASIS
+        for k in axes(Ō,3); LinearAlgebraTools.rotate!(U, @view(Ōn[:,:,k])); end
+
+    # `evolve` METHODS
+
+    ψ = Evolutions.evolve(evolution, device, T, ψ0)
+    ψ_ = zero(ψ)                        # RESULT VECTOR FOR SUBSEQUENT TESTS
+
+    @test norm(ψ0) ≈ norm(ψ)            # TIME EVOLUTION SHOULD BE UNITARY
+
+    ψ_ .= Evolutions.evolve(evolution, device, workbasis, T, ψ0)
+    @test ψ ≈ ψ_
+    ψ_ .= 0; Evolutions.evolve(evolution, device, T, ψ0; result=ψ_)
+    @test ψ ≈ ψ_
+    ψ_ .= 0; Evolutions.evolve(evolution, device, workbasis, T, ψ0; result=ψ_)
+    @test ψ ≈ ψ_
+
+    ψ_ .= ψ0; Evolutions.evolve!(evolution, device, T, ψ_)
+    @test ψ ≈ ψ_
+    ψ_ .= ψ0; Evolutions.evolve!(evolution, device, workbasis, T, ψ_)
+    @test ψ ≈ ψ_
+
+    ψ_ .= ψ0n;
+        Evolutions.evolve!(evolution, device, newbasis, T, ψ_);
+        LinearAlgebraTools.rotate!(U', ψ_)
+    @test ψ ≈ ψ_
+
+    # `gradientsignals` METHODS
+
+    ϕ̄ = Evolutions.gradientsignals(evolution, device, T, ψ0, Ō)
+    ϕ̄_ = zero(ϕ̄)                        # RESULT VECTOR FOR SUBSEQUENT TESTS
+
+    ϕ̄_ .= Evolutions.gradientsignals(evolution, device, workbasis, T, ψ0, Ō)
+    @test ϕ̄ ≈ ϕ̄_
+
+    ϕ̄_ .= 0; Evolutions.gradientsignals(evolution, device, T, ψ0, Ō; result=ϕ̄_)
+    @test ϕ̄ ≈ ϕ̄_
+
+    ϕ̄_ .= 0;
+        Evolutions.gradientsignals(evolution, device, workbasis, T, ψ0, Ō; result=ϕ̄_)
+    @test ϕ̄ ≈ ϕ̄_
+
+    ϕ̄_ .= 0;
+        Evolutions.gradientsignals(evolution, device, newbasis, T, ψ0n, Ōn; result=ϕ̄_)
+    @test ϕ̄ ≈ ϕ̄_
+
+    # `gradientsignals`, SINGLE OBSERVABLE
+
+    O1 = Ō[:,:,1]
+    O1n = Ōn[:,:,1]
+
+    ϕ1 = Evolutions.gradientsignals(evolution, device, T, ψ0, O1)
+    ϕ1_ = zero(ϕ1)                      # RESULT VECTOR FOR SUBSEQUENT TESTS
+
+    @test ϕ1 ≈ @view(ϕ̄[:,:,1])          # SINGLE/MULTI OBSERVABLE VERSIONS SHOULD MATCH
+
+    ϕ1_ .= Evolutions.gradientsignals(evolution, device, workbasis, T, ψ0, O1)
+    @test ϕ1 ≈ ϕ1_
+
+    ϕ1_ .= 0; Evolutions.gradientsignals(evolution, device, T, ψ0, O1; result=ϕ1_)
+    @test ϕ1 ≈ ϕ1_
+
+    ϕ1_ .= 0;
+        Evolutions.gradientsignals(evolution, device, workbasis, T, ψ0, O1; result=ϕ1_)
+    @test ϕ1 ≈ ϕ1_
+
+    ϕ1_ .= 0;
+        Evolutions.gradientsignals(evolution, device, newbasis, T, ψ0n, O1n; result=ϕ1_)
+    @test ϕ1 ≈ ϕ1_
+
+    # CHECK CALLBACKS HAVE THE APPROPRIATE FORM
+
+    callback(i, t, ψ) = (
+        @assert isa(i, Integer);
+        @assert isa(t, Real);
+        @assert isa(ψ, AbstractArray{eltype(ψ0)});
+        @assert size(ψ) == size(ψ0);
+    )
+
+    Evolutions.evolve(evolution, device, T, ψ0; callback=callback)
+    Evolutions.gradientsignals(evolution, device, T, ψ0, O1; callback=callback)
+
+    ######################################################################################
+    # ACCURACY TESTS: 1-QUBIT 2 and 3-LEVEL SYSTEMS WITH COMPLEX PULSES
+
+    loadedanalyticpulses || return true # SKIP ACCURACY TESTS IF WE DIDN'T LOAD THE MODULE
+
+    # pulse = ConstantSignals.ComplexConstant(2π * 0.02, -2π * 0.02)
+    #= TODO (mid): I'd rather use a complex amplitude here, but it fails for m=3.
+        Most likely this is a bug in AnalyticPulses.
+        BUT I thought I'd already made both solutions compatible with complex amplitudes,
+            so there is a slim chance it is a real problem with the code...
+    =#
+    pulse = ConstantSignals.Constant(2π * 0.02)
+
+    infidelity(ψ, ϕ) = 1 - abs2(ψ'*ϕ)
+
+    # ONE QUBIT
+    device_2 = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 1, pulse; m=2)
+    ω = TransmonDevices.resonancefrequency(device_2, 1)
+    δ = TransmonDevices.anharmonicity(device_2, 1)
+    Ω = TransmonDevices.drivesignal(device_2, 1)(T)
+    TransmonDevices.bindfrequencies(device_2, [ω+Δ])
+
+    ψ02 = rand(ComplexF64, Devices.nstates(device_2)); ψ02 ./= norm(ψ02)
+    ψ2 = Evolutions.evolve(evolution, device_2, OCCUPATION, T, ψ02)
+    ψ2_ = evolve_transmon(ω, δ, Ω, ω+Δ, T, ψ02)
+    @test ψ2 ≈ ψ2_
+
+    # ONE QUTRIT
+    device_3 = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 1, pulse; m=3)
+    ω = TransmonDevices.resonancefrequency(device_3, 1)
+    δ = TransmonDevices.anharmonicity(device_3, 1)
+    Ω = TransmonDevices.drivesignal(device_3, 1)(T)
+    TransmonDevices.bindfrequencies(device_3, [ω+Δ])
+
+    ψ03 = rand(ComplexF64, Devices.nstates(device_3)); ψ03 ./= norm(ψ03)
+    ψ3 = Evolutions.evolve(evolution, device_3, OCCUPATION, T, ψ03)
+    ψ3_ = evolve_transmon(ω, δ, Ω, ω+Δ, T, ψ03)
+    @test ψ3 ≈ ψ3_
+
+    # NOTE: Accuracy of gradient is deferred to unit-tests on energy functions.
+
+    return true
+end
+
+function validate(evolution::Evolutions.TrotterEvolution)
+    super = invoke(validate, Tuple{Evolutions.EvolutionType}, evolution)
+    !super && return false
+
+    @test Evolutions.nsteps(evolution) ≥ 0
+
+    return true
 end
 
 function validate(fn::CostFunctions.CostFunctionType{F}) where {F}
@@ -344,4 +519,6 @@ function validate(fn::CostFunctions.CostFunctionType{F}) where {F}
     εg = ∇f̄ .- gΔ
     rms_error = √(sum(abs2.(εg))./length(εg))
     @test rms_error < 1e-5
+
+    return true
 end

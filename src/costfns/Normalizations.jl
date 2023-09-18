@@ -11,43 +11,49 @@ import ..Bases, ..Operators
 The norm of a statevector in a binary logical space.
 
 # Arguments
-- `ψ0`: the reference state, living in the physical Hilbert space of `device`.
+
+- `evolution::Evolutions.TrotterEvolution`: which algorithm to evolve `ψ0` with
+        A sensible choice is `ToggleEvolutions.Toggle(r)`,
+            where `r` is the number of Trotter steps.
+        Must be a TrotterEvolution because the gradient signal is inherently Trotterized.
+
+- `device::Devices.DeviceType`: the device, which determines the time-evolution of `ψ0`
+
+- `basis::Bases.BasisType`: the measurement basis
+        ALSO determines the basis which `ψ0` is understood to be given in.
+        An intuitive choice is `Bases.OCCUPATION`, aka. the qubits' Z basis.
+        That said, there is some doubt whether, experimentally,
+            projective measurement doesn't actually project on the device's eigenbasis,
+            aka `Bases.DRESSED`.
+        Note that you probably want to rotate `ψ0` if you change this argument.
+
 - `T::Real`: the total time for the state to evolve under the `device` Hamiltonian.
-- `device::Devices.DeviceType`: the device
-- `r::Int`: the number of time steps to calculate the gradient signal
 
-# Keyword Arguments
-- `algorithm::Evolutions.Algorithm`: which algorithm to evolve `ψ0` with.
-        Defaults to `Evolutions.rotate(r)`.
+- `ψ0`: the reference state, living in the physical Hilbert space of `device`.
 
-- `basis::Bases.BasisType`: which basis `O0` and `ψ0` are represented in.
-        ALSO determines the basis in which time-evolution is carried out.
-        Defaults to `Bases.OCCUPATION`.
 """
 struct Normalization{F} <: CostFunctions.CostFunctionType{F}
-    ψ0::Vector{Complex{F}}
-    T::F
+    evolution::Evolutions.TrotterEvolution
     device::Devices.DeviceType
-    r::Int
-    algorithm::Evolutions.Algorithm
     basis::Bases.BasisType
+    T::F
+    ψ0::Vector{Complex{F}}
 
     function Normalization(
-        ψ0::AbstractVector,
-        T::Real,
+        evolution::Evolutions.TrotterEvolution,
         device::Devices.DeviceType,
-        r::Int;
-        algorithm::Evolutions.Algorithm=Evolutions.Rotate(r),
-        basis::Bases.BasisType=Bases.OCCUPATION,
+        basis::Bases.BasisType,
+        T::Real,
+        ψ0::AbstractVector,
     )
         # INFER FLOAT TYPE AND CONVERT ARGUMENTS
         F = real(promote_type(Float16, eltype(ψ0), eltype(T)))
 
         # CREATE OBJECT
         return new{F}(
+            evolution, device, basis,
+            F(T),
             convert(Array{Complex{F}}, ψ0),
-            F(T), device, r,
-            algorithm, basis,
         )
     end
 end
@@ -63,7 +69,7 @@ function CostFunctions.cost_function(fn::Normalization)
     return (x̄) -> (
         Parameters.bind(fn.device, x̄);
         Evolutions.evolve(
-            fn.algorithm,
+            fn.evolution,
             fn.device,
             fn.basis,
             fn.T,
@@ -76,23 +82,23 @@ end
 
 function CostFunctions.grad_function(fn::Normalization{F}) where {F}
     # TIME GRID
-    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, fn.r)
+    r = Evolutions.nsteps(fn.evolution)
+    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)
     # OBSERVABLE - IT'S THE PROJECTION OPERATOR
     Π = QubitOperators.qubitprojector(fn.device)
     # GRADIENT VECTORS
-    ϕ̄ = Array{F}(undef, fn.r+1, Devices.ngrades(fn.device))
+    ϕ̄ = Array{F}(undef, r+1, Devices.ngrades(fn.device))
 
     return (∇f̄, x̄) -> (
         Parameters.bind(fn.device, x̄);
         Evolutions.gradientsignals(
+            fn.evolution,
             fn.device,
             fn.basis,
             fn.T,
             fn.ψ0,
-            fn.r,
             Π;
             result=ϕ̄,
-            evolution=fn.algorithm,
         );
         ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ̄)
     )

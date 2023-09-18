@@ -11,7 +11,7 @@ Semantic alias for `Matrix` which explicitly represents a distinct vector in eac
 Think of a `VectorList` `v̄` as a list where each `v[i] = v̄[:,i]` is a vector.
 
 """
-const VectorList{T} = Array{T,2}
+const VectorList{T} = AbstractArray{T,2}
 
 """
     MatrixList{T}
@@ -21,7 +21,7 @@ Semantic alias for a 3d array which explicitly represents a list of matrices.
 Think of a `MatrixList` `Ā` as a list where each `A[i] = Ā[:,:,i]` is a matrix.
 
 """
-const MatrixList{T} = Array{T,3}
+const MatrixList{T} = AbstractArray{T,3}
 
 """
     kron(v̄::VectorList; result=nothing)

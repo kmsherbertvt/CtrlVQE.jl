@@ -43,7 +43,7 @@ abstract type SignalType{P<:AbstractFloat,R<:Number} end
 
 
 """
-    (signal::SignalType{P,R})(t::Real)
+    valueat(signal::SignalType{P,R}, t::Real)
 
 The signal at time `t`, ie. ``Ω(t)``. Returns a number of type `R`.
 """

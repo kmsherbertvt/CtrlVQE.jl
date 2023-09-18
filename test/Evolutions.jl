@@ -1,134 +1,27 @@
 using Test
+import .StandardTests
 
 import CtrlVQE
 
-import CtrlVQE: OCCUPATION, DRESSED
+@testset "trapezoidaltimegrid" begin
+    T = 5.0
+    r = 20
 
-# TEMP: Julia package testing framework evidently can't handle url-packages in manifest.
-import Pkg; Pkg.add(url="https://github.com/kmsherbertvt/AnalyticPulses.jl")
-# TODO (lo): When fixed, replace "Pkg" dependency with "AnalyticPulses"...
-import AnalyticPulses: OneQubitSquarePulses
+    τ, τ̄, t̄ = CtrlVQE.Evolutions.trapezoidaltimegrid(T,r)
+    # TRUE FOR ANY TIME GRID
+    @test sum(τ̄) == T
+    @test 1+r == length(t̄) == length(τ̄)
 
-using FiniteDifferences: grad, central_fdm
-
-ROTATE = CtrlVQE.Rotate(1000)
-DIRECT = CtrlVQE.Direct(1000)
-
-#= SINGLE QUBIT TESTS =#
-
-# ANALYTICAL SOLUTION
-ψ0 = [1,-1]/√2
-T = 3.5^2       # NOTE: Do NOT let T be a multiple of ω-ν!
-ω = 4.50 * 2π
-δ = 0.34 * 2π
-Ω = 0.020 * 2π
-ν = 4.30 * 2π
-ψT = OneQubitSquarePulses.evolve_transmon(ω, δ, Ω, ν, T, ψ0)
-
-# TEST DEVICE
-Ω̄ = [CtrlVQE.Constant(Ω)]
-device = CtrlVQE.TransmonDevice([ω], [0], Int[], CtrlVQE.Quple[], [1], [ν], Ω̄, 2)
-
-# VALIDATE `evolve!`: rotate/direct algorithms
-res = convert(Array{ComplexF64}, copy(ψ0))
-res_ = CtrlVQE.evolve!(ROTATE, device, T, res)
-@test res === res_
-@test abs(1 - abs(res'*ψT)^2) < 1e-8
-
-U = CtrlVQE.Devices.basisrotation(DRESSED, OCCUPATION, device)
-res = convert(Array{ComplexF64}, copy(U*ψ0))
-res_ = CtrlVQE.evolve!(DIRECT, device, T, res)
-@test res === res_
-@test abs(1 - abs(res'*(U*ψT))^2) < 1e-8
-
-
-
-
-#= SINGLE QUTRIT TESTS =#
-
-# ANALYTICAL SOLUTION
-ψ0 = [1,1,1]/√3
-T = 3.5^2       # NOTE: Do NOT let T be a multiple of ω-ν!
-ω = 4.50 * 2π
-δ = 0.34 * 2π
-Ω = 0.020 * 2π
-ν = 4.30 * 2π
-ψT = OneQubitSquarePulses.evolve_transmon(ω, δ, Ω, ν, T, ψ0)
-
-# CONVERT STATEVECTORS TO DRESSED BASIS
-Ω̄ = [CtrlVQE.Constant(Ω)]
-device = CtrlVQE.TransmonDevice([ω], [δ], Int[], CtrlVQE.Quple[], [1], [ν], Ω̄, 3)
-
-# VALIDATE `evolve!`: rotate/direct algorithms
-res = convert(Array{ComplexF64}, copy(ψ0))
-res_ = CtrlVQE.evolve!(ROTATE, device, T, res)
-@test res === res_
-@test abs(1 - abs(res'*ψT)^2) < 1e-8
-
-U = CtrlVQE.Devices.basisrotation(DRESSED, OCCUPATION, device)
-res = convert(Array{ComplexF64}, copy(U*ψ0))
-res_ = CtrlVQE.evolve!(DIRECT, device, T, res)
-@test res === res_
-@test abs(1 - abs(res'*(U*ψT))^2) < 1e-8
-
-
-# TEMP: Julia package testing framework evidently can't handle url-packages in manifest.
-Pkg.rm("AnalyticPulses")
-# We need this line to prevent the package manifest from updating.
-
-
-#= TWO-QUBIT TESTS =#
-
-Ω̄ = [
-    CtrlVQE.Constant( 0.020*2π),
-    CtrlVQE.Constant(-0.020*2π),
-]
-
-device = CtrlVQE.TransmonDevice(
-    2π * [4.50, 4.52],      # ω̄
-    2π * [0.33, 0.34],      # δ̄
-    2π * [0.020],           # ḡ
-    [CtrlVQE.Quple(1, 2)],
-    [1, 2],                 # q̄
-    2π * [4.30, 4.80],      # ν̄
-    Ω̄,
-    3,                      # m
-)
-
-T = 9.6
-ψ0 = [0, 1, 0, 0, 0, 0, 0, 0 ,0]    # |01⟩
-
-# REFERENCE SOLUTION, BASED ON ALREADY-TESTED CODE
-res = convert(Array{ComplexF64}, copy(ψ0))
-ψ = CtrlVQE.evolve!(ROTATE, device, T, res)
-
-# TEST NON-MUTATING `evolve` IN OCCUPATION BASIS
-@test CtrlVQE.evolve(ROTATE, device, T, ψ0) ≈ ψ
-@test CtrlVQE.evolve(DIRECT, device, OCCUPATION, T, ψ0) ≈ ψ
-
-# TEST NON-MUTATING `evolve` IN DRESSED BASIS
-U = CtrlVQE.Devices.basisrotation(DRESSED, OCCUPATION, device)
-@test CtrlVQE.evolve(ROTATE, device, DRESSED, T, U*ψ0) ≈ U*ψ
-@test CtrlVQE.evolve(DIRECT, device, T, U*ψ0) ≈ U*ψ
-
-# RUN THE GRADIENT CALCULATION
-O = Matrix([i*j for i in 1:CtrlVQE.nstates(device), j in 1:CtrlVQE.nstates(device)])
-    # SOME SYMMETRIC MATRIX, SUITABLE TO PLAY THE ROLE OF AN OBSERVABLE
-
-x̄ = CtrlVQE.Parameters.values(device)
-
-r = 1000
-ϕ̄ = CtrlVQE.gradientsignals(device, T, ψ0, r, cat(O, dims=3))
-τ, τ̄, t̄ = CtrlVQE.trapezoidaltimegrid(T, r)
-g0 = CtrlVQE.gradient(device, τ̄, t̄, ϕ̄[:,:,1])
-
-# TEST AGAINST THE FINITE DIFFERENCE
-function f(x̄)
-    CtrlVQE.Parameters.bind(device, x̄)
-    ψ = CtrlVQE.evolve(ROTATE, device, T, ψ0)
-    return real(ψ'*O*ψ)
+    # UNIQUE TO TRAPEZOIDAL RULE
+    @test first(τ̄) == last(τ̄) == τ/2
 end
-gΔ = grad(central_fdm(5, 1), f, x̄)[1]
 
-εg = g0 .- gΔ
-@test √(sum(εg.^2)./length(εg)) < 1e-4
+@testset "Toggle" begin
+    evolution = CtrlVQE.Toggle(10000)
+    StandardTests.validate(evolution)
+end
+
+@testset "Direct" begin
+    evolution = CtrlVQE.Direct(10000)
+    StandardTests.validate(evolution)
+end

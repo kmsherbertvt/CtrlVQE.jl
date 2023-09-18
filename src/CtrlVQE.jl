@@ -2,15 +2,11 @@ module CtrlVQE
 
 #= TODO LIST
 
-- Evolutions
-  - Match the code layout used for devices, signals, costfunctions.
-  - Major refactor: distinguish basis from workbasis
-  - Consider folding in Lanczos and ODE into the main thing-y.
-  - Standardized tests for each evolution algorithm.
-  - Timing/typing tests
-- Cost Functions
-  - Proper use of basis in energy functions
-  - Timing/typing tests
+- grad_function should give g, grad_function_inplace should give g!
+
+- Timing/typing tests
+  - Evolutions
+  - CostFunctions
 
 =#
 
@@ -201,21 +197,40 @@ module TransmonDevices; include("devices/TransmonDevices.jl"); end
 import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice
 
 ##########################################################################################
-#= TIME EVOLUTIONS =#
-
-#= TODO: Nick thinks all the evolutions should be promoted to the main module.
-        I'm not sold yet but if (...when...) we do that, make a folder for "evols".
-=#
+#= EVOLUTION ALGORITHMS =#
 
 """
     Evolutions
 
 Algorithms to run time evolution, and related constructs like gradient signals.
 
+NOTE: the `trapezoidaltimegrid` function is a utility.
+    But it is implicitly tied to evolutions. I'm not sure what to do about it.
+    It is an awkward space, similar to QubitOperators below.
+
 """
-module Evolutions; include("Evolutions.jl"); end
-import .Evolutions: Algorithm, Rotate, Direct
-import .Evolutions: trapezoidaltimegrid, evolve, evolve!, gradientsignals
+module Evolutions; include("evols/Evolutions.jl"); end
+import .Evolutions: EvolutionType, TrotterEvolution
+import .Evolutions: trapezoidaltimegrid
+import .Evolutions: workbasis, evolve, evolve!
+import .Evolutions: nsteps, gradientsignals
+
+module ToggleEvolutions; include("evols/ToggleEvolutions.jl"); end
+import .ToggleEvolutions: Toggle
+
+module DirectEvolutions; include("evols/DirectEvolutions.jl"); end
+import .DirectEvolutions: Direct
+
+#= TODO (mid): Nick thinks all the evolutions should be promoted to the main module.
+
+        I'm not sold.
+        I think if a package doesn't really depend on a third party,
+            it shouldn't list that third party as a dependency.
+
+That said, we *do* need to get at *least* ODE caught up and with tests...
+And of course, Lanczos is basically trivial...
+
+=#
 
 ##########################################################################################
 #= MORE UTILITIES =#
