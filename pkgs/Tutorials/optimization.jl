@@ -47,9 +47,9 @@ FES = Λ[2]                                  # FIRST EXCITED STATE
 
 # CONSTRUCT THE MAJOR PACKAGE OBJECTS
 
-pulse = CtrlVQE.UniformWindowed(CtrlVQE.ComplexConstant(0.0, 0.0), T, W)
-ΩMAX /= √2  # Re-scale max amplitude so that bounds inscribe the complex circle.
-            # Not needed for real or polar-parameterized amplitudes.
+pulse = CtrlVQE.UniformWindowed(CtrlVQE.ComplexConstant(0.0, 0.0), T, W); ΩMAX /= √2
+            # NOTE: Re-scale max amplitude so that bounds inscribe the complex circle.
+            #       Not needed for real or polar-parameterized amplitudes.
 # pulse = CtrlVQE.UniformWindowed(CtrlVQE.Constant(0.0), T, W)
 # pulse = CtrlVQE.UniformWindowed(CtrlVQE.PolarComplexConstant(0.0, 0.0), T, W)
 
@@ -57,7 +57,7 @@ pulse = CtrlVQE.UniformWindowed(CtrlVQE.ComplexConstant(0.0, 0.0), T, W)
 device = CtrlVQE.Systematic(CtrlVQE.FixedFrequencyTransmonDevice, n, pulse)
 # device = CtrlVQE.Systematic(CtrlVQE.TransmonDevice, n, pulse)
 
-algorithm = CtrlVQE.Rotate(r)
+evolution = CtrlVQE.Toggle(r)
 
 # INITIALIZE PARAMETERS
 Random.seed!(seed)
@@ -81,8 +81,9 @@ O0 = CtrlVQE.QubitOperators.project(H, device)              # MOLECULAR HAMILTON
 ψ0 = CtrlVQE.QubitOperators.project(ψ_REF, device)          # REFERENCE STATE
 
 fn_energy = CtrlVQE.ProjectedEnergy(
-    O0, ψ0, T, device, r;
-    frame=CtrlVQE.STATIC,
+    evolution, device,
+    CtrlVQE.OCCUPATION, CtrlVQE.STATIC,
+    T, ψ0, O0,
 )
 
 # PENALTY FUNCTIONS
@@ -95,7 +96,7 @@ fn_penalty = CtrlVQE.SmoothBound(λ, μR, μL, σ)
 # OPTIMIZATION FUNCTIONS
 fn_total = CtrlVQE.CompositeCostFunction(fn_energy, fn_penalty)
 f  = CtrlVQE.cost_function(fn_total)
-g! = CtrlVQE.grad_function(fn_total)
+g! = CtrlVQE.grad_function_inplace(fn_total)
 
 # OPTIMIZATION ALGORITHM
 linesearch = LineSearches.MoreThuente()
@@ -175,7 +176,7 @@ Plots.plot!(plot, [0], [2yMAX], lw=3, ls=:solid, color=:black, label="α")
 Plots.plot!(plot, [0], [2yMAX], lw=3, ls=:dot, color=:black, label="β")
 
 # PLOT AMPLITUDES
-for i in axes(nD,2)
+for i in 1:nD
     Plots.plot!(plot, t, α[:,i]./2π, lw=3, ls=:solid, color=i, label="Drive $i")
     Plots.plot!(plot, t, β[:,i]./2π, lw=3, ls=:dot, color=i, label=false)
 end

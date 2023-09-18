@@ -80,28 +80,51 @@ See [`CITATION.bib`](CITATION.bib) for the relevant reference(s).
 
 ## Development Guide
 
-This section gives a guide on how to create new device and signal types.
+This repository is designed to be as modular and extensible as possible.
+Think of the ctrl-VQE algorithm as divided into four distinct parts:
+- `signals` - how to characterize the time-dependent control signals
+- `devices` - how to characterize the dynamics of a computational state, ie. the physical Hamiltonian
+- `evols` - how to implement time evolution under a given device Hamiltonian
+- `costfns` - how to put the above three parts together into a function to variationally minimize
 
-TODO: Actually we'll want development guides for new evolution algorithms and cost functions also.
-    Probably the development guide deserves its own file.
+The `src` code has sub-directories for each of these four parts,
+    which consists of a "root" file (eg. `signals` has `Signals.jl`)
+    defining an abstract type (eg. `SignalType`)
+  and its interface (eg. methods like `valueat`, `partial`, etc.),
+    and a set of "leaf" files which define different concrete structs implementing the interface
+    (eg. `ConstantSignals.jl` defines `Constant` and `ComplexConstant` signals).
+To define a new pulse shape, or device, or evolution algorithm, or measurement protocol,
+    you *should* only need to add in the relevant "leaf" file,
+    and then make a few formulaic edits so that the package structure "knows about" your addition.
 
-If your type has dependencies external to base Julia,
+If your type has dependencies external to base Julia
+    (eg. `LinearAlgebra` is in base Julia but `FiniteDifferences` requires an extra installation),
     put your code into a sub-package instead of following the instructions below.
-TODO: I'd better write a different set of instructions for sub-packages...
+That is more complicated and I haven't bothered to write a guide for it yet.
+TODO: Write the guide for this. (I don't actually know yet how testing should work...)
 
-TODO: Make this neat.
+Here's the complete checklist:
 - Implement the concrete type:
-  - Follow implementation instructions in `Devices.jl`, `Signals.jl`, or `CostFunctions.jl`.
-  - Each type should have its own file (I haven't been following this rule but I should).
-  - Drop the file into the appropriate subfolder of `src`.
+  - Follow the "Implementation" documentation for the abstract type
+    (ie. `SignalType`, `DeviceType`, `EvolutionType`, or `CostFunctionType`).
+  - Write your implementation in its own "leaf" file.
+  - Drop the leaf file into the appropriate subfolder of `src`.
 - Add the type to the main module.
-  - Create a new sub-module within `Devices` or `Signals`, and include your file within the sub-module.
-  - Import the type into the `Devices` or `Signals` module.
-- Add a test set to `test/Devices.jl` or `test/Signals.jl`.
+  - Create a new sub-module within `CtrlVQE`, and include your file within the sub-module.
+  - Optionally, import the new concrete type into the `CtrlVQE` module so it is easily accessed.
+- Add a test set for your concrete type. `test/Devices.jl` or `test/Signals.jl`.
+  - Find the appropriate test file (eg. if you've implemented a new signal, find `test/Signals.jl`).
+  - Add a new test-set for your type. You can follow the existing patterns.
   - Create a model object.
-  - Run the standard consistency check.
+  - Run a sanity check: `StandardTests.validate(my_model_object)`.
+    This will run a set of standardized consistency tests,
+    eg. is the analytical gradient consistent with a finite difference?
+  - Optionally, add additional tests specific to your particular type.
 - Add documentation.
   - Document your type's constructor(s) thoroughly with doc-strings.
-  - Add a section to `docs/src/Devices.md` or `docs/src/Signals.md`. Follow the existing patterns.
+  - Find the appropriate doc file (eg. if you've implemented a new signal, find `doc/src/Signals.md`).
+  - Add a new section for your type. You can follow the existing patterns.
+  - Create an autodoc for the module you added to `CtrlVQE`.
+    Find the syntax from the existing sections in the doc file.
 
 TODO: Eventually we'll need a guide on how to use git to actually update the repo itself...
