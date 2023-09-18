@@ -11,7 +11,7 @@ Modules = [CtrlVQE.Evolutions]
 ## Trotter Evolutions
 ```@autodocs
 Modules = [
-    CtrlVQE.Toggle,
-    CtrlVQE.Direct,
+    CtrlVQE.ToggleEvolutions,
+    CtrlVQE.DirectEvolutions,
 ]
 ```
