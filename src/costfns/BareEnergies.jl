@@ -98,7 +98,7 @@ function CostFunctions.cost_function(fn::BareEnergy)
     )
 end
 
-function CostFunctions.grad_function(fn::BareEnergy{F}) where {F}
+function CostFunctions.grad_function_inplace(fn::BareEnergy{F}) where {F}
     # TIME GRID
     r = Evolutions.nsteps(fn.evolution)
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)

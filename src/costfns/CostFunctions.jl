@@ -1,5 +1,5 @@
 export CostFunctionType, CompositeCostFunction
-export cost_function, grad_function, grad_function_byvalue
+export cost_function, grad_function, grad_function_inplace
 
 import LinearAlgebra
 
@@ -20,7 +20,7 @@ Any concrete sub-type `CF` must implement the following methods:
         returns a `Function` which takes a parameter vector
             and returns the output of the cost function
         ie. a callable expression (x::Vector) -> f(x)
-- `grad_function(::CF)`:
+- `grad_function_inplace(::CF)`:
         returns a mutating `Function` which takes a gradient vector (to be mutated)
             and a parameter vector, and writes the gradient vector to the first argument.
         As a matter of habit, the resulting gradient vector should also be returned.
@@ -54,7 +54,7 @@ function cost_function(fn::CostFunctionType{F}) where {F}
 end
 
 """
-    grad_function(fn::CostFunctionType)
+    grad_function_inplace(fn::CostFunctionType)
 
 Constructs a (mutating) `Function` to calculate the gradient of `fn` at a particular point.
 
@@ -63,7 +63,7 @@ Both should have the type and length given by `eltype(fn)` and `length(fn)`.
 After the function is called, `∇f̄` contains the gradient of `fn` at the point `x̄`.
 
 """
-function grad_function(fn::CostFunctionType{F}) where {F}
+function grad_function_inplace(fn::CostFunctionType{F}) where {F}
     error("Not Implemented")
     return (∇f̄, x̄) -> Vector{F}(undef, length(fn))
 end
@@ -96,7 +96,7 @@ function (fn::CostFunctionType)(x̄::AbstractVector)
 end
 
 """
-    grad_function_byvalue(fn::CostFunctionType)
+    grad_function(fn::CostFunctionType)
 
 Constructs a `Function` to calculate the gradient of `fn` at a particular point.
 
@@ -105,8 +105,8 @@ The function accepts a parameter vector `x̄`
 The function returns the gradient (a vector) of `fn` at the point `x̄`.
 
 """
-function grad_function_byvalue(fn::CostFunctionType{F}) where {F}
-    gd = grad_function(fn)
+function grad_function(fn::CostFunctionType{F}) where {F}
+    gd = grad_function_inplace(fn)
     ∇f̄ = Vector{F}(undef, length(fn))
     return (x̄) -> (gd(∇f̄, x̄); ∇f̄)
 end
@@ -186,8 +186,8 @@ function cost_function(fn::CompositeCostFunction)
     )
 end
 
-function grad_function(fn::CompositeCostFunction{F}) where {F}
-    g!s = [grad_function(component) for component in fn.components]
+function grad_function_inplace(fn::CompositeCostFunction{F}) where {F}
+    g!s = [grad_function_inplace(component) for component in fn.components]
     ∇f̄_ = zeros(F, fn.L)        # USE THIS AS THE GRADIENT VECTOR FOR EACH COMPONENT CALL
     return (∇f̄, x̄) -> (
         fn.g_counter[] += 1;

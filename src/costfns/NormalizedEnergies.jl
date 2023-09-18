@@ -105,7 +105,7 @@ function CostFunctions.cost_function(fn::NormalizedEnergy)
     )
 end
 
-function CostFunctions.grad_function(fn::NormalizedEnergy{F}) where {F}
+function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}) where {F}
     # TIME GRID
     r = Evolutions.nsteps(fn.evolution)
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)

@@ -57,7 +57,7 @@ function CostFunctions.cost_function(fn::HardBound)
     )
 end
 
-function CostFunctions.grad_function(fn::HardBound)
+function CostFunctions.grad_function_inplace(fn::HardBound)
     return (∇f̄, x̄) -> (
         ∇f̄ .= 0;
         for i in 1:length(fn);

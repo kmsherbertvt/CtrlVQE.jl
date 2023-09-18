@@ -46,7 +46,7 @@ function CostFunctions.cost_function(fn::SoftBound)
     )
 end
 
-function CostFunctions.grad_function(fn::SoftBound)
+function CostFunctions.grad_function_inplace(fn::SoftBound)
     return (∇f̄, x̄) -> (
         ∇f̄ .= 0;
         for i in 1:length(fn);

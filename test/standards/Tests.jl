@@ -503,8 +503,8 @@ function validate(fn::CostFunctions.CostFunctionType{F}) where {F}
     ∇f̄ = Vector{F}(undef, L)
 
     f  = CostFunctions.cost_function(fn)
-    g! = CostFunctions.grad_function(fn)
-    g  = CostFunctions.grad_function_byvalue(fn)
+    g! = CostFunctions.grad_function_inplace(fn)
+    g  = CostFunctions.grad_function(fn)
 
     # CONSISTENCY OF THE TWO FUNCTION INTERFACES
     @test f(x̄) == fn(x̄)

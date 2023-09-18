@@ -2,8 +2,6 @@ module CtrlVQE
 
 #= TODO LIST
 
-- grad_function should give g, grad_function_inplace should give g!
-
 - Timing/typing tests
   - Evolutions
   - CostFunctions
@@ -266,7 +264,7 @@ Thus, all you need to run a gradient based optimization is:
 """
 module CostFunctions; include("costfns/CostFunctions.jl"); end
 import .CostFunctions: CostFunctionType, CompositeCostFunction
-import .CostFunctions: cost_function, grad_function, grad_function_byvalue
+import .CostFunctions: cost_function, grad_function, grad_function_inplace
 
 #= ENERGY FUNCTIONS =#
 module BareEnergies; include("costfns/BareEnergies.jl"); end

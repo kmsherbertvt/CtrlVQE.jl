@@ -80,7 +80,7 @@ function CostFunctions.cost_function(fn::Normalization)
     )
 end
 
-function CostFunctions.grad_function(fn::Normalization{F}) where {F}
+function CostFunctions.grad_function_inplace(fn::Normalization{F}) where {F}
     # TIME GRID
     r = Evolutions.nsteps(fn.evolution)
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)
