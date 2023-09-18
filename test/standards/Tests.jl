@@ -493,21 +493,21 @@ function validate(evolution::Evolutions.TrotterEvolution)
     return true
 end
 
-function validate(fn::CostFunctions.CostFunctionType{F}) where {F}
-    L = length(fn)
-    F_ = eltype(fn)
+function validate(costfn::CostFunctions.CostFunctionType{F}) where {F}
+    L = length(costfn)
+    F_ = eltype(costfn)
     @test F_ == F
 
     seed!(0)
     x̄ = rand(F, L)
     ∇f̄ = Vector{F}(undef, L)
 
-    f  = CostFunctions.cost_function(fn)
-    g! = CostFunctions.grad_function_inplace(fn)
-    g  = CostFunctions.grad_function(fn)
+    f  = CostFunctions.cost_function(costfn)
+    g! = CostFunctions.grad_function_inplace(costfn)
+    g  = CostFunctions.grad_function(costfn)
 
     # CONSISTENCY OF THE TWO FUNCTION INTERFACES
-    @test f(x̄) == fn(x̄)
+    @test f(x̄) == costfn(x̄)
 
     # CONSISTENCY OF THE TWO GRADIENT METHODS
     g!(∇f̄, x̄)

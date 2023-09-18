@@ -1,13 +1,5 @@
 module CtrlVQE
 
-#= TODO LIST
-
-- Timing/typing tests
-  - Evolutions
-  - CostFunctions
-
-=#
-
 """
     Parameters
 

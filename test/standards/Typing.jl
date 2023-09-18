@@ -1,9 +1,18 @@
 #= Systematic and comprehensive type stability unit tests. =#
 
-import CtrlVQE: Parameters, Signals, Devices
+import CtrlVQE
+
+import CtrlVQE: Parameters, Signals, Devices, Evolutions, CostFunctions
+
+import CtrlVQE: TransmonDevices
+import CtrlVQE: ConstantSignals
+
 import CtrlVQE: DRESSED, OCCUPATION
 import CtrlVQE: StaticOperator, IDENTITY, COUPLING, STATIC
 import CtrlVQE: Qubit, Channel, Drive, Hamiltonian, Gradient
+
+using Random: seed!
+using LinearAlgebra: Hermitian
 
 const t = 0.0
 const r = 10
@@ -233,6 +242,101 @@ function check_types(signal::Signals.SignalType{P,R}) where {P,R}
     @code_warntype Signals.integrate_signal(signal, τ̄, t̄)
     @code_warntype Signals.integrate_signal(signal, τ̄, t̄; ϕ̄=ϕ̄)
 
+    return nothing
 end
 
-# TODO (hi): add method for CostFunctions
+
+######################################################################################
+# SETUP AUXILIARY OBJECTS FOR EVOLUTION
+
+const pulses = [
+    ConstantSignals.ComplexConstant( 2π * 0.02, -2π * 0.02),
+    ConstantSignals.ComplexConstant(-2π * 0.02,  2π * 0.02),
+]
+const device = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 2, pulses; m=3)
+
+const Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
+TransmonDevices.bindfrequencies(device, [
+    TransmonDevices.resonancefrequency(device, 1) + Δ,
+    TransmonDevices.resonancefrequency(device, 2) - Δ,
+])
+
+const T = 5.0 # ns        # FIXED EVOLUTION TIME, FOR TESTING
+
+const N = Devices.nstates(device)
+
+seed!(0)
+const ψ0 = rand(ComplexF64, N)          # ARBITRARY INITIAL STATEVECTOR
+const Ō = rand(ComplexF64, (N,N,2));    # TWO OBSERVABLES TO TEST `gradientsignals`
+    for k in axes(Ō,3); Ō[:,:,k] .= Hermitian(@view(Ō[:,:,k])); end
+const O1 = Ō[:,:,1]
+
+######################################################################################
+
+
+function check_types(evolution::Evolutions.EvolutionType)
+
+    println("Static Methods")
+    @code_warntype Evolutions.workbasis(evolution)
+    basis = Evolutions.workbasis(evolution)
+
+    println("Evolutions")
+    @code_warntype Evolutions.evolve(evolution, device, T, ψ0)
+    @code_warntype Evolutions.evolve(evolution, device, basis, T, ψ0)
+    ψ = Evolutions.evolve(evolution, device, basis, T, ψ0)
+    @code_warntype Evolutions.evolve(evolution, device, T, ψ0; result=ψ)
+    @code_warntype Evolutions.evolve(evolution, device, basis, T, ψ0; result=ψ)
+    @code_warntype Evolutions.evolve!(evolution, device, T, ψ)
+    @code_warntype Evolutions.evolve!(evolution, device, basis, T, ψ)
+
+    return nothing
+end
+
+
+function check_types(evolution::Evolutions.TrotterEvolution)
+    invoke(check_types, Tuple{Evolutions.EvolutionType}, evolution)
+    basis = Evolutions.workbasis(evolution)
+
+    println("Counting Methods")
+    @code_warntype Evolutions.nsteps(evolution)
+
+    println("Gradient Signals - Multi-operator")
+    @code_warntype Evolutions.gradientsignals(evolution, device, T, ψ0, Ō)
+    @code_warntype Evolutions.gradientsignals(evolution, device, basis, T, ψ0, Ō)
+    ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, T, ψ0, Ō)
+    @code_warntype Evolutions.gradientsignals(evolution, device, T, ψ0, Ō; result=ϕ̄)
+    @code_warntype Evolutions.gradientsignals(evolution,device,basis,T,ψ0,Ō; result=ϕ̄)
+
+    println("Gradient Signals - Single-operator")
+    @code_warntype Evolutions.gradientsignals(evolution, device, T, ψ0, O1)
+    @code_warntype Evolutions.gradientsignals(evolution, device, basis, T, ψ0, O1)
+    ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, T, ψ0, O1)
+    @code_warntype Evolutions.gradientsignals(evolution, device, T, ψ0, O1; result=ϕ̄)
+    @code_warntype Evolutions.gradientsignals(evolution,device,basis,T,ψ0,O1; result=ϕ̄)
+
+    return nothing
+end
+
+function check_types(costfn::CostFunctions.CostFunctionType)
+    println("Static Methods")
+    @code_warntype length(costfn); L = length(costfn)
+    @code_warntype eltype(costfn); F = eltype(costfn)
+
+    println("Factory Methods")
+    @code_warntype CostFunctions.cost_function(costfn);
+    f = CostFunctions.cost_function(costfn)
+    @code_warntype CostFunctions.grad_function(costfn);
+    g = CostFunctions.grad_function(costfn)
+    @code_warntype CostFunctions.grad_function_inplace(costfn);
+    g! = CostFunctions.grad_function_inplace(costfn)
+
+    x  = zeros(F, L)
+
+    println("Using Factories")
+    @code_warntype f(x)
+    @code_warntype costfn(x)
+    @code_warntype g(x); ∇f = g(x)
+    @code_warntype g!(∇f, x)
+
+    return nothing
+end

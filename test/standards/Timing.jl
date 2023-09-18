@@ -1,9 +1,17 @@
 #= Systematic and comprehensive timing/allocation unit tests. =#
 
-import CtrlVQE: Parameters, Signals, Devices
+import CtrlVQE
+import CtrlVQE: Parameters, Signals, Devices, Evolutions, CostFunctions
+
+import CtrlVQE: ConstantSignals
+import CtrlVQE: TransmonDevices
+
 import CtrlVQE: DRESSED, OCCUPATION
 import CtrlVQE: StaticOperator, IDENTITY, COUPLING, STATIC
 import CtrlVQE: Qubit, Channel, Drive, Hamiltonian, Gradient
+
+using Random: seed!
+using LinearAlgebra: Hermitian
 
 const t = 0.0
 const r = 10
@@ -207,4 +215,91 @@ function check_times(signal::Signals.SignalType{P,R}) where {P,R}
     return nothing
 end
 
-# TODO (hi): add method for CostFunctions
+
+
+
+######################################################################################
+# SETUP AUXILIARY OBJECTS FOR EVOLUTION
+
+const pulses = [
+    ConstantSignals.ComplexConstant( 2π * 0.02, -2π * 0.02),
+    ConstantSignals.ComplexConstant(-2π * 0.02,  2π * 0.02),
+]
+const device = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 2, pulses; m=3)
+
+const Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
+TransmonDevices.bindfrequencies(device, [
+    TransmonDevices.resonancefrequency(device, 1) + Δ,
+    TransmonDevices.resonancefrequency(device, 2) - Δ,
+])
+
+const T = 5.0 # ns        # FIXED EVOLUTION TIME, FOR TESTING
+
+const N = Devices.nstates(device)
+
+seed!(0)
+const ψ0 = rand(ComplexF64, N)          # ARBITRARY INITIAL STATEVECTOR
+const Ō = rand(ComplexF64, (N,N,2));    # TWO OBSERVABLES TO TEST `gradientsignals`
+    for k in axes(Ō,3); Ō[:,:,k] .= Hermitian(@view(Ō[:,:,k])); end
+const O1 = Ō[:,:,1]
+
+######################################################################################
+
+function check_times(evolution::Evolutions.EvolutionType)
+
+    println("Static Methods")
+    @time basis = Evolutions.workbasis(evolution)
+
+    println("Evolutions")
+    @time Evolutions.evolve(evolution, device, T, ψ0)
+    @time ψ = Evolutions.evolve(evolution, device, basis, T, ψ0)
+    @time Evolutions.evolve(evolution, device, T, ψ0; result=ψ)
+    @time Evolutions.evolve(evolution, device, basis, T, ψ0; result=ψ)
+    @time Evolutions.evolve!(evolution, device, T, ψ)
+    @time Evolutions.evolve!(evolution, device, basis, T, ψ)
+
+    return nothing
+end
+
+function check_times(evolution::Evolutions.TrotterEvolution)
+    invoke(check_times, Tuple{Evolutions.EvolutionType}, evolution)
+    basis = Evolutions.workbasis(evolution)
+
+    println("Counting Methods")
+    @time Evolutions.nsteps(evolution)
+
+    println("Gradient Signals - Multi-operator")
+    @time Evolutions.gradientsignals(evolution, device, T, ψ0, Ō)
+    @time ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, T, ψ0, Ō)
+    @time Evolutions.gradientsignals(evolution, device, T, ψ0, Ō; result=ϕ̄)
+    @time Evolutions.gradientsignals(evolution, device, basis, T, ψ0, Ō; result=ϕ̄)
+
+    println("Gradient Signals - Single-operator")
+    @time Evolutions.gradientsignals(evolution, device, T, ψ0, O1)
+    @time ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, T, ψ0, O1)
+    @time Evolutions.gradientsignals(evolution, device, T, ψ0, O1; result=ϕ̄)
+    @time Evolutions.gradientsignals(evolution, device, basis, T, ψ0, O1; result=ϕ̄)
+
+    return nothing
+end
+
+function check_times(costfn::CostFunctions.CostFunctionType)
+    println("Static Methods")
+    @time L = length(costfn)
+    @time F = eltype(costfn)
+
+    println("Factory Methods")
+    @time f = CostFunctions.cost_function(costfn)
+    @time g = CostFunctions.grad_function(costfn)
+    @time g! = CostFunctions.grad_function_inplace(costfn)
+
+    x  = zeros(F, L)
+
+    println("Using Factories")
+    @time f(x)
+    @time costfn(x)
+    @time ∇f = g(x)
+    @time g!(∇f, x)
+
+    return nothing
+end
