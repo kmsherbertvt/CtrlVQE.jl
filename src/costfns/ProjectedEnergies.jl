@@ -151,8 +151,8 @@ function CostFunctions.grad_function_inplace(fn::ProjectedEnergy{F}; ϕ=nothing)
             fn.T,
             fn.ψ0,
             OT;
-            result=ϕ̄,   # NOTE: This writes the gradient signal as needed.
+            result=ϕ,   # NOTE: This writes the gradient signal as needed.
         );
-        ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ̄)
+        ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ)
     )
 end

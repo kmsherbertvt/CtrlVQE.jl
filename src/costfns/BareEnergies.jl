@@ -143,8 +143,8 @@ function CostFunctions.grad_function_inplace(fn::BareEnergy{F}; ϕ=nothing) wher
             fn.T,
             fn.ψ0,
             OT;
-            result=ϕ̄,
+            result=ϕ,
         );
-        ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ̄)
+        ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ)
     )
 end

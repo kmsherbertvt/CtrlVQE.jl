@@ -182,10 +182,10 @@ function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}; ϕ=nothing
             fn.T,
             fn.ψ0,
             Ō;
-            result=ϕ̄,   # NOTE: This writes the gradient signal as needed.
+            result=ϕ,   # NOTE: This writes the gradient signal as needed.
         );
-        ∂E .= Devices.gradient(fn.device, τ̄, t̄, @view(ϕ̄[:,:,1]));
-        ∂N .= Devices.gradient(fn.device, τ̄, t̄, @view(ϕ̄[:,:,2]));
+        ∂E .= Devices.gradient(fn.device, τ̄, t̄, @view(ϕ[:,:,1]));
+        ∂N .= Devices.gradient(fn.device, τ̄, t̄, @view(ϕ[:,:,2]));
 
         ∇f̄ .= (∂E./N) .- (E/N) .* (∂N./N)
     )

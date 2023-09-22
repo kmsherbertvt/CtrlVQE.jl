@@ -123,8 +123,8 @@ function CostFunctions.grad_function_inplace(fn::Normalization{F}; ϕ=nothing) w
             fn.T,
             fn.ψ0,
             Π;
-            result=ϕ̄,   # NOTE: This writes the gradient signal as needed.
+            result=ϕ,   # NOTE: This writes the gradient signal as needed.
         );
-        ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ̄)
+        ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ)
     )
 end
