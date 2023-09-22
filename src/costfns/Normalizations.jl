@@ -32,7 +32,7 @@ The norm of a statevector in a binary logical space.
 - `ψ0`: the reference state, living in the physical Hilbert space of `device`.
 
 """
-struct Normalization{F} <: CostFunctions.CostFunctionType{F}
+struct Normalization{F} <: CostFunctions.EnergyFunction{F}
     evolution::Evolutions.TrotterEvolution
     device::Devices.DeviceType
     basis::Bases.BasisType
@@ -60,7 +60,25 @@ end
 
 Base.length(fn::Normalization) = Parameters.count(fn.device)
 
-function CostFunctions.cost_function(fn::Normalization)
+function CostFunctions.trajectory_callback(
+    fn::Normalization,
+    F::AbstractVector;
+    callback=nothing
+)
+    workbasis = Evolutions.workbasis(fn.evolution)      # BASIS OF CALLBACK ψ
+    U = Devices.basisrotation(fn.basis, workbasis, fn.device)
+    π̄ = QubitOperators.localqubitprojectors(fn.device)
+    ψ_ = similar(fn.ψ0)
+
+    return (i, t, ψ) -> (
+        ψ_ .= ψ;
+        LinearAlgebraTools.rotate!(U, ψ_);  # ψ_ IS NOW IN MEASUREMENT BASIS
+        F[i] = real(LinearAlgebraTools.expectation(π̄, ψ_));
+        !isnothing(callback) && callback(i, t, ψ)
+    )
+end
+
+function CostFunctions.cost_function(fn::Normalization; callback=nothing)
     # DYNAMICALLY UPDATED STATEVECTOR
     ψ = copy(fn.ψ0)
     # OBSERVABLE - IT'S THE PROJECTION OPERATOR
@@ -75,19 +93,26 @@ function CostFunctions.cost_function(fn::Normalization)
             fn.T,
             fn.ψ0;
             result=ψ,
+            callback=callback,
         );
         real(LinearAlgebraTools.expectation(π̄, ψ))
     )
 end
 
-function CostFunctions.grad_function_inplace(fn::Normalization{F}) where {F}
-    # TIME GRID
+function CostFunctions.grad_function_inplace(fn::Normalization{F}; ϕ=nothing) where {F}
     r = Evolutions.nsteps(fn.evolution)
+
+    if isnothing(ϕ)
+        return CostFunctions.grad_function_inplace(
+            fn;
+            ϕ=Array{F}(undef, r+1, Devices.ngrades(fn.device))
+        )
+    end
+
+    # TIME GRID
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)
     # OBSERVABLE - IT'S THE PROJECTION OPERATOR
     Π = QubitOperators.qubitprojector(fn.device)
-    # GRADIENT VECTORS
-    ϕ̄ = Array{F}(undef, r+1, Devices.ngrades(fn.device))
 
     return (∇f̄, x̄) -> (
         Parameters.bind(fn.device, x̄);
@@ -98,7 +123,7 @@ function CostFunctions.grad_function_inplace(fn::Normalization{F}) where {F}
             fn.T,
             fn.ψ0,
             Π;
-            result=ϕ̄,
+            result=ϕ̄,   # NOTE: This writes the gradient signal as needed.
         );
         ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ̄)
     )

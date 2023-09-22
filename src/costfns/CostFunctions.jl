@@ -1,5 +1,6 @@
-export CostFunctionType, CompositeCostFunction
+export CostFunctionType, CompositeCostFunction, EnergyFunction
 export cost_function, grad_function, grad_function_inplace
+export trajectory_callback
 
 import LinearAlgebra
 
@@ -24,6 +25,10 @@ Any concrete sub-type `CF` must implement the following methods:
         returns a mutating `Function` which takes a gradient vector (to be mutated)
             and a parameter vector, and writes the gradient vector to the first argument.
         As a matter of habit, the resulting gradient vector should also be returned.
+
+If your cost function involves calculating the expectation value of a time-evolved state,
+    you should implement an `EnergyFunction` (even if it isn't strictly an energy).
+This type has a couple extra requirements to allow energy trajectories over the evolution.
 
 """
 abstract type CostFunctionType{F} end
@@ -105,10 +110,10 @@ The function accepts a parameter vector `x̄`
 The function returns the gradient (a vector) of `fn` at the point `x̄`.
 
 """
-function grad_function(fn::CostFunctionType{F}) where {F}
-    gd = grad_function_inplace(fn)
+function grad_function(fn::CostFunctionType{F}; kwargs...) where {F}
+    g! = grad_function_inplace(fn; kwargs...)
     ∇f̄ = Vector{F}(undef, length(fn))
-    return (x̄) -> (gd(∇f̄, x̄); ∇f̄)
+    return (x̄) -> (g!(∇f̄, x̄); ∇f̄)
 end
 
 
@@ -199,4 +204,63 @@ function grad_function_inplace(fn::CompositeCostFunction{F}) where {F}
         end;
         ∇f̄;
     )
+end
+
+
+
+"""
+    CostFunctionType{F}
+
+Super-type for "cost functions", to be plugged directly into optimization algorithms.
+
+# Implementation
+
+Any concrete sub-type `CF` must implement
+    *everything* required in the `CostFunctionType` interface,
+    so consult the documentation for `CostFunctionType` carefully.
+
+In additon, the following method must be implemented:
+- `trajectory_callback(::CF, E::AbstractVector; callback=nothing)`
+        returns a `Function` compatible with Evolutions.evolve callback
+            ie. a callable expression (i::Int, t::Real, ψ::Vector) -> Nothing
+        which sets E[i] to the energy of a partially evolved wavefunction ψ.
+        If `callback` is provided, the function calls that `callback` afterwards.
+
+Finally, the following methods must now accept a keyword argument:
+- `cost_function(::CF; callback=nothing)`:
+        When `callback` is provided, the time evolution must call it at each timestep.
+
+- `grad_function_inplace(::CF; ϕ=nothing)`:
+        When `ϕ` is provided, write the gradient signals to it.
+
+"""
+abstract type EnergyFunction{F} <: CostFunctionType{F} end
+
+function trajectory_callback(fn::EnergyFunction, E::AbstractVector; callback=nothing)
+    error("Not Implemented")
+    return (i, t, ψ) -> nothing
+end
+
+"""
+    cost_function(fn::CostFunctionType; callback=nothing)
+
+Same as for `CostFunctionType` except that whenever the function is called,
+    the time evolution calls `callback` (if provided) in each time step.
+
+"""
+function cost_function(fn::EnergyFunction{F}; callback=nothing) where {F}
+    error("Not Implemented")
+    return (x̄) -> zero(F)
+end
+
+"""
+    grad_function_inplace(fn::CostFunctionType; ϕ=nothing)
+
+Same as for `CostFunctionType` except that whenever the function is called,
+    ϕ (if provided) is updated to contain the gradient signals.
+
+"""
+function grad_function_inplace(fn::EnergyFunction{F}; ϕ=nothing) where {F}
+    error("Not Implemented")
+    return (∇f̄, x̄) -> Vector{F}(undef, length(fn))
 end

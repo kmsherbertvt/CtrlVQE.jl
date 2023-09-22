@@ -522,3 +522,5 @@ function validate(costfn::CostFunctions.CostFunctionType{F}) where {F}
 
     return true
 end
+
+# TODO: Validate extended interface for energy functions.

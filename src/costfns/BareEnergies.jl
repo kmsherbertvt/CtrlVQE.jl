@@ -45,7 +45,7 @@ This type is called "bare" because it does not perform any projection steps
 - `O0`: a Hermitian matrix, living in the physical Hilbert space of `device`.
 
 """
-struct BareEnergy{F} <: CostFunctions.CostFunctionType{F}
+struct BareEnergy{F} <: CostFunctions.EnergyFunction{F}
     evolution::Evolutions.TrotterEvolution
     device::Devices.DeviceType
     basis::Bases.BasisType
@@ -78,7 +78,27 @@ end
 
 Base.length(fn::BareEnergy) = Parameters.count(fn.device)
 
-function CostFunctions.cost_function(fn::BareEnergy)
+function CostFunctions.trajectory_callback(
+    fn::BareEnergy,
+    E::AbstractVector;
+    callback=nothing
+)
+    workbasis = Evolutions.workbasis(fn.evolution)      # BASIS OF CALLBACK ψ
+    U = Devices.basisrotation(fn.basis, workbasis, fn.device)
+    ψ_ = similar(fn.ψ0)
+
+    return (i, t, ψ) -> (
+        ψ_ .= ψ;
+        LinearAlgebraTools.rotate!(U, ψ_);  # ψ_ IS NOW IN MEASUREMENT BASIS
+        # APPLY FRAME ROTATION TO STATE RATHER THAN OBSERVABLE
+        Devices.evolve!(fn.frame, fn.device, fn.basis, -t, ψ_);
+            # NOTE: Rotating observable only makes sense when time is always the same.
+        E[i] = real(LinearAlgebraTools.expectation(fn.O0, ψ_));
+        !isnothing(callback) && callback(i, t, ψ)
+    )
+end
+
+function CostFunctions.cost_function(fn::BareEnergy; callback=nothing)
     # DYNAMICALLY UPDATED STATEVECTOR
     ψ = copy(fn.ψ0)
     # OBSERVABLE, IN MEASUREMENT FRAME
@@ -93,19 +113,26 @@ function CostFunctions.cost_function(fn::BareEnergy)
             fn.T,
             fn.ψ0;
             result=ψ,
+            callback=callback,
         );
         real(LinearAlgebraTools.expectation(OT, ψ))
     )
 end
 
-function CostFunctions.grad_function_inplace(fn::BareEnergy{F}) where {F}
-    # TIME GRID
+function CostFunctions.grad_function_inplace(fn::BareEnergy{F}; ϕ=nothing) where {F}
     r = Evolutions.nsteps(fn.evolution)
+
+    if isnothing(ϕ)
+        return CostFunctions.grad_function_inplace(
+            fn;
+            ϕ=Array{F}(undef, r+1, Devices.ngrades(fn.device))
+        )
+    end
+
+    # TIME GRID
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)
     # OBSERVABLE, IN MEASUREMENT FRAME
     OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, fn.T, OT)
-    # GRADIENT VECTORS
-    ϕ̄ = Array{F}(undef, r+1, Devices.ngrades(fn.device))
 
     return (∇f̄, x̄) -> (
         Parameters.bind(fn.device, x̄);

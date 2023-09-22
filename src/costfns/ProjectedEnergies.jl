@@ -45,7 +45,7 @@ The statevector is projected onto a binary logical space after time evolution,
 - `O0`: a Hermitian matrix, living in the physical Hilbert space of `device`.
 
 """
-struct ProjectedEnergy{F} <: CostFunctions.CostFunctionType{F}
+struct ProjectedEnergy{F} <: CostFunctions.EnergyFunction{F}
     evolution::Evolutions.TrotterEvolution
     device::Devices.DeviceType
     basis::Bases.BasisType
@@ -78,13 +78,36 @@ end
 
 Base.length(fn::ProjectedEnergy) = Parameters.count(fn.device)
 
-function CostFunctions.cost_function(fn::ProjectedEnergy)
+function CostFunctions.trajectory_callback(
+    fn::ProjectedEnergy,
+    E::AbstractVector;
+    callback=nothing
+)
+    workbasis = Evolutions.workbasis(fn.evolution)      # BASIS OF CALLBACK ψ
+    U = Devices.basisrotation(fn.basis, workbasis, fn.device)
+    π̄ = QubitOperators.localqubitprojectors(fn.device)
+    ψ_ = similar(fn.ψ0)
+
+    return (i, t, ψ) -> (
+        ψ_ .= ψ;
+        LinearAlgebraTools.rotate!(U, ψ_);  # ψ_ IS NOW IN MEASUREMENT BASIS
+        LinearAlgebraTools.rotate!(π̄, ψ_);  # ψ_ IS NOW "MEASURED"
+        # APPLY FRAME ROTATION TO STATE RATHER THAN OBSERVABLE
+        Devices.evolve!(fn.frame, fn.device, fn.basis, -t, ψ_);
+            # NOTE: Rotating observable only makes sense when t is always the same.
+        E[i] = real(LinearAlgebraTools.expectation(fn.O0, ψ_));
+        !isnothing(callback) && callback(i, t, ψ)
+    )
+end
+
+function CostFunctions.cost_function(fn::ProjectedEnergy; callback=nothing)
     # DYNAMICALLY UPDATED STATEVECTOR
     ψ = copy(fn.ψ0)
     # OBSERVABLE, IN MEASUREMENT FRAME
     OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, fn.T, OT)
     # INCLUDE PROJECTION ONTO COMPUTATIONAL SUBSPACE IN THE MEASUREMENT
-    LinearAlgebraTools.rotate!(QubitOperators.localqubitprojectors(fn.device), OT)
+    π̄ = QubitOperators.localqubitprojectors(fn.device)
+    LinearAlgebraTools.rotate!(π̄, OT)
 
     return (x̄) -> (
         Parameters.bind(fn.device, x̄);
@@ -95,21 +118,29 @@ function CostFunctions.cost_function(fn::ProjectedEnergy)
             fn.T,
             fn.ψ0;
             result=ψ,
+            callback=callback,
         );
         real(LinearAlgebraTools.expectation(OT, ψ))
     )
 end
 
-function CostFunctions.grad_function_inplace(fn::ProjectedEnergy{F}) where {F}
-    # TIME GRID
+function CostFunctions.grad_function_inplace(fn::ProjectedEnergy{F}; ϕ=nothing) where {F}
     r = Evolutions.nsteps(fn.evolution)
+
+    if isnothing(ϕ)
+        return CostFunctions.grad_function_inplace(
+            fn;
+            ϕ=Array{F}(undef, r+1, Devices.ngrades(fn.device))
+        )
+    end
+
+    # TIME GRID
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)
     # OBSERVABLE, IN MEASUREMENT FRAME
     OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, fn.T, OT)
     # INCLUDE PROJECTION ONTO COMPUTATIONAL SUBSPACE IN THE MEASUREMENT
-    LinearAlgebraTools.rotate!(QubitOperators.localqubitprojectors(fn.device), OT)
-    # GRADIENT VECTORS
-    ϕ̄ = Array{F}(undef, r+1, Devices.ngrades(fn.device))
+    π̄ = QubitOperators.localqubitprojectors(fn.device)
+    LinearAlgebraTools.rotate!(π̄, OT)
 
     return (∇f̄, x̄) -> (
         Parameters.bind(fn.device, x̄);
@@ -120,7 +151,7 @@ function CostFunctions.grad_function_inplace(fn::ProjectedEnergy{F}) where {F}
             fn.T,
             fn.ψ0,
             OT;
-            result=ϕ̄,
+            result=ϕ̄,   # NOTE: This writes the gradient signal as needed.
         );
         ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ̄)
     )

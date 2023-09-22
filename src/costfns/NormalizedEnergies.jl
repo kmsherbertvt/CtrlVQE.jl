@@ -46,7 +46,7 @@ The statevector is projected onto a binary logical space after time evolution,
 - `O0`: a Hermitian matrix, living in the physical Hilbert space of `device`.
 
 """
-struct NormalizedEnergy{F} <: CostFunctions.CostFunctionType{F}
+struct NormalizedEnergy{F} <: CostFunctions.EnergyFunction{F}
     evolution::Evolutions.TrotterEvolution
     device::Devices.DeviceType
     basis::Bases.BasisType
@@ -79,7 +79,31 @@ end
 
 Base.length(fn::NormalizedEnergy) = Parameters.count(fn.device)
 
-function CostFunctions.cost_function(fn::NormalizedEnergy)
+function CostFunctions.trajectory_callback(
+    fn::NormalizedEnergy,
+    En::AbstractVector;
+    callback=nothing
+)
+    workbasis = Evolutions.workbasis(fn.evolution)      # BASIS OF CALLBACK ψ
+    U = Devices.basisrotation(fn.basis, workbasis, fn.device)
+    π̄ = QubitOperators.localqubitprojectors(fn.device)
+    ψ_ = similar(fn.ψ0)
+
+    return (i, t, ψ) -> (
+        ψ_ .= ψ;
+        LinearAlgebraTools.rotate!(U, ψ_);  # ψ_ IS NOW IN MEASUREMENT BASIS
+        LinearAlgebraTools.rotate!(π̄, ψ_);  # ψ_ IS NOW "MEASURED"
+        # APPLY FRAME ROTATION TO STATE RATHER THAN OBSERVABLE
+        Devices.evolve!(fn.frame, fn.device, fn.basis, -t, ψ_);
+            # NOTE: Rotating observable only makes sense when t is always the same.
+        E = real(LinearAlgebraTools.expectation(fn.O0, ψ_));
+        F = real(LinearAlgebraTools.expectation(π̄, ψ_));
+        En[i] = E / F;
+        !isnothing(callback) && callback(i, t, ψ)
+    )
+end
+
+function CostFunctions.cost_function(fn::NormalizedEnergy; callback=nothing)
     # DYNAMICALLY UPDATED STATEVECTOR
     ψ = copy(fn.ψ0)
     # OBSERVABLE, IN MEASUREMENT FRAME
@@ -98,6 +122,7 @@ function CostFunctions.cost_function(fn::NormalizedEnergy)
             fn.T,
             fn.ψ0;
             result=ψ,
+            callback=callback,
         );
         E = real(LinearAlgebraTools.expectation(OT, ψ));
         F = real(LinearAlgebraTools.expectation(π̄, ψ));
@@ -105,9 +130,17 @@ function CostFunctions.cost_function(fn::NormalizedEnergy)
     )
 end
 
-function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}) where {F}
-    # TIME GRID
+function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}; ϕ=nothing) where {F}
     r = Evolutions.nsteps(fn.evolution)
+
+    if isnothing(ϕ)
+        return CostFunctions.grad_function_inplace(
+            fn;
+            ϕ=Array{F}(undef, r+1, Devices.ngrades(fn.device), 2)
+        )
+    end
+
+    # TIME GRID
     τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)
     # THE PROJECTION OPERATOR, FOR COMPONENT COST FUNCTION EVALUATIONS
     π̄ = QubitOperators.localqubitprojectors(fn.device)
@@ -125,7 +158,6 @@ function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}) where {F}
     LinearAlgebraTools.kron(π̄; result=@view(Ō[:,:,2]))
 
     # GRADIENT VECTORS
-    ϕ̄ = Array{F}(undef, r+1, Devices.ngrades(fn.device), 2)
     ∂E = Array{F}(undef, length(fn))
     ∂N = Array{F}(undef, length(fn))
 
@@ -150,7 +182,7 @@ function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}) where {F}
             fn.T,
             fn.ψ0,
             Ō;
-            result=ϕ̄,
+            result=ϕ̄,   # NOTE: This writes the gradient signal as needed.
         );
         ∂E .= Devices.gradient(fn.device, τ̄, t̄, @view(ϕ̄[:,:,1]));
         ∂N .= Devices.gradient(fn.device, τ̄, t̄, @view(ϕ̄[:,:,2]));

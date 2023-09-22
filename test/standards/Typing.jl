@@ -340,3 +340,5 @@ function check_types(costfn::CostFunctions.CostFunctionType)
 
     return nothing
 end
+
+# TODO: Check types of extended interface for energy functions.

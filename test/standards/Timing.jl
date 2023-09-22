@@ -303,3 +303,5 @@ function check_times(costfn::CostFunctions.CostFunctionType)
 
     return nothing
 end
+
+# TODO: Time extended interface for energy functions.

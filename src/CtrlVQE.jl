@@ -255,8 +255,9 @@ Thus, all you need to run a gradient based optimization is:
 
 """
 module CostFunctions; include("costfns/CostFunctions.jl"); end
-import .CostFunctions: CostFunctionType, CompositeCostFunction
+import .CostFunctions: CostFunctionType, CompositeCostFunction, EnergyFunction
 import .CostFunctions: cost_function, grad_function, grad_function_inplace
+import .CostFunctions: trajectory_callback
 
 #= ENERGY FUNCTIONS =#
 module BareEnergies; include("costfns/BareEnergies.jl"); end
