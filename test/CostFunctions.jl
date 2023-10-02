@@ -11,6 +11,7 @@ import CtrlVQE.Bases: OCCUPATION, DRESSED
 using Random: seed!
 using LinearAlgebra: Hermitian
 
+#= # TODO delete
 ##########################################################################################
 # ENERGY FUNCTION SELF-CONSISTENCY CHECKS
 
@@ -92,4 +93,61 @@ end; end
         fn = Normalization(evolution, device, basis, T, ψ0)
         StandardTests.validate(fn)
     end; end
+end
+
+=# # TODO delete
+# TEST PENALTY FUNCTIONS
+
+@testset "AmplitudeBounds" begin
+    ΩMAX = 2π * 0.02
+    L = 6
+    Ω = 1:4
+
+    @testset "Paired" begin
+        fn = CtrlVQE.AmplitudeBound(ΩMAX, 1.0, ΩMAX, L, Ω, true)
+        StandardTests.validate(fn)
+    end
+
+    @testset "Unpaired" begin
+        fn = CtrlVQE.AmplitudeBound(ΩMAX, 1.0, ΩMAX, L, Ω, false)
+        StandardTests.validate(fn)
+    end
+end
+
+@testset "SmoothBounds" begin
+    ΩMAX = 0.0    # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+    ω = 0.5       # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+
+    λ̄ = [1.0, 1.0, 0.0]
+    σ̄ = [1.0, 0.1, 0.0]
+    μ̄R = [ΩMAX, ω+2π, 0.0]
+    μ̄L = [-ΩMAX, ω-2π, 0.0]
+
+    fn = CtrlVQE.SmoothBound(λ̄, μ̄R, μ̄L, σ̄)
+    StandardTests.validate(fn)
+end
+
+@testset "HardBounds" begin
+    ΩMAX = 0.0    # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+    ω = 0.5       # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+
+    λ̄ = [1.0, 1.0, 0.0]
+    σ̄ = [1.0, 0.1, 0.0]
+    μ̄R = [ΩMAX, ω+2π, 0.0]
+    μ̄L = [-ΩMAX, ω-2π, 0.0]
+
+    fn = CtrlVQE.HardBound(λ̄, μ̄L, μ̄R, σ̄)
+    StandardTests.validate(fn)
+end
+
+@testset "SoftBounds" begin
+    ΩMAX = 0.5    # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+    ω = 0.5       # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+
+    λ̄ = [1.0, 1.0, 0.0]
+    μ̄ = [0.0, ω, 0.0]
+    σ̄ = [ΩMAX, 2π, 0.0]
+
+    fn = CtrlVQE.SoftBound(λ̄, μ̄, σ̄)
+    StandardTests.validate(fn)
 end

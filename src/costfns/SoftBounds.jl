@@ -40,7 +40,7 @@ function CostFunctions.cost_function(fn::SoftBound)
         for i in 1:length(fn);
             x, λ, μ, σ = x̄[i], fn.λ̄[i], fn.μ̄[i], fn.σ̄[i];
             u = (x-μ)/σ;
-            total += λ * wall(u);
+            λ > 0 && (total += λ * wall(u));
         end;
         total
     )
@@ -52,7 +52,7 @@ function CostFunctions.grad_function_inplace(fn::SoftBound)
         for i in 1:length(fn);
             x, λ, μ, σ = x̄[i], fn.λ̄[i], fn.μ̄[i], fn.σ̄[i];
             u = (x-μ)/σ;
-            ∇f̄[i] .= λ * grad(u) / σ;
+            λ > 0 && (∇f̄[i] = λ * grad(u) / σ);
         end;
         ∇f̄
     )

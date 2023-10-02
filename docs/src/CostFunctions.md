@@ -21,8 +21,9 @@ Modules = [
 ## Penalty Functions
 ```@autodocs
 Modules = [
+    CtrlVQE.AmplitudeBounds,
+    CtrlVQE.SmoothBounds,
     CtrlVQE.HardBounds,
     CtrlVQE.SoftBounds,
-    CtrlVQE.SmoothBounds,
 ]
 ```
