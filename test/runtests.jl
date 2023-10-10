@@ -13,6 +13,7 @@ module StandardTests; include("standards/Tests.jl"); end
 
 @testset "CtrlVQE" begin
     @testset "LinearAlgebraTools" include("LinearAlgebraTools.jl")
+    @testset "Integrations" include("Integrations.jl")
     @testset "Signals" include("Signals.jl")
     @testset "Devices" include("Devices.jl")
     @testset "Evolutions" include("Evolutions.jl")

@@ -7,10 +7,11 @@ using Test
 import ..loadedanalyticpulses, ..evolve_transmon
 
 import CtrlVQE: Parameters, LinearAlgebraTools
-import CtrlVQE: Signals, Devices, Evolutions, CostFunctions
+import CtrlVQE: Integrations, Signals, Devices, Evolutions, CostFunctions
 
-import CtrlVQE: TransmonDevices
+import CtrlVQE: TrapezoidalIntegration
 import CtrlVQE: ConstantSignals
+import CtrlVQE: TransmonDevices
 
 import CtrlVQE.Bases: OCCUPATION, DRESSED
 import CtrlVQE.Operators: StaticOperator, IDENTITY, COUPLING, STATIC
@@ -23,12 +24,14 @@ using LinearAlgebra: I, norm, Hermitian, eigen, Diagonal, diag
 using FiniteDifferences: grad, central_fdm
 
 const t = 1.0
+const T = 5.0
 const r = 10
-const τ = t / r
-
-const τ̄ = fill(τ, r+1); τ̄[[1,end]] ./=2
-const t̄ = range(0.0, t, r+1)
+const τ = T / r
+const t̄ = range(0.0, T, r+1)
 const ϕ̄ = ones(r+1)
+
+const grid = TrapezoidalIntegration(0.0, T, r)
+const Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
 
 function validate(device::Devices.DeviceType)
     m = Devices.nlevels(device)
@@ -48,9 +51,9 @@ function validate(device::Devices.DeviceType)
     Parameters.bind(device, x̄)
 
     ϕ̄_ = repeat(ϕ̄, 1, nG)
-    grad = Devices.gradient(device, τ̄, t̄, ϕ̄_)
+    grad = Devices.gradient(device, grid, ϕ̄_)
     @test length(grad) == L
-    grad_ = zero(grad); Devices.gradient(device, τ̄, t̄, ϕ̄_; result=grad_)
+    grad_ = zero(grad); Devices.gradient(device, grid, ϕ̄_; result=grad_)
     @test grad ≈ grad_
 
     # NOTE: Accuracy of gradient is deferred to unit-tests on energy functions.
@@ -311,25 +314,11 @@ function validate(signal::Signals.SignalType{P,R}) where {P,R}
     # CONVENIENCE FUNCTIONS
     @test typeof(string(signal)) == String
 
-    # INTEGRAL FUNCTIONS
-    Ip = Signals.integrate_partials(signal, τ̄, t̄)
-    Ip_ = zero(Ip); Signals.integrate_partials(signal, τ̄, t̄; result=Ip_)
-    @test Ip ≈ Ip_
-
-    Ip = Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄)
-    Ip_ = zero(Ip); Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄, result=Ip_)
-    @test Ip ≈ Ip_
-
-    Is = Signals.integrate_signal(signal, τ̄, t̄)         # No self-consistency here,
-    Is = Signals.integrate_signal(signal, τ̄, t̄; ϕ̄=ϕ̄)    #   just check for errors.
-
     return true
 end
 
 function validate(evolution::Evolutions.EvolutionType)
     seed!(0)            # FOR GENERATING INITIAL STATEVECTORS AND OBSERVABLES
-    T = 5.0 # ns        # FIXED EVOLUTION TIME, FOR TESTING
-    Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
 
     workbasis = Evolutions.workbasis(evolution)
     newbasis = (workbasis == OCCUPATION) ? DRESSED : OCCUPATION
@@ -363,45 +352,45 @@ function validate(evolution::Evolutions.EvolutionType)
 
     # `evolve` METHODS
 
-    ψ = Evolutions.evolve(evolution, device, T, ψ0)
+    ψ = Evolutions.evolve(evolution, device, grid, ψ0)
     ψ_ = zero(ψ)                        # RESULT VECTOR FOR SUBSEQUENT TESTS
 
     @test norm(ψ0) ≈ norm(ψ)            # TIME EVOLUTION SHOULD BE UNITARY
 
-    ψ_ .= Evolutions.evolve(evolution, device, workbasis, T, ψ0)
+    ψ_ .= Evolutions.evolve(evolution, device, workbasis, grid, ψ0)
     @test ψ ≈ ψ_
-    ψ_ .= 0; Evolutions.evolve(evolution, device, T, ψ0; result=ψ_)
+    ψ_ .= 0; Evolutions.evolve(evolution, device, grid, ψ0; result=ψ_)
     @test ψ ≈ ψ_
-    ψ_ .= 0; Evolutions.evolve(evolution, device, workbasis, T, ψ0; result=ψ_)
+    ψ_ .= 0; Evolutions.evolve(evolution, device, workbasis, grid, ψ0; result=ψ_)
     @test ψ ≈ ψ_
 
-    ψ_ .= ψ0; Evolutions.evolve!(evolution, device, T, ψ_)
+    ψ_ .= ψ0; Evolutions.evolve!(evolution, device, grid, ψ_)
     @test ψ ≈ ψ_
-    ψ_ .= ψ0; Evolutions.evolve!(evolution, device, workbasis, T, ψ_)
+    ψ_ .= ψ0; Evolutions.evolve!(evolution, device, workbasis, grid, ψ_)
     @test ψ ≈ ψ_
 
     ψ_ .= ψ0n;
-        Evolutions.evolve!(evolution, device, newbasis, T, ψ_);
+        Evolutions.evolve!(evolution, device, newbasis, grid, ψ_);
         LinearAlgebraTools.rotate!(U', ψ_)
     @test ψ ≈ ψ_
 
     # `gradientsignals` METHODS
 
-    ϕ̄ = Evolutions.gradientsignals(evolution, device, T, ψ0, Ō)
+    ϕ̄ = Evolutions.gradientsignals(evolution, device, grid, ψ0, Ō)
     ϕ̄_ = zero(ϕ̄)                        # RESULT VECTOR FOR SUBSEQUENT TESTS
 
-    ϕ̄_ .= Evolutions.gradientsignals(evolution, device, workbasis, T, ψ0, Ō)
+    ϕ̄_ .= Evolutions.gradientsignals(evolution, device, workbasis, grid, ψ0, Ō)
     @test ϕ̄ ≈ ϕ̄_
 
-    ϕ̄_ .= 0; Evolutions.gradientsignals(evolution, device, T, ψ0, Ō; result=ϕ̄_)
-    @test ϕ̄ ≈ ϕ̄_
-
-    ϕ̄_ .= 0;
-        Evolutions.gradientsignals(evolution, device, workbasis, T, ψ0, Ō; result=ϕ̄_)
+    ϕ̄_ .= 0; Evolutions.gradientsignals(evolution, device, grid, ψ0, Ō; result=ϕ̄_)
     @test ϕ̄ ≈ ϕ̄_
 
     ϕ̄_ .= 0;
-        Evolutions.gradientsignals(evolution, device, newbasis, T, ψ0n, Ōn; result=ϕ̄_)
+        Evolutions.gradientsignals(evolution, device, workbasis, grid, ψ0, Ō; result=ϕ̄_)
+    @test ϕ̄ ≈ ϕ̄_
+
+    ϕ̄_ .= 0;
+        Evolutions.gradientsignals(evolution, device, newbasis, grid, ψ0n,Ōn; result=ϕ̄_)
     @test ϕ̄ ≈ ϕ̄_
 
     # `gradientsignals`, SINGLE OBSERVABLE
@@ -409,23 +398,23 @@ function validate(evolution::Evolutions.EvolutionType)
     O1 = Ō[:,:,1]
     O1n = Ōn[:,:,1]
 
-    ϕ1 = Evolutions.gradientsignals(evolution, device, T, ψ0, O1)
+    ϕ1 = Evolutions.gradientsignals(evolution, device, grid, ψ0, O1)
     ϕ1_ = zero(ϕ1)                      # RESULT VECTOR FOR SUBSEQUENT TESTS
 
     @test ϕ1 ≈ @view(ϕ̄[:,:,1])          # SINGLE/MULTI OBSERVABLE VERSIONS SHOULD MATCH
 
-    ϕ1_ .= Evolutions.gradientsignals(evolution, device, workbasis, T, ψ0, O1)
+    ϕ1_ .= Evolutions.gradientsignals(evolution, device, workbasis, grid, ψ0, O1)
     @test ϕ1 ≈ ϕ1_
 
-    ϕ1_ .= 0; Evolutions.gradientsignals(evolution, device, T, ψ0, O1; result=ϕ1_)
-    @test ϕ1 ≈ ϕ1_
-
-    ϕ1_ .= 0;
-        Evolutions.gradientsignals(evolution, device, workbasis, T, ψ0, O1; result=ϕ1_)
+    ϕ1_ .= 0; Evolutions.gradientsignals(evolution, device, grid, ψ0, O1; result=ϕ1_)
     @test ϕ1 ≈ ϕ1_
 
     ϕ1_ .= 0;
-        Evolutions.gradientsignals(evolution, device, newbasis, T, ψ0n, O1n; result=ϕ1_)
+        Evolutions.gradientsignals(evolution, device, workbasis, grid, ψ0, O1; result=ϕ1_)
+    @test ϕ1 ≈ ϕ1_
+
+    ϕ1_ .= 0;
+        Evolutions.gradientsignals(evolution, device, newbasis, grid, ψ0n,O1n; result=ϕ1_)
     @test ϕ1 ≈ ϕ1_
 
     # CHECK CALLBACKS HAVE THE APPROPRIATE FORM
@@ -437,13 +426,15 @@ function validate(evolution::Evolutions.EvolutionType)
         @assert size(ψ) == size(ψ0);
     )
 
-    Evolutions.evolve(evolution, device, T, ψ0; callback=callback)
-    Evolutions.gradientsignals(evolution, device, T, ψ0, O1; callback=callback)
+    Evolutions.evolve(evolution, device, grid, ψ0; callback=callback)
+    Evolutions.gradientsignals(evolution, device, grid, ψ0, O1; callback=callback)
 
     ######################################################################################
     # ACCURACY TESTS: 1-QUBIT 2 and 3-LEVEL SYSTEMS WITH COMPLEX PULSES
 
     loadedanalyticpulses || return true # SKIP ACCURACY TESTS IF WE DIDN'T LOAD THE MODULE
+
+    finegrid = TrapezoidalIntegration(0.0, T, 10000)
 
     # pulse = ConstantSignals.ComplexConstant(2π * 0.02, -2π * 0.02)
     #= TODO (mid): I'd rather use a complex amplitude here, but it fails for m=3.
@@ -463,7 +454,7 @@ function validate(evolution::Evolutions.EvolutionType)
     TransmonDevices.bindfrequencies(device_2, [ω+Δ])
 
     ψ02 = rand(ComplexF64, Devices.nstates(device_2)); ψ02 ./= norm(ψ02)
-    ψ2 = Evolutions.evolve(evolution, device_2, OCCUPATION, T, ψ02)
+    ψ2 = Evolutions.evolve(evolution, device_2, OCCUPATION, finegrid, ψ02)
     ψ2_ = evolve_transmon(ω, δ, Ω, ω+Δ, T, ψ02)
     @test ψ2 ≈ ψ2_
 
@@ -475,20 +466,11 @@ function validate(evolution::Evolutions.EvolutionType)
     TransmonDevices.bindfrequencies(device_3, [ω+Δ])
 
     ψ03 = rand(ComplexF64, Devices.nstates(device_3)); ψ03 ./= norm(ψ03)
-    ψ3 = Evolutions.evolve(evolution, device_3, OCCUPATION, T, ψ03)
+    ψ3 = Evolutions.evolve(evolution, device_3, OCCUPATION, finegrid, ψ03)
     ψ3_ = evolve_transmon(ω, δ, Ω, ω+Δ, T, ψ03)
     @test ψ3 ≈ ψ3_
 
     # NOTE: Accuracy of gradient is deferred to unit-tests on energy functions.
-
-    return true
-end
-
-function validate(evolution::Evolutions.TrotterEvolution)
-    super = invoke(validate, Tuple{Evolutions.EvolutionType}, evolution)
-    !super && return false
-
-    @test Evolutions.nsteps(evolution) ≥ 0
 
     return true
 end
@@ -524,3 +506,49 @@ function validate(costfn::CostFunctions.CostFunctionType{F}) where {F}
 end
 
 # TODO: Validate extended interface for energy functions.
+
+function validate(grid::Integrations.IntegrationType)
+    r = Integrations.nsteps(grid)
+
+    # CHECK `lattice` MATCHES `timeat`
+    t̄ = Integrations.lattice(grid)
+    @test length(t̄) == r+1
+    @test all( i -> Integrations.timeat(grid,i) ≈ t̄[i+1], 0:r)
+
+    # CHECK `reversed` REALLY IS `grid` BACKWARDS
+    reversed = reverse(grid)
+    @test all( i -> Integrations.timeat(reversed,r-i) ≈ t̄[i+1], 0:r)
+
+    # CHECK THAT THE SCALAR METHODS ALL DO WHAT THEY'RE SUPPOSED TO
+    t0 = Integrations.starttime(grid)
+    @test t0 ≈ Integrations.timeat(grid, 0)
+
+    tf = Integrations.endtime(grid)
+    @test tf ≈ Integrations.timeat(grid, r)
+
+    T = Integrations.duration(grid)
+    @test T ≈ tf - t0
+
+    τ = Integrations.stepsize(grid)
+    @test τ ≈ T / r
+
+    # CHECK THAT THE INTEGRATION STEPS...um, INTEGRATE CORRECTLY
+    @test sum(Integrations.stepat(grid,i) for i in 0:r) ≈ T
+
+    # CHECK THAT TYPINGS ARE CONSISTENT
+    F = eltype(grid)
+    @test eltype(t̄) == F
+    @test eltype(Integrations.timeat(grid, 0)) == F
+    @test eltype(Integrations.stepat(grid, 0)) == F
+    @test eltype(t0) == F
+    @test eltype(tf) == F
+    @test eltype(T) == F
+    @test eltype(τ) == F
+
+    # CHECK INTEGRATION METHODS FOR SOME TOY FUNCTIONS
+    ONES = ones(F, r+1)
+    @test Integrations.integrate(grid, ONES) ≈ T
+    @test Integrations.integrate(grid, t -> 1) ≈ T
+    @test Integrations.integrate(grid, (t,k) -> k, ONES) ≈ T
+
+end

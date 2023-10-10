@@ -2,20 +2,20 @@ import ..CostFunctions
 export Normalization
 
 import ..LinearAlgebraTools, ..QubitOperators
-import ..Parameters, ..Devices, ..Evolutions
+import ..Parameters, ..Integrations, ..Devices, ..Evolutions
 import ..Bases, ..Operators
 
+import ..TrapezoidalIntegrations: TrapezoidalIntegration
+
 """
-    Normalization(ψ0, T, device, r; kwargs...)
+    Normalization(evolution, device, basis, grid, ψ0; kwargs...)
 
 The norm of a statevector in a binary logical space.
 
 # Arguments
 
-- `evolution::Evolutions.TrotterEvolution`: which algorithm to evolve `ψ0` with
-        A sensible choice is `ToggleEvolutions.Toggle(r)`,
-            where `r` is the number of Trotter steps.
-        Must be a TrotterEvolution because the gradient signal is inherently Trotterized.
+- `evolution::Evolutions.EvolutionType`: the algorithm with which to evolve `ψ0`
+        A sensible choice is `ToggleEvolutions.TOGGLE`
 
 - `device::Devices.DeviceType`: the device, which determines the time-evolution of `ψ0`
 
@@ -27,32 +27,31 @@ The norm of a statevector in a binary logical space.
             aka `Bases.DRESSED`.
         Note that you probably want to rotate `ψ0` if you change this argument.
 
-- `T::Real`: the total time for the state to evolve under the `device` Hamiltonian.
+- `grid::TrapezoidalIntegration`: defines the time integration bounds (eg. from 0 to `T`)
 
 - `ψ0`: the reference state, living in the physical Hilbert space of `device`.
 
 """
 struct Normalization{F} <: CostFunctions.EnergyFunction{F}
-    evolution::Evolutions.TrotterEvolution
+    evolution::Evolutions.EvolutionType
     device::Devices.DeviceType
     basis::Bases.BasisType
-    T::F
+    grid::TrapezoidalIntegration
     ψ0::Vector{Complex{F}}
 
     function Normalization(
-        evolution::Evolutions.TrotterEvolution,
+        evolution::Evolutions.EvolutionType,
         device::Devices.DeviceType,
         basis::Bases.BasisType,
-        T::Real,
+        grid::TrapezoidalIntegration,
         ψ0::AbstractVector,
     )
         # INFER FLOAT TYPE AND CONVERT ARGUMENTS
-        F = real(promote_type(Float16, eltype(ψ0), eltype(T)))
+        F = real(promote_type(Float16, eltype(ψ0), eltype(grid)))
 
         # CREATE OBJECT
         return new{F}(
-            evolution, device, basis,
-            F(T),
+            evolution, device, basis, grid,
             convert(Array{Complex{F}}, ψ0),
         )
     end
@@ -90,7 +89,7 @@ function CostFunctions.cost_function(fn::Normalization; callback=nothing)
             fn.evolution,
             fn.device,
             fn.basis,
-            fn.T,
+            fn.grid,
             fn.ψ0;
             result=ψ,
             callback=callback,
@@ -100,7 +99,7 @@ function CostFunctions.cost_function(fn::Normalization; callback=nothing)
 end
 
 function CostFunctions.grad_function_inplace(fn::Normalization{F}; ϕ=nothing) where {F}
-    r = Evolutions.nsteps(fn.evolution)
+    r = Integrations.nsteps(fn.grid)
 
     if isnothing(ϕ)
         return CostFunctions.grad_function_inplace(
@@ -109,8 +108,6 @@ function CostFunctions.grad_function_inplace(fn::Normalization{F}; ϕ=nothing) w
         )
     end
 
-    # TIME GRID
-    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)
     # OBSERVABLE - IT'S THE PROJECTION OPERATOR
     Π = QubitOperators.qubitprojector(fn.device)
 
@@ -120,11 +117,11 @@ function CostFunctions.grad_function_inplace(fn::Normalization{F}; ϕ=nothing) w
             fn.evolution,
             fn.device,
             fn.basis,
-            fn.T,
+            fn.grid,
             fn.ψ0,
             Π;
             result=ϕ,   # NOTE: This writes the gradient signal as needed.
         );
-        ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ)
+        ∇f̄ .= Devices.gradient(fn.device, fn.grid, ϕ)
     )
 end

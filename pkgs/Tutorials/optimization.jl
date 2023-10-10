@@ -47,6 +47,8 @@ FES = Λ[2]                                  # FIRST EXCITED STATE
 
 # CONSTRUCT THE MAJOR PACKAGE OBJECTS
 
+grid = CtrlVQE.TemporalLattice(T, r)
+
 pulse = CtrlVQE.UniformWindowed(CtrlVQE.ComplexConstant(0.0, 0.0), T, W); ΩMAX /= √2
             # NOTE: Re-scale max amplitude so that bounds inscribe the complex circle.
             #       Not needed for real or polar-parameterized amplitudes.
@@ -57,7 +59,7 @@ pulse = CtrlVQE.UniformWindowed(CtrlVQE.ComplexConstant(0.0, 0.0), T, W); ΩMAX 
 device = CtrlVQE.Systematic(CtrlVQE.FixedFrequencyTransmonDevice, n, pulse)
 # device = CtrlVQE.Systematic(CtrlVQE.TransmonDevice, n, pulse)
 
-evolution = CtrlVQE.Toggle(r)
+evolution = CtrlVQE.TOGGLE
 
 # INITIALIZE PARAMETERS
 Random.seed!(seed)
@@ -83,7 +85,7 @@ O0 = CtrlVQE.QubitOperators.project(H, device)              # MOLECULAR HAMILTON
 fn_energy = CtrlVQE.ProjectedEnergy(
     evolution, device,
     CtrlVQE.OCCUPATION, CtrlVQE.STATIC,
-    T, ψ0, O0,
+    grid, ψ0, O0,
 )
 
 # PENALTY FUNCTIONS
@@ -150,7 +152,7 @@ println("""
 #= PLOT RESULTS =#
 
 # EXTRACT REAL/IMAGINARY PARTS OF THE PULSE
-_, _, t = CtrlVQE.trapezoidaltimegrid(T, r)
+t = CtrlVQE.lattice(grid)
 CtrlVQE.Parameters.bind(device, xf)             # ENSURE DEVICE USES THE FINAL PARAMETERS
 nD = CtrlVQE.ndrives(device)
 α = Array{Float64}(undef, r+1, nD)

@@ -2,11 +2,13 @@ import ..CostFunctions
 export NormalizedEnergy
 
 import ..LinearAlgebraTools, ..QubitOperators
-import ..Parameters, ..Devices, ..Evolutions
+import ..Parameters, ..Integrations, ..Devices, ..Evolutions
 import ..Bases, ..Operators
 
+import ..TrapezoidalIntegrations: TrapezoidalIntegration
+
 """
-    NormalizedEnergy(O0, ψ0, T, device, r; kwargs...)
+    NormalizedEnergy(evolution, device, basis, frame, grid, ψ0, O0; kwargs...)
 
 Expectation value of a Hermitian observable.
 
@@ -16,10 +18,8 @@ The statevector is projected onto a binary logical space after time evolution,
 
 # Arguments
 
-- `evolution::Evolutions.TrotterEvolution`: which algorithm to evolve `ψ0` with
-        A sensible choice is `ToggleEvolutions.Toggle(r)`,
-            where `r` is the number of Trotter steps.
-        Must be a TrotterEvolution because the gradient signal is inherently Trotterized.
+- `evolution::Evolutions.EvolutionType`: the algorithm with which to evolve `ψ0`
+        A sensible choice is `ToggleEvolutions.TOGGLE`
 
 - `device::Devices.DeviceType`: the device, which determines the time-evolution of `ψ0`
 
@@ -39,7 +39,7 @@ The statevector is projected onto a binary logical space after time evolution,
             a (presumably) classically tractable approximation to the drive frame,
             or `Operators.IDENTITY` to omit the time-dependent rotation entirely.
 
-- `T::Real`: the total time for the state to evolve under the `device` Hamiltonian.
+- `grid::TrapezoidalIntegration`: defines the time integration bounds (eg. from 0 to `T`)
 
 - `ψ0`: the reference state, living in the physical Hilbert space of `device`.
 
@@ -47,30 +47,29 @@ The statevector is projected onto a binary logical space after time evolution,
 
 """
 struct NormalizedEnergy{F} <: CostFunctions.EnergyFunction{F}
-    evolution::Evolutions.TrotterEvolution
+    evolution::Evolutions.EvolutionType
     device::Devices.DeviceType
     basis::Bases.BasisType
     frame::Operators.StaticOperator
-    T::F
+    grid::TrapezoidalIntegration
     ψ0::Vector{Complex{F}}
     O0::Matrix{Complex{F}}
 
     function NormalizedEnergy(
-        evolution::Evolutions.TrotterEvolution,
+        evolution::Evolutions.EvolutionType,
         device::Devices.DeviceType,
         basis::Bases.BasisType,
         frame::Operators.StaticOperator,
-        T::Real,
+        grid::TrapezoidalIntegration,
         ψ0::AbstractVector,
         O0::AbstractMatrix,
     )
         # INFER FLOAT TYPE AND CONVERT ARGUMENTS
-        F = real(promote_type(Float16, eltype(O0), eltype(ψ0), eltype(T)))
+        F = real(promote_type(Float16, eltype(O0), eltype(ψ0), eltype(grid)))
 
         # CREATE OBJECT
         return new{F}(
-            evolution, device, basis, frame,
-            F(T),
+            evolution, device, basis, frame, grid,
             convert(Array{Complex{F}}, ψ0),
             convert(Array{Complex{F}}, O0),
         )
@@ -107,7 +106,8 @@ function CostFunctions.cost_function(fn::NormalizedEnergy; callback=nothing)
     # DYNAMICALLY UPDATED STATEVECTOR
     ψ = copy(fn.ψ0)
     # OBSERVABLE, IN MEASUREMENT FRAME
-    OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, fn.T, OT)
+    T = Integrations.endtime(fn.grid)
+    OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, T, OT)
     # INCLUDE PROJECTION ONTO COMPUTATIONAL SUBSPACE IN THE MEASUREMENT
     LinearAlgebraTools.rotate!(QubitOperators.localqubitprojectors(fn.device), OT)
     # THE PROJECTION OPERATOR
@@ -119,7 +119,7 @@ function CostFunctions.cost_function(fn::NormalizedEnergy; callback=nothing)
             fn.evolution,
             fn.device,
             fn.basis,
-            fn.T,
+            fn.grid,
             fn.ψ0;
             result=ψ,
             callback=callback,
@@ -131,7 +131,7 @@ function CostFunctions.cost_function(fn::NormalizedEnergy; callback=nothing)
 end
 
 function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}; ϕ=nothing) where {F}
-    r = Evolutions.nsteps(fn.evolution)
+    r = Integrations.nsteps(fn.grid)
 
     if isnothing(ϕ)
         return CostFunctions.grad_function_inplace(
@@ -140,8 +140,6 @@ function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}; ϕ=nothing
         )
     end
 
-    # TIME GRID
-    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)
     # THE PROJECTION OPERATOR, FOR COMPONENT COST FUNCTION EVALUATIONS
     π̄ = QubitOperators.localqubitprojectors(fn.device)
     # DYNAMICALLY UPDATED STATEVECTOR
@@ -151,7 +149,8 @@ function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}; ϕ=nothing
     Ō = Array{eltype(ψ)}(undef, (size(fn.O0)..., 2))
     # FIRST MATRIX: THE OBSERVABLE, IN MEASUREMENT FRAME
     OT = @view(Ō[:,:,1])
-    OT .= fn.O0; Devices.evolve!(fn.frame, fn.device, fn.basis, fn.T, OT)
+    T = Integrations.endtime(fn.grid)
+    OT .= fn.O0; Devices.evolve!(fn.frame, fn.device, fn.basis, T, OT)
     # INCLUDE PROJECTION ONTO COMPUTATIONAL SUBSPACE IN THE MEASUREMENT
     LinearAlgebraTools.rotate!(π̄, OT)
     # SECOND MATRIX: PROJECTION OPERATOR, AS A GLOBAL OPERATOR
@@ -167,7 +166,7 @@ function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}; ϕ=nothing
             fn.evolution,
             fn.device,
             fn.basis,
-            fn.T,
+            fn.grid,
             fn.ψ0;
             result=ψ,
         );
@@ -179,13 +178,13 @@ function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}; ϕ=nothing
             fn.evolution,
             fn.device,
             fn.basis,
-            fn.T,
+            fn.grid,
             fn.ψ0,
             Ō;
             result=ϕ,   # NOTE: This writes the gradient signal as needed.
         );
-        ∂E .= Devices.gradient(fn.device, τ̄, t̄, @view(ϕ[:,:,1]));
-        ∂N .= Devices.gradient(fn.device, τ̄, t̄, @view(ϕ[:,:,2]));
+        ∂E .= Devices.gradient(fn.device, fn.grid, @view(ϕ[:,:,1]));
+        ∂N .= Devices.gradient(fn.device, fn.grid, @view(ϕ[:,:,2]));
 
         ∇f̄ .= (∂E./N) .- (E/N) .* (∂N./N)
     )

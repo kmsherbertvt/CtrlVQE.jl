@@ -2,11 +2,13 @@ import ..CostFunctions
 export BareEnergy
 
 import ..LinearAlgebraTools
-import ..Parameters, ..Devices, ..Evolutions
+import ..Parameters, ..Integrations, ..Devices, ..Evolutions
 import ..Bases, ..Operators
 
+import ..TrapezoidalIntegrations: TrapezoidalIntegration
+
 """
-    BareEnergy(O0, ψ0, T, device, r; kwargs...)
+    BareEnergy(evolution, device, basis, frame, grid, ψ0, O0; kwargs...)
 
 Expectation value of a Hermitian observable.
 
@@ -15,10 +17,8 @@ This type is called "bare" because it does not perform any projection steps
 
 # Arguments
 
-- `evolution::Evolutions.TrotterEvolution`: which algorithm to evolve `ψ0` with
-        A sensible choice is `ToggleEvolutions.Toggle(r)`,
-            where `r` is the number of Trotter steps.
-        Must be a TrotterEvolution because the gradient signal is inherently Trotterized.
+- `evolution::Evolutions.EvolutionType`: the algorithm with which to evolve `ψ0`
+        A sensible choice is `ToggleEvolutions.TOGGLE`
 
 - `device::Devices.DeviceType`: the device, which determines the time-evolution of `ψ0`
 
@@ -38,7 +38,7 @@ This type is called "bare" because it does not perform any projection steps
             a (presumably) classically tractable approximation to the drive frame,
             or `Operators.IDENTITY` to omit the time-dependent rotation entirely.
 
-- `T::Real`: the total time for the state to evolve under the `device` Hamiltonian.
+- `grid::TrapezoidalIntegration`: defines the time integration bounds (eg. from 0 to `T`)
 
 - `ψ0`: the reference state, living in the physical Hilbert space of `device`.
 
@@ -46,30 +46,29 @@ This type is called "bare" because it does not perform any projection steps
 
 """
 struct BareEnergy{F} <: CostFunctions.EnergyFunction{F}
-    evolution::Evolutions.TrotterEvolution
+    evolution::Evolutions.EvolutionType
     device::Devices.DeviceType
     basis::Bases.BasisType
     frame::Operators.StaticOperator
-    T::F
+    grid::TrapezoidalIntegration
     ψ0::Vector{Complex{F}}
     O0::Matrix{Complex{F}}
 
     function BareEnergy(
-        evolution::Evolutions.TrotterEvolution,
+        evolution::Evolutions.EvolutionType,
         device::Devices.DeviceType,
         basis::Bases.BasisType,
         frame::Operators.StaticOperator,
-        T::Real,
+        grid::TrapezoidalIntegration,
         ψ0::AbstractVector,
         O0::AbstractMatrix,
     )
         # INFER FLOAT TYPE AND CONVERT ARGUMENTS
-        F = real(promote_type(Float16, eltype(O0), eltype(ψ0), eltype(T)))
+        F = real(promote_type(Float16, eltype(O0), eltype(ψ0), eltype(grid)))
 
         # CREATE OBJECT
         return new{F}(
-            evolution, device, basis, frame,
-            F(T),
+            evolution, device, basis, frame, grid,
             convert(Array{Complex{F}}, ψ0),
             convert(Array{Complex{F}}, O0),
         )
@@ -102,7 +101,8 @@ function CostFunctions.cost_function(fn::BareEnergy; callback=nothing)
     # DYNAMICALLY UPDATED STATEVECTOR
     ψ = copy(fn.ψ0)
     # OBSERVABLE, IN MEASUREMENT FRAME
-    OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, fn.T, OT)
+    T = Integrations.endtime(fn.grid)
+    OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, T, OT)
 
     return (x̄) -> (
         Parameters.bind(fn.device, x̄);
@@ -110,7 +110,7 @@ function CostFunctions.cost_function(fn::BareEnergy; callback=nothing)
             fn.evolution,
             fn.device,
             fn.basis,
-            fn.T,
+            fn.grid,
             fn.ψ0;
             result=ψ,
             callback=callback,
@@ -120,7 +120,7 @@ function CostFunctions.cost_function(fn::BareEnergy; callback=nothing)
 end
 
 function CostFunctions.grad_function_inplace(fn::BareEnergy{F}; ϕ=nothing) where {F}
-    r = Evolutions.nsteps(fn.evolution)
+    r = Integrations.nsteps(fn.grid)
 
     if isnothing(ϕ)
         return CostFunctions.grad_function_inplace(
@@ -129,10 +129,9 @@ function CostFunctions.grad_function_inplace(fn::BareEnergy{F}; ϕ=nothing) wher
         )
     end
 
-    # TIME GRID
-    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(fn.T, r)
     # OBSERVABLE, IN MEASUREMENT FRAME
-    OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, fn.T, OT)
+    T = Integrations.endtime(fn.grid)
+    OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, T, OT)
 
     return (∇f̄, x̄) -> (
         Parameters.bind(fn.device, x̄);
@@ -140,11 +139,11 @@ function CostFunctions.grad_function_inplace(fn::BareEnergy{F}; ϕ=nothing) wher
             fn.evolution,
             fn.device,
             fn.basis,
-            fn.T,
+            fn.grid,
             fn.ψ0,
             OT;
             result=ϕ,
         );
-        ∇f̄ .= Devices.gradient(fn.device, τ̄, t̄, ϕ)
+        ∇f̄ .= Devices.gradient(fn.device, fn.grid, ϕ)
     )
 end

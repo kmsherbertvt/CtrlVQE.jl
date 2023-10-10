@@ -1,8 +1,10 @@
 #= Systematic and comprehensive timing/allocation unit tests. =#
 
 import CtrlVQE
-import CtrlVQE: Parameters, Signals, Devices, Evolutions, CostFunctions
+import CtrlVQE: Parameters, LinearAlgebraTools
+import CtrlVQE: Integrations, Signals, Devices, Evolutions, CostFunctions
 
+import CtrlVQE: TrapezoidalIntegration
 import CtrlVQE: ConstantSignals
 import CtrlVQE: TransmonDevices
 
@@ -13,13 +15,15 @@ import CtrlVQE: Qubit, Channel, Drive, Hamiltonian, Gradient
 using Random: seed!
 using LinearAlgebra: Hermitian
 
-const t = 0.0
-const r = 10
-const τ = t / r
-
-const τ̄ = fill(τ, r+1); τ̄[[1,end]] ./=2
-const t̄ = range(0.0, t, r+1)
+const t = 1.0
+const T = 5.0
+const r = 10000
+const τ = T / r
+const t̄ = range(0.0, T, r+1)
 const ϕ̄ = ones(r+1)
+
+const grid = TrapezoidalIntegration(0.0, T, r)
+const Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
 
 function check_times(device::Devices.DeviceType)
     @time l = Devices.nlevels(device)
@@ -203,15 +207,6 @@ function check_times(signal::Signals.SignalType{P,R}) where {P,R}
     @time string(signal, names)
     @time string(signal)
 
-    @time Ip = Signals.integrate_partials(signal, τ̄, t̄)
-    @time Signals.integrate_partials(signal, τ̄, t̄; result=Ip)
-
-    @time Ip = Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄)
-    @time Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄, result=Ip)
-
-    @time Signals.integrate_signal(signal, τ̄, t̄)
-    @time Signals.integrate_signal(signal, τ̄, t̄; ϕ̄=ϕ̄)
-
     return nothing
 end
 
@@ -226,14 +221,10 @@ const pulses = [
     ConstantSignals.ComplexConstant(-2π * 0.02,  2π * 0.02),
 ]
 const device = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 2, pulses; m=3)
-
-const Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
 TransmonDevices.bindfrequencies(device, [
     TransmonDevices.resonancefrequency(device, 1) + Δ,
     TransmonDevices.resonancefrequency(device, 2) - Δ,
 ])
-
-const T = 5.0 # ns        # FIXED EVOLUTION TIME, FOR TESTING
 
 const N = Devices.nstates(device)
 
@@ -251,34 +242,24 @@ function check_times(evolution::Evolutions.EvolutionType)
     @time basis = Evolutions.workbasis(evolution)
 
     println("Evolutions")
-    @time Evolutions.evolve(evolution, device, T, ψ0)
-    @time ψ = Evolutions.evolve(evolution, device, basis, T, ψ0)
-    @time Evolutions.evolve(evolution, device, T, ψ0; result=ψ)
-    @time Evolutions.evolve(evolution, device, basis, T, ψ0; result=ψ)
-    @time Evolutions.evolve!(evolution, device, T, ψ)
-    @time Evolutions.evolve!(evolution, device, basis, T, ψ)
-
-    return nothing
-end
-
-function check_times(evolution::Evolutions.TrotterEvolution)
-    invoke(check_times, Tuple{Evolutions.EvolutionType}, evolution)
-    basis = Evolutions.workbasis(evolution)
-
-    println("Counting Methods")
-    @time Evolutions.nsteps(evolution)
+    @time Evolutions.evolve(evolution, device, grid, ψ0)
+    @time ψ = Evolutions.evolve(evolution, device, basis, grid, ψ0)
+    @time Evolutions.evolve(evolution, device, grid, ψ0; result=ψ)
+    @time Evolutions.evolve(evolution, device, basis, grid, ψ0; result=ψ)
+    @time Evolutions.evolve!(evolution, device, grid, ψ)
+    @time Evolutions.evolve!(evolution, device, basis, grid, ψ)
 
     println("Gradient Signals - Multi-operator")
-    @time Evolutions.gradientsignals(evolution, device, T, ψ0, Ō)
-    @time ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, T, ψ0, Ō)
-    @time Evolutions.gradientsignals(evolution, device, T, ψ0, Ō; result=ϕ̄)
-    @time Evolutions.gradientsignals(evolution, device, basis, T, ψ0, Ō; result=ϕ̄)
+    @time Evolutions.gradientsignals(evolution, device, grid, ψ0, Ō)
+    @time ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, grid, ψ0, Ō)
+    @time Evolutions.gradientsignals(evolution, device, grid, ψ0, Ō; result=ϕ̄)
+    @time Evolutions.gradientsignals(evolution, device, basis, grid, ψ0, Ō; result=ϕ̄)
 
     println("Gradient Signals - Single-operator")
-    @time Evolutions.gradientsignals(evolution, device, T, ψ0, O1)
-    @time ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, T, ψ0, O1)
-    @time Evolutions.gradientsignals(evolution, device, T, ψ0, O1; result=ϕ̄)
-    @time Evolutions.gradientsignals(evolution, device, basis, T, ψ0, O1; result=ϕ̄)
+    @time Evolutions.gradientsignals(evolution, device, grid, ψ0, O1)
+    @time ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, grid, ψ0, O1)
+    @time Evolutions.gradientsignals(evolution, device, grid, ψ0, O1; result=ϕ̄)
+    @time Evolutions.gradientsignals(evolution, device, basis, grid, ψ0, O1; result=ϕ̄)
 
     return nothing
 end
@@ -305,3 +286,33 @@ function check_times(costfn::CostFunctions.CostFunctionType)
 end
 
 # TODO: Time extended interface for energy functions.
+
+
+function check_times(grid::Integrations.IntegrationType)
+    println("Fundamental operations")
+    @time r = Integrations.nsteps(grid)
+    @time Integrations.timeat(grid, 0)
+    @time Integrations.timeat(grid, r)
+    @time Integrations.stepat(grid, 0)
+    @time Integrations.stepat(grid, r)
+
+    println("Scalar Operations")
+    @time Integrations.starttime(grid)
+    @time Integrations.endtime(grid)
+    @time Integrations.duration(grid)
+    @time Integrations.stepsize(grid)
+
+    println("Heavy Operations")
+    @time Integrations.lattice(grid)
+    @time Integrations.reverse(grid)
+
+    println("Integrations")
+    ONES = ones(eltype(grid), r+1)
+    @time Integrations.integrate(grid, ONES)
+    @time Integrations.integrate(grid, t -> 1)
+    @time Integrations.integrate(grid, (t,k) -> k, ONES)
+
+    println("Vector Interface")
+    @time eltype(grid)
+
+end

@@ -122,6 +122,23 @@ import .Operators: IDENTITY, COUPLING, UNCOUPLED, STATIC
 
 
 ##########################################################################################
+#= INTEGRATIONS =#
+
+"""
+    Integrations
+
+Encapsulations of everything you need to know to integrate over time.
+
+"""
+module Integrations; include("integrals/Integrations.jl"); end
+import .Integrations: IntegrationType
+import .Integrations: nsteps, timeat, stepat, lattice, integrate
+import .Integrations: starttime, endtime, duration, stepsize
+
+module TrapezoidalIntegrations; include("integrals/TrapezoidalIntegrations.jl"); end
+import .TrapezoidalIntegrations: TrapezoidalIntegration
+
+##########################################################################################
 #= SIGNALS =#
 
 """
@@ -135,7 +152,7 @@ The main motivation of this module
 """
 module Signals; include("signals/Signals.jl"); end
 import .Signals: SignalType
-import .Signals: valueat, partial, integrate_signal, integrate_partials
+import .Signals: valueat, partial
 
 module ParametricSignals; include("signals/ParametricSignals.jl"); end
 import .ParametricSignals: ParametricSignal, ConstrainedSignal
@@ -200,16 +217,14 @@ NOTE: the `trapezoidaltimegrid` function is a utility.
 
 """
 module Evolutions; include("evols/Evolutions.jl"); end
-import .Evolutions: EvolutionType, TrotterEvolution
-import .Evolutions: trapezoidaltimegrid
-import .Evolutions: workbasis, evolve, evolve!
-import .Evolutions: nsteps, gradientsignals
+import .Evolutions: EvolutionType
+import .Evolutions: workbasis, evolve, evolve!, gradientsignals
 
 module ToggleEvolutions; include("evols/ToggleEvolutions.jl"); end
-import .ToggleEvolutions: Toggle
+import .ToggleEvolutions: TOGGLE
 
 module DirectEvolutions; include("evols/DirectEvolutions.jl"); end
-import .DirectEvolutions: Direct
+import .DirectEvolutions: DIRECT
 
 #= TODO (mid): Nick thinks all the evolutions should be promoted to the main module.
 
@@ -296,6 +311,21 @@ import .SmoothBounds: SmoothBound
 
 ##########################################################################################
 #= RECIPES =#
+
+"""
+    TemporalLattice(T::AbstractFloat, r::Int)
+
+Semantic shorthand for constructing a `TrapezoidalIntegration`,
+    which is the only one supported for, probably, all time. ^_^
+
+# Arguments
+- `T::AbstractFloat`: the total pulse duration
+- `r::Int`: the number of Trotter steps
+
+"""
+function TemporalLattice(T::AbstractFloat, r::Int)
+    return TrapezoidalIntegration(zero(T), T, r)
+end
 
 """
     Systematic(TransmonDeviceType, n, pulses; kwargs...)

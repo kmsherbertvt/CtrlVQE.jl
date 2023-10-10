@@ -136,8 +136,19 @@ r = round(Int, 20T)
     #= NOTE: Error scales with the step-size T÷r,
         so it's generally prudent to select r based on T. =#
 
+# Encapsulate temporal quantities into an `Integration` object.
+grid = CtrlVQE.TemporalLattice(T, r)
+    #= NOTE: The `Integration` object is this arcane thing some parts of the code use
+            to integrate certain functions (eg. gradient signals) from t=a to t=b.
+        The `TemporalLattice` recipe is short-hand for `TrapezoidalIntegration(0.0, T, r),
+            which calculates integrals using a trapezoidal Riemann sum from t=0 to t=T.
+
+        I named the recipe `TemporalLattice`,
+            since the more visible role of the object is that it defines the time lattice.
+    =#
+
 # Construct the evolution algorithm.
-evolution = CtrlVQE.Toggle(r)
+evolution = CtrlVQE.TOGGLE
     #= NOTE: The `Toggle` algorithm is probably the always the best choice
             when the device Hamiltonian is represented internally as a dense matrix
             and when the time-dependent part is factorizable (ie. qubit-local drives).
@@ -216,7 +227,7 @@ frame = CtrlVQE.STATIC
     =#
 
 # Select the energy function.
-energyfn = CtrlVQE.ProjectedEnergy(evolution, device, basis, frame, T, ψ0, O0)
+energyfn = CtrlVQE.ProjectedEnergy(evolution, device, basis, frame, grid, ψ0, O0)
     #= NOTE: `ProjectedEnergy`
 
     Let Π be the projector onto the logical two-level space,
@@ -388,14 +399,7 @@ display(Δ̄ ./ 2π)        # Divide by 2π to convert angular frequency to freq
 #= Plot results. =#
 
 # Prepare the time grid, from 0 to T with r steps (including T, this means r+1 points).
-_, _, t = CtrlVQE.trapezoidaltimegrid(T, r)
-    #= NOTE: Use underscores to suppress the first two arguments, which we don't need.
-
-        (The first argument is the spacing τ between each time point,
-            and the second argument is a vector of spacings τ̄ to use in integration.
-        For the trapezoidal time grid, which is the only one I use in the code so far,
-            τ̄[i] = τ except the first and last indices, which are τ/2.)
-    =#
+t = CtrlVQE.lattice(grid)
 
 # Extract the timeseries values of the optimized pulse.
 CtrlVQE.Parameters.bind(device, xf)             # Lock in the optimized pulse.

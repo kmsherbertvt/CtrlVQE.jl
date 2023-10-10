@@ -6,6 +6,7 @@ export drivequbit, gradequbit
 
 import ..LinearAlgebraTools
 import ..Bases, ..Operators
+import ..Integrations
 
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
@@ -102,15 +103,13 @@ Implement these methods based only on your implementation of the methods,
 
 ## Gradient methods:
 
-- `gradient(::D, τ̄, t̄, ϕ̄)`:
+- `gradient(::D, grid::Integrations.IntegrationType, ϕ̄)`:
         the gradient vector for each variational parameter in the device.
 
 Each partial is generally an integral over at least one gradient signal.
-The arguments `τ̄` and `t̄` are time spacings and time grids,
-    as given by `Evolutions.trapezoidaltimegrid`.
+The argument `grid` identifies the temporal lattice on which ϕ̄ is defined.
 The argument `ϕ̄` is a 2d array; `ϕ̄[:,:,j]` contains the jth gradient signal
-    ``ϕ_j(t)`` evaluated at each point in `t̄`.
-An integral ``∫f(ϕ_j(t), t)⋅dt`` is computed as `sum( f.(ϕ̄[:,:,j], t̄) .* τ̄ )`.
+    ``ϕ_j(t)`` evaluated at each point in `grid`.
 
 This method should define `result=nothing` as a keyword argument;
     when passed, use it as the array to store your result in.
@@ -339,22 +338,20 @@ function eltype_gradeoperator(::DeviceType)
 end
 
 """
-    gradient(::DeviceType, τ̄, t̄, ϕ̄; result=nothing)
+    gradient(::DeviceType, grid::Integrations.IntegrationType, ϕ̄; result=nothing)
 
 The gradient vector of partials for each variational parameter in the device.
 
 Each partial is generally an integral over at least one gradient signal.
-The arguments `τ̄` and `t̄` are time spacings and time grids,
-    as given by `Evolutions.trapezoidaltimegrid`.
+The argument `grid` identifies the temporal lattice on which ϕ̄ is defined.
 The argument `ϕ̄` is a 2d array; `ϕ̄[:,:,j]` contains the jth gradient signal
-    ``ϕ_j(t)`` evaluated at each point in `t̄`.
+    ``ϕ_j(t)`` evaluated at each point in `grid`.
 
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
 """
 function gradient(device::DeviceType,
-    τ̄::AbstractVector,
-    t̄::AbstractVector,
+    grid::Integrations.IntegrationType,
     ϕ̄::AbstractMatrix;
     result=nothing,
 )

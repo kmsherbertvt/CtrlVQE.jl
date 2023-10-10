@@ -1,40 +1,43 @@
 import ..Evolutions
-export Toggle
+export TOGGLE
 
 import ..LinearAlgebraTools
-import ..Devices
+import ..Integrations, ..Devices
 import ..Bases
 
 import ..Bases: OCCUPATION
 import ..Operators: STATIC, Drive
 
+import ..TrapezoidalIntegrations: TrapezoidalIntegration
+
 using LinearAlgebra: norm
 
 """
-    Toggle(r)
+    Toggle
 
 A Trotterization method (using `r` steps) alternately propagating static and drive terms.
 
 The work basis for this algorithm is `Bases.OCCUPATION`,
     since the time-dependent "Drive" operator at each step is usually qubit-local.
 
+NOTE: This method assumes a trapezoidal rule,
+    so only `TrapezoidalIntegration` grids are allowed.
+
 """
-struct Toggle <: Evolutions.TrotterEvolution
-    r::Int
-end
+struct Toggle <: Evolutions.EvolutionType end; TOGGLE = Toggle()
 
 Evolutions.workbasis(::Toggle) = OCCUPATION
-Evolutions.nsteps(evolution::Toggle) = evolution.r
 
-function Evolutions.evolve!(
-    evolution::Toggle,
+function Evolutions.evolve!(::Toggle,
     device::Devices.DeviceType,
-    T::Real,
+    grid::TrapezoidalIntegration,
     ψ::AbstractVector{<:Complex{<:AbstractFloat}};
     callback=nothing,
 )
-    r = Evolutions.nsteps(evolution)
-    τ, τ̄, t̄ = Evolutions.trapezoidaltimegrid(T, r)
+    # PREPARE TEMPORAL LATTICE
+    r = Integrations.nsteps(grid)
+    τ = Integrations.stepsize(grid)
+    t̄ = Integrations.lattice(grid)
 
     # REMEMBER NORM FOR NORM-PRESERVING STEP
     A = norm(ψ)

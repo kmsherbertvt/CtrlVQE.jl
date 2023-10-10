@@ -14,6 +14,7 @@ Pages = [
     "Bases.md",
     "Operators.md",
     "LinearAlgebraTools.md",
+    "Integrations.md",
     "Devices.md",
     "Signals.md",
     "Evolutions.md",

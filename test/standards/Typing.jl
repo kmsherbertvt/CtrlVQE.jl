@@ -1,11 +1,12 @@
 #= Systematic and comprehensive type stability unit tests. =#
 
 import CtrlVQE
+import CtrlVQE: Parameters, LinearAlgebraTools
+import CtrlVQE: Integrations, Signals, Devices, Evolutions, CostFunctions
 
-import CtrlVQE: Parameters, Signals, Devices, Evolutions, CostFunctions
-
-import CtrlVQE: TransmonDevices
+import CtrlVQE: TrapezoidalIntegration
 import CtrlVQE: ConstantSignals
+import CtrlVQE: TransmonDevices
 
 import CtrlVQE: DRESSED, OCCUPATION
 import CtrlVQE: StaticOperator, IDENTITY, COUPLING, STATIC
@@ -14,13 +15,15 @@ import CtrlVQE: Qubit, Channel, Drive, Hamiltonian, Gradient
 using Random: seed!
 using LinearAlgebra: Hermitian
 
-const t = 0.0
-const r = 10
-const τ = t / r
-
-const τ̄ = fill(τ, r+1); τ̄[[1,end]] ./=2
-const t̄ = range(0.0, t, r+1)
+const t = 1.0
+const T = 5.0
+const r = 10000
+const τ = T / r
+const t̄ = range(0.0, T, r+1)
 const ϕ̄ = ones(r+1)
+
+const grid = TrapezoidalIntegration(0.0, T, r)
+const Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
 
 function check_types(device::Devices.DeviceType)
     @code_warntype Devices.nlevels(device)
@@ -231,17 +234,6 @@ function check_types(signal::Signals.SignalType{P,R}) where {P,R}
     @code_warntype string(signal, names)
     @code_warntype string(signal)
 
-    @code_warntype Signals.integrate_partials(signal, τ̄, t̄)
-    Ip = Signals.integrate_partials(signal, τ̄, t̄)
-    @code_warntype Signals.integrate_partials(signal, τ̄, t̄; result=Ip)
-
-    @code_warntype Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄)
-    Ip = Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄)
-    @code_warntype Signals.integrate_partials(signal, τ̄, t̄; ϕ̄=ϕ̄, result=Ip)
-
-    @code_warntype Signals.integrate_signal(signal, τ̄, t̄)
-    @code_warntype Signals.integrate_signal(signal, τ̄, t̄; ϕ̄=ϕ̄)
-
     return nothing
 end
 
@@ -255,13 +247,10 @@ const pulses = [
 ]
 const device = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 2, pulses; m=3)
 
-const Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
 TransmonDevices.bindfrequencies(device, [
     TransmonDevices.resonancefrequency(device, 1) + Δ,
     TransmonDevices.resonancefrequency(device, 2) - Δ,
 ])
-
-const T = 5.0 # ns        # FIXED EVOLUTION TIME, FOR TESTING
 
 const N = Devices.nstates(device)
 
@@ -281,38 +270,27 @@ function check_types(evolution::Evolutions.EvolutionType)
     basis = Evolutions.workbasis(evolution)
 
     println("Evolutions")
-    @code_warntype Evolutions.evolve(evolution, device, T, ψ0)
-    @code_warntype Evolutions.evolve(evolution, device, basis, T, ψ0)
-    ψ = Evolutions.evolve(evolution, device, basis, T, ψ0)
-    @code_warntype Evolutions.evolve(evolution, device, T, ψ0; result=ψ)
-    @code_warntype Evolutions.evolve(evolution, device, basis, T, ψ0; result=ψ)
-    @code_warntype Evolutions.evolve!(evolution, device, T, ψ)
-    @code_warntype Evolutions.evolve!(evolution, device, basis, T, ψ)
-
-    return nothing
-end
-
-
-function check_types(evolution::Evolutions.TrotterEvolution)
-    invoke(check_types, Tuple{Evolutions.EvolutionType}, evolution)
-    basis = Evolutions.workbasis(evolution)
-
-    println("Counting Methods")
-    @code_warntype Evolutions.nsteps(evolution)
+    @code_warntype Evolutions.evolve(evolution, device, grid, ψ0)
+    @code_warntype Evolutions.evolve(evolution, device, basis, grid, ψ0)
+    ψ = Evolutions.evolve(evolution, device, basis, grid, ψ0)
+    @code_warntype Evolutions.evolve(evolution, device, grid, ψ0; result=ψ)
+    @code_warntype Evolutions.evolve(evolution, device, basis, grid, ψ0; result=ψ)
+    @code_warntype Evolutions.evolve!(evolution, device, grid, ψ)
+    @code_warntype Evolutions.evolve!(evolution, device, basis, grid, ψ)
 
     println("Gradient Signals - Multi-operator")
-    @code_warntype Evolutions.gradientsignals(evolution, device, T, ψ0, Ō)
-    @code_warntype Evolutions.gradientsignals(evolution, device, basis, T, ψ0, Ō)
-    ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, T, ψ0, Ō)
-    @code_warntype Evolutions.gradientsignals(evolution, device, T, ψ0, Ō; result=ϕ̄)
-    @code_warntype Evolutions.gradientsignals(evolution,device,basis,T,ψ0,Ō; result=ϕ̄)
+    @code_warntype Evolutions.gradientsignals(evolution, device, grid, ψ0, Ō)
+    @code_warntype Evolutions.gradientsignals(evolution, device, basis, grid, ψ0, Ō)
+    ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, grid, ψ0, Ō)
+    @code_warntype Evolutions.gradientsignals(evolution, device, grid, ψ0, Ō; result=ϕ̄)
+    @code_warntype Evolutions.gradientsignals(evolution,device,basis,grid,ψ0,Ō;result=ϕ̄)
 
     println("Gradient Signals - Single-operator")
-    @code_warntype Evolutions.gradientsignals(evolution, device, T, ψ0, O1)
-    @code_warntype Evolutions.gradientsignals(evolution, device, basis, T, ψ0, O1)
-    ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, T, ψ0, O1)
-    @code_warntype Evolutions.gradientsignals(evolution, device, T, ψ0, O1; result=ϕ̄)
-    @code_warntype Evolutions.gradientsignals(evolution,device,basis,T,ψ0,O1; result=ϕ̄)
+    @code_warntype Evolutions.gradientsignals(evolution, device, grid, ψ0, O1)
+    @code_warntype Evolutions.gradientsignals(evolution, device, basis, grid, ψ0, O1)
+    ϕ̄ = Evolutions.gradientsignals(evolution, device, basis, grid, ψ0, O1)
+    @code_warntype Evolutions.gradientsignals(evolution, device, grid, ψ0, O1; result=ϕ̄)
+    @code_warntype Evolutions.gradientsignals(evolution,device,basis,grid,ψ0,O1;result=ϕ̄)
 
     return nothing
 end
@@ -342,3 +320,32 @@ function check_types(costfn::CostFunctions.CostFunctionType)
 end
 
 # TODO: Check types of extended interface for energy functions.
+
+function check_types(grid::Integrations.IntegrationType)
+    println("Fundamental operations")
+    @code_warntype Integrations.nsteps(grid); r = Integrations.nsteps(grid)
+    @code_warntype Integrations.timeat(grid, 0)
+    @code_warntype Integrations.timeat(grid, r)
+    @code_warntype Integrations.stepat(grid, 0)
+    @code_warntype Integrations.stepat(grid, r)
+
+    println("Scalar Operations")
+    @code_warntype Integrations.starttime(grid)
+    @code_warntype Integrations.endtime(grid)
+    @code_warntype Integrations.duration(grid)
+    @code_warntype Integrations.stepsize(grid)
+
+    println("Heavy Operations")
+    @code_warntype Integrations.lattice(grid)
+    @code_warntype Integrations.reverse(grid)
+
+    println("Integrations")
+    ONES = ones(eltype(grid), r+1)
+    @code_warntype Integrations.integrate(grid, ONES)
+    @code_warntype Integrations.integrate(grid, t -> 1)
+    @code_warntype Integrations.integrate(grid, (t,k) -> k, ONES)
+
+    println("Vector Interface")
+    @code_warntype eltype(grid)
+
+end

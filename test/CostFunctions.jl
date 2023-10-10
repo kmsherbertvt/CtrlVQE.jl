@@ -11,7 +11,6 @@ import CtrlVQE.Bases: OCCUPATION, DRESSED
 using Random: seed!
 using LinearAlgebra: Hermitian
 
-#= # TODO delete
 ##########################################################################################
 # ENERGY FUNCTION SELF-CONSISTENCY CHECKS
 
@@ -42,7 +41,8 @@ Od = CtrlVQE.LinearAlgebraTools.rotate!(U, convert(Matrix, O0))
 # ALGORITHM AND BASIS
 T = 5.0
 r = 1000
-evolution = CtrlVQE.Toggle(r)
+grid = CtrlVQE.TrapezoidalIntegration(0.0, T, r)
+evolution = CtrlVQE.TOGGLE
 
 # TEST ENERGY FUNCTIONS!
 bases = [OCCUPATION, DRESSED]
@@ -59,13 +59,13 @@ import CtrlVQE.Operators: Identity, Uncoupled, Static
         values = Vector{Float64}(undef, 2)
 
         @testset "Occupation" begin
-            fn = BareEnergy(evolution, device, OCCUPATION, frame, T, ψ0, O0)
+            fn = BareEnergy(evolution, device, OCCUPATION, frame, grid, ψ0, O0)
             StandardTests.validate(fn)
             values[1] = fn(xi)
         end
 
         @testset "Dressed" begin
-            fn = BareEnergy(evolution, device, DRESSED, frame, T, ψd, Od)
+            fn = BareEnergy(evolution, device, DRESSED, frame, grid, ψd, Od)
             StandardTests.validate(fn)
             values[2] = fn(xi)
         end
@@ -81,7 +81,7 @@ for fn_type in [ProjectedEnergy, NormalizedEnergy]
     @testset "$(typeof(frame))" begin
         for basis in bases
         @testset "$(typeof(basis))" begin
-            fn = fn_type(evolution, device, basis, frame, T, ψ0, O0)
+            fn = fn_type(evolution, device, basis, frame, grid, ψ0, O0)
             StandardTests.validate(fn)
         end; end
     end; end
@@ -90,12 +90,11 @@ end; end
 @testset "Normalization" begin
     for basis in bases
     @testset "$(typeof(basis))" begin
-        fn = Normalization(evolution, device, basis, T, ψ0)
+        fn = Normalization(evolution, device, basis, grid, ψ0)
         StandardTests.validate(fn)
     end; end
 end
 
-=# # TODO delete
 # TEST PENALTY FUNCTIONS
 
 @testset "AmplitudeBounds" begin

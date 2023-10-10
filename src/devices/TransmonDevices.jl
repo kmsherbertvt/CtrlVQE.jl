@@ -2,7 +2,7 @@ import ..Parameters, ..Devices
 export TransmonDevice, FixedFrequencyTransmonDevice
 
 import ..LinearAlgebraTools
-import ..Signals
+import ..Integrations, ..Signals
 
 import ..Signals: SignalType
 import ..LinearAlgebraTools: MatrixList
@@ -179,20 +179,19 @@ end
 
 function Devices.gradient(
     device::AbstractTransmonDevice{F,FΩ},
-    τ̄::AbstractVector,
-    t̄::AbstractVector,
+    grid::Integrations.IntegrationType,
     ϕ̄::AbstractMatrix;
     result=nothing,
 ) where {F,FΩ}
     L = Parameters.count(device)
     nD = Devices.ndrives(device)
     isnothing(result) && return Devices.gradient(
-        device, τ̄, t̄, ϕ̄;
+        device, grid, ϕ̄;
         result=Vector{F}(undef, L),
     )
 
-    gradient_for_signals!(@view(result[1:L-nD]), device, τ̄, t̄, ϕ̄)
-    gradient_for_frequencies!(@view(result[1+L-nD:L]), device, τ̄, t̄, ϕ̄)
+    gradient_for_signals!(@view(result[1:L-nD]), device, grid, ϕ̄)
+    gradient_for_frequencies!(@view(result[1+L-nD:L]), device, grid, ϕ̄)
 
     return result
 end
@@ -200,33 +199,27 @@ end
 function gradient_for_signals!(
     result::AbstractVector{F},
     device::AbstractTransmonDevice{F,FΩ},
-    τ̄::AbstractVector,
-    t̄::AbstractVector,
+    grid::Integrations.IntegrationType,
     ϕ̄::AbstractMatrix,
 ) where {F,FΩ}
     # CALCULATE GRADIENT FOR SIGNAL PARAMETERS
-    modulation = array(FΩ, size(t̄), LABEL)
+    t̄ = Integrations.lattice(grid)
+    ∂̄ = array(FΩ, size(t̄), LABEL)
+    Φ = (t, ∂, ϕα, ϕβ) -> (real(∂)*ϕα + imag(∂)*ϕβ)
 
     offset = 0
     for i in 1:Devices.ndrives(device)
-        Ω = drivesignal(device, i)
         j = 2i - 1
+        ϕ̄α = @view(ϕ̄[:,j])
+        ϕ̄β = @view(ϕ̄[:,j+1])
 
-        L = Parameters.count(Ω)
+        signal = drivesignal(device, i)
+        L = Parameters.count(signal)
 
-        modulation .= ϕ̄[:,j]
-        (FΩ <: Complex) && (modulation .-= im .* ϕ̄[:,j+1])
-        #= NOTE: This is bit obfuscated.
-        The integrate_partial function below yields the real part of ∂⋅modulation.
-        We want ∂⋅ϕα + ∂⋅ϕβ, for complex signals.
-        So we set modulation = ϕα - 𝑖 ϕβ.
-        =#
-
-        Signals.integrate_partials(
-            Ω, τ̄, t̄;
-            ϕ̄=modulation,
-            result=@view(result[1+offset:L+offset]),
-        )
+        for k in 1:L
+            ∂̄ = Signals.partial(k, signal, t̄; result=∂̄)
+            result[offset+k] = Integrations.integrate(grid, Φ, ∂̄, ϕ̄α, ϕ̄β)
+        end
         offset += L
     end
 
@@ -236,21 +229,22 @@ end
 function gradient_for_frequencies!(
     result::AbstractVector{F},
     device::AbstractTransmonDevice{F,FΩ},
-    τ̄::AbstractVector,
-    t̄::AbstractVector,
+    grid::Integrations.IntegrationType,
     ϕ̄::AbstractMatrix,
 ) where {F,FΩ}
-    # TEMPORARY VARIABLES NEEDED IN GRADIENT INTEGRALS
-    modulation = array(FΩ, size(t̄), LABEL)
-
     # CALCULATE GRADIENT FOR FREQUENCY PARAMETERS
-    for i in 1:Devices.ndrives(device)
-        Ω = drivesignal(device, i)
-        j = 2i - 1
+    t̄ = Integrations.lattice(grid)
+    Ω̄ = array(FΩ, size(t̄), LABEL)
+    Φ = (t, Ω, ϕα, ϕβ) -> (t * (real(Ω)*ϕβ - imag(Ω)*ϕα))
 
-        modulation .= t̄ .* ϕ̄[:,j+1]
-        (FΩ <: Complex) && (modulation .+= im .* t̄ .* ϕ̄[:,j])
-        result[i] = Signals.integrate_signal(Ω, τ̄, t̄; ϕ̄=modulation)
+    for i in 1:Devices.ndrives(device)
+        j = 2i - 1
+        ϕ̄α = @view(ϕ̄[:,j])
+        ϕ̄β = @view(ϕ̄[:,j+1])
+
+        signal = drivesignal(device, i)
+        Ω̄ = Signals.valueat(signal, t̄; result=Ω̄)
+        result[i] = Integrations.integrate(grid, Φ, Ω̄, ϕ̄α, ϕ̄β)
     end
 
     return result
@@ -561,18 +555,17 @@ end
 
 function Devices.gradient(
     device::FixedFrequencyTransmonDevice{F,FΩ},
-    τ̄::AbstractVector,
-    t̄::AbstractVector,
+    grid::Integrations.IntegrationType,
     ϕ̄::AbstractMatrix;
     result=nothing,
 ) where {F,FΩ}
     L = Parameters.count(device)::Int
     isnothing(result) && return Devices.gradient(
-        device, τ̄, t̄, ϕ̄;
+        device, grid, ϕ̄;
         result=Vector{F}(undef, L),
     )
 
-    gradient_for_signals!(result, device, τ̄, t̄, ϕ̄)
+    gradient_for_signals!(result, device, grid, ϕ̄)
 
     return result
 end

@@ -1,65 +1,20 @@
-export trapezoidaltimegrid
-export EvolutionType, TrotterEvolution
-export evolve, evolve!, workbasis, nsteps, gradientsignals
+export EvolutionType
+export evolve, evolve!, workbasis, gradientsignals
 
 import ..LinearAlgebraTools
-import ..Devices
+import ..Integrations, ..Devices
 import ..Bases
 
 import ..Bases: OCCUPATION
 import ..Operators: STATIC, Drive, Gradient
+
+import ..TrapezoidalIntegrations: TrapezoidalIntegration
 
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
 using LinearAlgebra: norm
 using Memoization: @memoize
-
-
-"""
-    trapezoidaltimegrid(T::Real, r::Int)
-
-All the tools needed to integrate over time using a simple trapezoidal rule.
-
-# Arguments
-- `T`: the upper bound of the integral (0 is implicitly the lower bound).
-        If `T` is negative, `|T|` is used as the lower bound and 0 as the upper bound.
-
-- `r`: the number of time steps.
-        Note this is the number of STEPS.
-        The number of time POINTS is `r+1`, since they include t=0.
-
-# Returns
-- `τ`: the length of each time step, simply ``T/r``.
-- `τ̄`: vector of `r+1` time spacings to use as `dt` in integration.
-- `t̄`: vector of `r+1` time points
-
-The integral ``∫_0^T f(t)⋅dt`` is evaluated with `sum(f.(t̄) .* τ̄)`.
-
-# Explanation
-
-Intuitively, `τ̄` is a vector giving `τ` for each time point.
-But careful! The sum of all `τ̄` must match the length of the integral, ie. `T`.
-But there are `r+1` points, and `(r+1)⋅τ > T`. How do we reconcile this?
-A "Left Hand Sum" would omit `t=T` from the time points;
-    a "Right Hand Sum" would omit `t=0`.
-The trapezoidal rule omits half a point from each.
-
-That sounds awfully strange, but it's mathematically sound!
-We only integrate through *half* of each boundary time point `t=0` and `t=T`.
-Thus, those points, and only those points, have a spacing of `τ/2`.
-
-In principle, a different grid could be adopted giving more sophisticated quadrature.
-
-"""
-@memoize Dict function trapezoidaltimegrid(T::Real, r::Int)
-    # NOTE: Negative values of T give reversed time grid.
-    τ = T / r
-    τ̄ = fill(τ, r+1); τ̄[[begin, end]] ./= 2
-    t̄ = abs(τ) * (T ≥ 0 ? (0:r) : reverse(0:r))
-    return τ, τ̄, t̄
-end
-
 
 """
     EvolutionType
@@ -70,17 +25,18 @@ Super-type for all evolution algorithms.
 
 Any concrete sub-type `A` must implement the following methods:
 - `workbasis(::A)`: which Bases.BasisType the evolution algorithm uses
-- `evolve!(::A, device, T, ψ; callback=nothing)`: evolve ψ (in-place) from time 0 to T
+- `evolve!(::A, device, grid, ψ; callback=nothing)`: evolve ψ (in-place) on a time grid
                                     (you may assume the basis of ψ is the work basis)
 
-If your evolution algorithm breaks time up into equally-spaced discrete time steps,
-    you should implement a `TrotterEvolution`, which has a couple extra requirements.
+You are allowed to implement `evolve!` for restricted types of `grid`
+    (eg. require it to be a `TrapezoidalIntegration`),
+    so long as you are clear in your documentation.
 
 """
 abstract type EvolutionType end
 
 """
-    workbasis(t::Real)
+    workbasis(evolution::EvolutionType)
 
 Which basis the evolution algorithm works in.
 
@@ -104,8 +60,7 @@ This method both mutates and returns `ψ`.
 - `device::Devices.DeviceType`: specifies which Hamiltonian to evolve under.
 - `basis::Bases.BasisType`: which basis `ψ` is represented in.
         Implicitly defaults to `workbasis(evolution)`.
-- `T::Real`: the total amount of time to evolve by.
-        The evolution is implicitly assumed to start at time `t=0`.
+- `grid::TrapezoidalIntegration`: defines the time integration bounds (eg. from 0 to `T`)
 - `ψ`: the initial statevector, defined on the full Hilbert space of the device.
 
 # Keyword Arguments
@@ -122,7 +77,7 @@ function evolve! end
 function evolve!(
     evolution::EvolutionType,
     device::Devices.DeviceType,
-    T::Real,
+    grid::Integrations.IntegrationType,
     ψ0::AbstractVector;
     callback=nothing,
 )
@@ -134,23 +89,23 @@ function evolve!(
     evolution::EvolutionType,
     device::Devices.DeviceType,
     basis::Bases.BasisType,
-    T::Real,
+    grid::Integrations.IntegrationType,
     ψ0::AbstractVector;
     kwargs...
 )
-    basis == workbasis(evolution) && return evolve!(evolution, device, T, ψ0; kwargs...)
+    basis==workbasis(evolution) && return evolve!(evolution, device, grid, ψ0; kwargs...)
 
     U = Devices.basisrotation(workbasis(evolution), basis, device)
     ψ0 = LinearAlgebraTools.rotate!(U, ψ0)      # ROTATE INTO WORK BASIS
-    ψ0 = evolve!(evolution, device, T, ψ0; kwargs...)
+    ψ0 = evolve!(evolution, device, grid, ψ0; kwargs...)
     ψ0 = LinearAlgebraTools.rotate!(U', ψ0)     # ROTATE BACK INTO GIVEN BASIS
     return ψ0
 end
 
 """
-    evolve(evolution, device, [basis, ]T, ψ0; result=nothing, kwargs...)
+    evolve(evolution, device, [basis, ]grid, ψ0; result=nothing, kwargs...)
 
-Evolve a state `ψ0` by time `T` under a `device` Hamiltonian, without mutating `ψ0`.
+Evolve a state `ψ0` over time `grid` under a `device` Hamiltonian, without mutating `ψ0`.
 
 This method simply copies `ψ0` (to `result` if provided, or else to a new array),
     then calls the mutating function `evolve!` on the copy.
@@ -162,7 +117,7 @@ function evolve end
 function evolve(
     evolution::EvolutionType,
     device::Devices.DeviceType,
-    T::Real,
+    grid::Integrations.IntegrationType,
     ψ0::AbstractVector;
     result=nothing,
     kwargs...
@@ -170,14 +125,14 @@ function evolve(
     F = LinearAlgebraTools.cis_type(ψ0)
     result === nothing && (result = Vector{F}(undef, length(ψ0)))
     result .= ψ0
-    return evolve!(evolution, device, T, result; kwargs...)
+    return evolve!(evolution, device, grid, result; kwargs...)
 end
 
 function evolve(
     evolution::EvolutionType,
     device::Devices.DeviceType,
     basis::Bases.BasisType,
-    T::Real,
+    grid::Integrations.IntegrationType,
     ψ0::AbstractVector;
     result=nothing,
     kwargs...
@@ -185,58 +140,23 @@ function evolve(
     F = LinearAlgebraTools.cis_type(ψ0)
     result === nothing && (result = Vector{F}(undef, length(ψ0)))
     result .= ψ0
-    return evolve!(evolution, device, basis, T, result; kwargs...)
+    return evolve!(evolution, device, basis, grid, result; kwargs...)
 end
 
 
 
 """
-    TrotterEvolution
-
-Super-type for evolution algorithms which divide time into equally-spaced chunks.
-
-This sub-typing facilitates easy comparison between different Trotter algorithms,
-    and lets us enforce a consistent time grid
-    in the implicilty-Trotterized `gradientsignals` method.
-
-# Implementation
-
-Any concrete sub-type `A` must implement
-    *everything* required in the `EvolutionType` interface,
-    so consult the documentation for `DeviceType` carefully.
-
-In addition, the following method must be implemented:
-- `nsteps(::A)`: the number of Trotter steps
-
-The number of steps will usually be a simple integer field in the implementing struct,
-    but this is left as an implementation detail.
-
-"""
-abstract type TrotterEvolution <: EvolutionType end
-
-"""
-    nsteps(device::DeviceType)
-
-The number of Trotter steps.
-
-"""
-function nsteps(::TrotterEvolution)
-    error("Not Implemented")
-    return 0
-end
-
-
-
-"""
-    gradientsignals(device[, basis], T, ψ0, r, O; kwargs...)
+    gradientsignals(device[, basis], grid, ψ0, r, O; kwargs...)
 
 The gradient signals associated with a given `device` Hamiltonian, and an observable `O`.
 
 Gradient signals are used to calculate analytical derivatives of a control pulse.
 
+NOTE: Currently, this method assumes a trapezoidal rule,
+    so only `TrapezoidalIntegration` grids are allowed.
+
 # Arguments
-- `evolution::TrotterEvolution` how to initialize the co-state `|λ⟩`
-        Also determines the number of Trotter steps `r` to evaluate ``ϕ_j(t)`` for.
+- `evolution::EvolutionType` how to initialize the co-state `|λ⟩`
         A standard choice would be `ToggleEvolutions.Toggle(r)`.
 
 - `device::Devices.DeviceType`: specifies which Hamiltonian to evolve under.
@@ -246,7 +166,7 @@ Gradient signals are used to calculate analytical derivatives of a control pulse
         ALSO determines the basis in which calculations are carried out.
         Defaults to `Bases.OCCUPATION`.
 
-- `T::Real`: the total duration of the pulse.
+- `grid::TrapezoidalIntegration`: defines the time integration bounds (eg. from 0 to `T`)
 
 - `ψ0`: the initial statevector, defined on the full Hilbert space of the device.
 
@@ -266,7 +186,7 @@ Gradient signals are used to calculate analytical derivatives of a control pulse
 
 # Returns
 A vector list `ϕ̄`, where each `ϕ̄[:,j]` is the gradient signal ``ϕ_j(t)``
-    evaluated on a time grid given by `trapezoidaltimegrid(T,r)`.
+    evaluated on the given time grid.
 
 
 # Explanation
@@ -299,7 +219,7 @@ This method enables such calculations using only a single "pass" through time.
 
 """
 function gradientsignals(
-    evolution::TrotterEvolution,
+    evolution::EvolutionType,
     device::Devices.DeviceType,
     args...;
     kwargs...
@@ -308,10 +228,10 @@ function gradientsignals(
 end
 
 function gradientsignals(
-    evolution::TrotterEvolution,
+    evolution::EvolutionType,
     device::Devices.DeviceType,
     basis::Bases.BasisType,
-    T::Real,
+    grid::TrapezoidalIntegration,
     ψ0::AbstractVector,
     O::AbstractMatrix;
     result=nothing,
@@ -322,7 +242,10 @@ function gradientsignals(
     Ō = reshape(O, size(O)..., 1)
 
     # PERFORM THE DELEGATION
-    result = gradientsignals(evolution, device, basis, T, ψ0, Ō; result=result, kwargs...)
+    result = gradientsignals(
+        evolution, device, basis, grid, ψ0, Ō;
+        result=result, kwargs...
+    )
 
     # NOW RESHAPE `result` BACK TO 2D ARRAY
     result = reshape(result, size(result, 1), size(result, 2))
@@ -330,17 +253,19 @@ function gradientsignals(
 end
 
 function gradientsignals(
-    evolution::TrotterEvolution,
+    evolution::EvolutionType,
     device::Devices.DeviceType,
     basis::Bases.BasisType,
-    T::Real,
+    grid::TrapezoidalIntegration,
     ψ0::AbstractVector,
     Ō::LinearAlgebraTools.MatrixList;
     result=nothing,
     callback=nothing,
 )
-    r = nsteps(evolution)
-    τ, τ̄, t̄ = trapezoidaltimegrid(T, r)
+    # PREPARE TEMPORAL LATTICE
+    r = Integrations.nsteps(grid)
+    τ = Integrations.stepsize(grid)
+    t̄ = Integrations.lattice(grid)
 
     # PREPARE SIGNAL ARRAYS ϕ̄[i,j,k]
     if result === nothing
@@ -351,7 +276,7 @@ function gradientsignals(
     # PREPARE STATE AND CO-STATES
     ψTYPE = LinearAlgebraTools.cis_type(ψ0)
     ψ = array(ψTYPE, size(ψ0), LABEL); ψ .= ψ0
-    ψ = evolve!(evolution, device, basis, T, ψ)
+    ψ = evolve!(evolution, device, basis, grid, ψ)
 
     λ̄ = array(ψTYPE, (size(ψ0,1), size(Ō,3)), LABEL)
     for k in axes(Ō,3)
