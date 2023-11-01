@@ -288,6 +288,9 @@ module NormalizedEnergies; include("costfns/NormalizedEnergies.jl"); end
 import .NormalizedEnergies: NormalizedEnergy
 
 #= PENALTY FUNCTIONS =#
+module GlobalAmplitudeBounds; include("costfns/GlobalAmplitudeBounds.jl"); end
+import .GlobalAmplitudeBounds: GlobalAmplitudeBound
+
 module AmplitudeBounds; include("costfns/AmplitudeBounds.jl"); end
 import .AmplitudeBounds: AmplitudeBound
 

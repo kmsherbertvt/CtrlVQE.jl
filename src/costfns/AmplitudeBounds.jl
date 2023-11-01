@@ -36,7 +36,7 @@ function CostFunctions.cost_function(fn::AmplitudeBound)
         Ωα = fn.Ω
     end
 
-    return(x̄) -> (
+    return (x̄) -> (
         total = 0;
         for i in eachindex(Ωα);
             α = x̄[Ωα[i]]

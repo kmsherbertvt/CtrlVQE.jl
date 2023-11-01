@@ -207,11 +207,10 @@ function grad_function_inplace(fn::CompositeCostFunction{F}) where {F}
 end
 
 
-
 """
-    CostFunctionType{F}
+    EnergyFunction{F}
 
-Super-type for "cost functions", to be plugged directly into optimization algorithms.
+Super-type for cost functions calculating the expectation value of a time-evolved state.
 
 # Implementation
 

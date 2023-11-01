@@ -97,8 +97,14 @@ end
 
 # TEST PENALTY FUNCTIONS
 
+@testset "GlobalAmplitudeBounds" begin
+    ΩMAX = 0.5      # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+    fn = CtrlVQE.GlobalAmplitudeBound(device, grid, ΩMAX, 1.0, ΩMAX)
+    StandardTests.validate(fn)
+end
+
 @testset "AmplitudeBounds" begin
-    ΩMAX = 2π * 0.02
+    ΩMAX = 0.5      # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
     L = 6
     Ω = 1:4
 
