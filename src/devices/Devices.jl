@@ -17,10 +17,15 @@ const Evolvable = AbstractVecOrMat{<:Complex{<:AbstractFloat}}
 using Memoization: @memoize
 using LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen
 
+
 """
-    DeviceType
+    DeviceType{F,FΩ}
 
 Super-type for all device objects.
+
+# Type Parameters
+- `F`: the float type associated with a device
+- `FΩ`: the number type associated with the device's drive signals. May be complex.
 
 # Implementation
 
@@ -33,6 +38,8 @@ In addition, all methods in the following sections must be implemented.
 - Algebra methods
 - Operator methods
 - Type methods
+- Frequency methods
+- Signal methods
 - Gradient methods
 
 If your device's drive channels are all local,
@@ -101,6 +108,19 @@ Each of these methods gives the number type of the corresponding operator.
 Implement these methods based only on your implementation of the methods,
     ie. they should be independent of the type of `ā`.
 
+## Frequency methods:
+
+- `resonancefrequency(::D, q::Int)`
+- `drivefrequency(::D, i::Int)`
+
+Each of these methods gives a scalar.
+
+## Drive methods:
+
+- `drivesignal(::D, i::Int)`
+
+Each of these methods gives some `SignalType`.
+
 ## Gradient methods:
 
 - `gradient(::D, grid::Integrations.IntegrationType, ϕ̄)`:
@@ -143,7 +163,16 @@ If it can be done, it would require obtaining the actual `Dict`
     and manually removing elements matching your targeted method signature.
 
 """
-abstract type DeviceType end
+abstract type DeviceType{F,FΩ} end
+
+#= TODO (mid):
+    Now that abstract devices have a definite typing,
+        are all the `eltype_<operator>` methods necessary still?
+    Can we, perchance, just assume they are `F`?
+    Not QUITE, because they could be type `F` or type `Complex{F}`.
+    But we'll have to think through all this carefully;
+        maybe there is a way to short-circuit some of them.
+=#
 
 """
     nqubits(device::DeviceType)
@@ -357,6 +386,47 @@ function gradient(device::DeviceType,
 )
     error("Not Implemented")
     return zero(Parameters.values(device))
+end
+
+
+"""
+    resonancefrequency(device::DeviceType, q::Int)
+
+The energy gap betwen the logical |0⟩ and |1⟩ states of a given qubit index.
+
+"""
+function resonancefrequency(device::DeviceType{F,FΩ}, q::Int) where {F,FΩ}
+    error("Not Implemented")
+    return zero(F)
+end
+
+"""
+    drivesignal(device::DeviceType, i::Int)
+
+The drive frequency for a given pulse index.
+
+NOTE: At present, the drive frequency is assumed to be constant.
+    We may change it someday to a generic Signal,
+        where the typical use-case is to use a real Constant signal.
+    In any case it shall be real.
+
+"""
+function drivefrequency(device::DeviceType{F,FΩ}, i::Int) where {F,FΩ}
+    error("Not Implemented")
+    return zero(F)
+end
+
+"""
+    drivesignal(device::DeviceType, i::Int)
+
+The time-dependent signal for a given pulse index.
+
+"""
+function drivesignal(device::DeviceType{F,FΩ}, i::Int) where {F,FΩ}
+    error("Not Implemented")
+    return nothing
+    #= NOTE: This is usually an implicitly type-unstable method,
+        since sub-types will typically not want to restrict their signal types. =#
 end
 
 
@@ -1584,6 +1654,16 @@ function braket(
     return LinearAlgebraTools.braket(ψ1, ops, ψ2)
 end
 
+"""
+    detuningfrequency(device::DeviceType, q::Int, i::Int)
+
+Calculate the difference between qubit resonance and drive frequency.
+
+"""
+function detuningfrequency(device::DeviceType, q::Int, i::Int)
+    return resonancefrequency(device, q) - drivefrequency(device, i)
+end
+
 
 
 
@@ -1612,7 +1692,7 @@ It's usually trivial to infer the channel index i associated with each gradient 
     but this is left as an implementation detail.
 
 """
-abstract type LocallyDrivenDevice <: DeviceType end
+abstract type LocallyDrivenDevice{F,FΩ} <: DeviceType{F,FΩ} end
 
 """
     drivequbit(device, i::Int)

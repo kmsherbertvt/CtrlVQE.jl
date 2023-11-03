@@ -29,13 +29,13 @@ Therefore, I don't recommend looking too closely to this file as a model to emul
 
 =#
 
-abstract type AbstractTransmonDevice{F,FΩ} <: Devices.LocallyDrivenDevice end
+abstract type AbstractTransmonDevice{F,FΩ} <: Devices.LocallyDrivenDevice{F,FΩ} end
 
 # THE INTERFACE TO IMPLEMENT
 
 # Devices.nlevels
 # Devices.nqubits
-resonancefrequency(::AbstractTransmonDevice, q::Int)::Real = error("Not Implemented")
+# Devices.resonancefrequency
 anharmonicity(::AbstractTransmonDevice, q::Int)::Real = error("Not Implemented")
 
 ncouplings(::AbstractTransmonDevice)::Int = error("Not Implemented")
@@ -44,8 +44,8 @@ couplingstrength(::AbstractTransmonDevice, k::Int)::Real = error("Not Implemente
 
 # Devices.ndrives
 # Devices.drivequbit
-drivefrequency(::AbstractTransmonDevice, i::Int)::Real = error("Not Implemented")
-drivesignal(::AbstractTransmonDevice, i::Int)::SignalType = error("Not Implemented")
+# Devices.drivefrequency
+# Devices.drivesignal
 
 bindfrequencies(::AbstractTransmonDevice, ν̄::AbstractVector) = error("Not Implemented")
 
@@ -95,10 +95,10 @@ function Devices.qubithamiltonian(
 
     result === nothing && (result = Matrix{eltype(a)}(undef, size(a)))
     result .= 0
-    result .-= (anharmonicity(device,q)/2)  .* Im       #       - δ/2    I
-    result = LinearAlgebraTools.rotate!(a', result)     #       - δ/2   a'a
-    result .+= resonancefrequency(device,q) .* Im       # ω     - δ/2   a'a
-    result = LinearAlgebraTools.rotate!(a', result)     # ω a'a - δ/2 a'a'aa
+    result .-= (anharmonicity(device,q)/2)  .* Im           #       - δ/2    I
+    result = LinearAlgebraTools.rotate!(a', result)         #       - δ/2   a'a
+    result .+= Devices.resonancefrequency(device,q) .* Im    # ω     - δ/2   a'a
+    result = LinearAlgebraTools.rotate!(a', result)         # ω a'a - δ/2 a'a'aa
     return result
 end
 
@@ -133,8 +133,8 @@ function Devices.driveoperator(
     result=nothing,
 )
     a = @view(ā[:,:,Devices.drivequbit(device, i)])
-    e = exp(im * drivefrequency(device, i) * t)
-    Ω = Signals.valueat(drivesignal(device, i), t)
+    e = exp(im * Devices.drivefrequency(device, i) * t)
+    Ω = Signals.valueat(Devices.drivesignal(device, i), t)
 
     if result === nothing
         F = promote_type(eltype(a), eltype(e))  # Ω is no more complex than e.
@@ -163,7 +163,7 @@ function Devices.gradeoperator(
 )
     i = ((j-1) >> 1) + 1
     a = @view(ā[:,:,Devices.drivequbit(device, i)])
-    e = exp(im * drivefrequency(device, i) * t)
+    e = exp(im * Devices.drivefrequency(device, i) * t)
 
     if result === nothing
         F = promote_type(eltype(a), eltype(e))
@@ -213,7 +213,7 @@ function gradient_for_signals!(
         ϕ̄α = @view(ϕ̄[:,j])
         ϕ̄β = @view(ϕ̄[:,j+1])
 
-        signal = drivesignal(device, i)
+        signal = Devices.drivesignal(device, i)
         L = Parameters.count(signal)
 
         for k in 1:L
@@ -242,7 +242,7 @@ function gradient_for_frequencies!(
         ϕ̄α = @view(ϕ̄[:,j])
         ϕ̄β = @view(ϕ̄[:,j+1])
 
-        signal = drivesignal(device, i)
+        signal = Devices.drivesignal(device, i)
         Ω̄ = Signals.valueat(signal, t̄; result=Ω̄)
         result[i] = Integrations.integrate(grid, Φ, Ω̄, ϕ̄α, ϕ̄β)
     end
@@ -253,7 +253,7 @@ end
 function Parameters.count(device::AbstractTransmonDevice)
     cnt = Devices.ndrives(device)           # NOTE: There are `ndrives` frequencies.
     for i in 1:Devices.ndrives(device)
-        cnt += Parameters.count(drivesignal(device, i))::Int
+        cnt += Parameters.count(Devices.drivesignal(device, i))::Int
     end
     return cnt
 end
@@ -264,7 +264,7 @@ function Parameters.names(device::AbstractTransmonDevice)
     # STRING TOGETHER PARAMETER NAMES FOR EACH SIGNAL Ω̄[i]
     annotate(name,i) = "Ω$i(q$(device.q̄[i])):$name"
     for i in 1:Devices.ndrives(device)
-        Ω = drivesignal(device, i)
+        Ω = Devices.drivesignal(device, i)
         append!(names, (annotate(name,i) for name in Parameters.names(Ω)))
     end
 
@@ -278,12 +278,12 @@ function Parameters.values(device::AbstractTransmonDevice{F,FΩ}) where {F,FΩ}
 
     # STRING TOGETHER PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in 1:Devices.ndrives(device)
-        Ω = drivesignal(device, i)
+        Ω = Devices.drivesignal(device, i)
         append!(values, Parameters.values(Ω)::Vector{F})
     end
 
     # TACK ON PARAMETERS FOR EACH ν̄[i]
-    append!(values, (drivefrequency(device, i) for i in 1:Devices.ndrives(device)))
+    append!(values, (Devices.drivefrequency(device,i) for i in 1:Devices.ndrives(device)))
     return values
 end
 
@@ -292,7 +292,7 @@ function Parameters.bind(device::AbstractTransmonDevice, x̄::AbstractVector{F})
 
     # BIND PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in 1:Devices.ndrives(device)
-        Ω = drivesignal(device, i)
+        Ω = Devices.drivesignal(device, i)
         L = Parameters.count(Ω)::Int
         Parameters.bind(Ω, x̄[offset+1:offset+L])
         offset += L
@@ -387,7 +387,7 @@ end
 Devices.nlevels(device::TransmonDevice) = device.m
 
 Devices.nqubits(device::TransmonDevice) = length(device.ω̄)
-resonancefrequency(device::TransmonDevice, q::Int) = device.ω̄[q]
+Devices.resonancefrequency(device::TransmonDevice, q::Int) = device.ω̄[q]
 anharmonicity(device::TransmonDevice, q::Int) = device.δ̄[q]
 
 ncouplings(device::TransmonDevice) = length(device.quples)
@@ -396,8 +396,8 @@ couplingstrength(device::TransmonDevice, k::Int) = device.ḡ[k]
 
 Devices.ndrives(device::TransmonDevice) = length(device.q̄)
 Devices.drivequbit(device::TransmonDevice, i::Int) = device.q̄[i]
-drivefrequency(device::TransmonDevice, i::Int) = device.ν̄[i]
-drivesignal(device::TransmonDevice, i::Int) = device.Ω̄[i]
+Devices.drivefrequency(device::TransmonDevice, i::Int) = device.ν̄[i]
+Devices.drivesignal(device::TransmonDevice, i::Int) = device.Ω̄[i]
 
 bindfrequencies(device::TransmonDevice, ν̄::AbstractVector) = (device.ν̄ .= ν̄)
 
@@ -490,7 +490,7 @@ end
 Devices.nlevels(device::FixedFrequencyTransmonDevice) = device.m
 
 Devices.nqubits(device::FixedFrequencyTransmonDevice) = length(device.ω̄)
-resonancefrequency(device::FixedFrequencyTransmonDevice, q::Int) = device.ω̄[q]
+Devices.resonancefrequency(device::FixedFrequencyTransmonDevice, q::Int) = device.ω̄[q]
 anharmonicity(device::FixedFrequencyTransmonDevice, q::Int) = device.δ̄[q]
 
 ncouplings(device::FixedFrequencyTransmonDevice) = length(device.quples)
@@ -499,8 +499,8 @@ couplingstrength(device::FixedFrequencyTransmonDevice, k::Int) = device.ḡ[k]
 
 Devices.ndrives(device::FixedFrequencyTransmonDevice) = length(device.q̄)
 Devices.drivequbit(device::FixedFrequencyTransmonDevice, i::Int)=device.q̄[i]
-drivefrequency(device::FixedFrequencyTransmonDevice, i::Int) = device.ν̄[i]
-drivesignal(device::FixedFrequencyTransmonDevice, i::Int) = device.Ω̄[i]
+Devices.drivefrequency(device::FixedFrequencyTransmonDevice, i::Int) = device.ν̄[i]
+Devices.drivesignal(device::FixedFrequencyTransmonDevice, i::Int) = device.Ω̄[i]
 
 bindfrequencies(device::FixedFrequencyTransmonDevice, ν̄::AbstractVector) = nothing
 
@@ -508,7 +508,7 @@ bindfrequencies(device::FixedFrequencyTransmonDevice, ν̄::AbstractVector) = no
 function Parameters.count(device::FixedFrequencyTransmonDevice)
     cnt = 0
     for i in 1:Devices.ndrives(device)
-        cnt += Parameters.count(drivesignal(device, i))::Int
+        cnt += Parameters.count(Devices.drivesignal(device, i))::Int
     end
     return cnt
 end
@@ -519,7 +519,7 @@ function Parameters.names(device::FixedFrequencyTransmonDevice)
     # STRING TOGETHER PARAMETER NAMES FOR EACH SIGNAL Ω̄[i]
     annotate(name,i) = "Ω$i(q$(device.q̄[i])):$name"
     for i in 1:Devices.ndrives(device)
-        Ω = drivesignal(device, i)
+        Ω = Devices.drivesignal(device, i)
         append!(names, (annotate(name,i) for name in Parameters.names(Ω)))
     end
 
@@ -531,7 +531,7 @@ function Parameters.values(device::FixedFrequencyTransmonDevice{F,FΩ}) where {F
 
     # STRING TOGETHER PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in 1:Devices.ndrives(device)
-        Ω = drivesignal(device, i)
+        Ω = Devices.drivesignal(device, i)
         append!(values, Parameters.values(Ω)::Vector{F})
     end
 
@@ -546,7 +546,7 @@ function Parameters.bind(
 
     # BIND PARAMETERS FOR EACH SIGNAL Ω̄[i]
     for i in 1:Devices.ndrives(device)
-        Ω = drivesignal(device, i)
+        Ω = Devices.drivesignal(device, i)
         L = Parameters.count(Ω)::Int
         Parameters.bind(Ω, x̄[offset+1:offset+L])
         offset += L

@@ -33,7 +33,7 @@ const ϕ̄ = ones(r+1)
 const grid = TrapezoidalIntegration(0.0, T, r)
 const Δ = 2π * 0.3 # GHz  # DETUNING FOR TESTING
 
-function validate(device::Devices.DeviceType)
+function validate(device::Devices.DeviceType{F,FΩ}) where {F,FΩ}
     m = Devices.nlevels(device)
     n = Devices.nqubits(device)
     N = Devices.nstates(device)
@@ -167,11 +167,10 @@ function validate(device::Devices.DeviceType)
 
         E = Devices.expectation(op, device, ψ)
         @test abs(E - (ψ' * H * ψ)) < 1e-8
-        F = Devices.braket(op, device, ψ, ψ0)
-        @test abs(F - (ψ' * H * ψ0)) < 1e-8
+        V = Devices.braket(op, device, ψ, ψ0)
+        @test abs(V - (ψ' * H * ψ0)) < 1e-8
 
     end
-
 
     # LOCAL METHODS
 
@@ -196,6 +195,25 @@ function validate(device::Devices.DeviceType)
         @test uL ≈ exp((-im*τ) .* hL)
         @test uL ≈ utL
     end
+
+    # FREQUENCIES
+
+    Δ = [
+        Devices.detuningfrequency(device, q, i)
+            for q in 1:Devices.nqubits(device) for i in 1:Devices.ndrives(device)
+    ]
+
+    Δ_ = [
+        Devices.resonancefrequency(device, q) - Devices.drivefrequency(device, i)
+            for q in 1:Devices.nqubits(device) for i in 1:Devices.ndrives(device)
+    ]
+
+    @test Δ ≈ Δ_
+
+    # SIGNALS
+
+    signals = [Devices.drivesignal(device, i) for i in 1:Devices.ndrives(device)]
+    @test all(isa.(signals, Signals.SignalType{F,FΩ}))
 
     return true
 end
@@ -333,8 +351,8 @@ function validate(evolution::Evolutions.EvolutionType)
     device = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 2, pulses; m=3)
 
     TransmonDevices.bindfrequencies(device, [
-        TransmonDevices.resonancefrequency(device, 1) + Δ,
-        TransmonDevices.resonancefrequency(device, 2) - Δ,
+        Devices.resonancefrequency(device, 1) + Δ,
+        Devices.resonancefrequency(device, 2) - Δ,
     ])
 
     N = Devices.nstates(device)
@@ -448,9 +466,9 @@ function validate(evolution::Evolutions.EvolutionType)
 
     # ONE QUBIT
     device_2 = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 1, pulse; m=2)
-    ω = TransmonDevices.resonancefrequency(device_2, 1)
+    ω = Devices.resonancefrequency(device_2, 1)
     δ = TransmonDevices.anharmonicity(device_2, 1)
-    Ω = TransmonDevices.drivesignal(device_2, 1)(T)
+    Ω = Devices.drivesignal(device_2, 1)(T)
     TransmonDevices.bindfrequencies(device_2, [ω+Δ])
 
     ψ02 = rand(ComplexF64, Devices.nstates(device_2)); ψ02 ./= norm(ψ02)
@@ -460,9 +478,9 @@ function validate(evolution::Evolutions.EvolutionType)
 
     # ONE QUTRIT
     device_3 = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 1, pulse; m=3)
-    ω = TransmonDevices.resonancefrequency(device_3, 1)
+    ω = Devices.resonancefrequency(device_3, 1)
     δ = TransmonDevices.anharmonicity(device_3, 1)
-    Ω = TransmonDevices.drivesignal(device_3, 1)(T)
+    Ω = Devices.drivesignal(device_3, 1)(T)
     TransmonDevices.bindfrequencies(device_3, [ω+Δ])
 
     ψ03 = rand(ComplexF64, Devices.nstates(device_3)); ψ03 ./= norm(ψ03)

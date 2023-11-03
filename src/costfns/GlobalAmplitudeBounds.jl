@@ -3,37 +3,19 @@ export GlobalAmplitudeBound
 
 import ..Parameters, ..Integrations, ..Devices, ..Signals
 
-import ..TransmonDevices
-
 # NOTE: Implicitly use smooth bounding function.
 wall(u) = exp(u - 1/u)
 grad(u) = exp(u - 1/u) * (1 + 1/u^2)
 
-
-
-#= TODO (mid):
-    Maybe we should formalize `drivesignal` and `drivefrequency` somehow.
-    You can formulate devices without them, but I don't think we ever will.
-    Types like this should work generally,
-        not having to be copied for every device type...
-
-    Moreover, it feels wrong for these functions to "belong" to `TransmonDevices`.
-    There must be some formal way of defining an (optional?) interface in `Devices`.
-    We can, after all, define and document the functions without defining any methods.
-    Yes, let's do that.
-
-    But first let's check if these global bounds are even worthwhile...
-=#
-
 struct GlobalAmplitudeBound{F,FΩ} <: CostFunctions.CostFunctionType{F}
-    device::TransmonDevices.AbstractTransmonDevice{F,FΩ}
+    device::Devices.DeviceType{F,FΩ}
     grid::Integrations.IntegrationType{F}
     ΩMAX::F             # MAXIMUM PERMISSIBLE AMPLITUDE
     λ::F                # STRENGTH OF BOUND
     σ::F                # STEEPNESS OF BOUND
 
     function GlobalAmplitudeBound(
-        device::TransmonDevices.AbstractTransmonDevice{DF,FΩ},
+        device::Devices.DeviceType{DF,FΩ},
         grid::Integrations.IntegrationType{IF},
         ΩMAX::Real,
         λ::Real,
@@ -59,7 +41,7 @@ function CostFunctions.cost_function(fn::GlobalAmplitudeBound{F,FΩ}) where {F,F
         Parameters.bind(fn.device, x̄);
         total = zero(F);
         for i in 1:Devices.ndrives(fn.device);
-            signal = TransmonDevices.drivesignal(fn.device, i);
+            signal = Devices.drivesignal(fn.device, i);
             Ω̄ = Signals.valueat(signal, t̄; result=Ω̄);
             total += Integrations.integrate(fn.grid, Φ, Ω̄)
         end;
@@ -82,7 +64,7 @@ function CostFunctions.grad_function_inplace(fn::GlobalAmplitudeBound{F,FΩ}) wh
         ∇f̄ .= 0;
         offset = 0;
         for i in 1:Devices.ndrives(fn.device);
-            signal = TransmonDevices.drivesignal(fn.device, i);
+            signal = Devices.drivesignal(fn.device, i);
             Ω̄ = Signals.valueat(signal, t̄; result=Ω̄);
             L = Parameters.count(signal);
             for k in 1:L

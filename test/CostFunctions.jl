@@ -4,7 +4,7 @@ import .StandardTests
 import CtrlVQE
 
 import CtrlVQE: ConstantSignals
-import CtrlVQE: TransmonDevices
+import CtrlVQE: Devices, TransmonDevices
 
 import CtrlVQE.Bases: OCCUPATION, DRESSED
 
@@ -22,7 +22,7 @@ pulses = [
 ]
 device = CtrlVQE.Systematic(TransmonDevices.TransmonDevice, 2, pulses; m=3)
 TransmonDevices.bindfrequencies(device, [
-    TransmonDevices.resonancefrequency(device, q) + Δ[q] for q in eachindex(Δ)
+    Devices.resonancefrequency(device, q) + Δ[q] for q in eachindex(Δ)
 ])
 xi = CtrlVQE.Parameters.values(device)
 
