@@ -5,6 +5,20 @@ export AmplitudeBound
 wall(u) = exp(u - 1/u)
 grad(u) = exp(u - 1/u) * (1 + 1/u^2)
 
+"""
+    AmplitudeBound(ΩMAX, λ, σ, L, Ω, paired)
+
+Smooth bounds for explicitly windowed amplitude parameters.
+
+# Parameters
+- `ΩMAX`: Maximum allowable amplitude on a device.
+- `λ`: Penalty strength.
+- `σ`: Penalty effective width: smaller means steeper.
+- `L`: total number of parameters in cost function.
+- `Ω`: array of indices corresponding to amplitudes (only these are penalized).
+- `paired`: whether or not adjacent pairs of parameters give real+imag parts
+
+"""
 struct AmplitudeBound{F} <: CostFunctions.CostFunctionType{F}
     ΩMAX::F             # MAXIMUM PERMISSIBLE AMPLITUDE
     λ::F                # STRENGTH OF BOUNDS

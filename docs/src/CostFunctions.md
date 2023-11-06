@@ -22,6 +22,7 @@ Modules = [
 ```@autodocs
 Modules = [
     CtrlVQE.GlobalAmplitudeBounds,
+    CtrlVQE.GlobalFrequencyBounds,
     CtrlVQE.AmplitudeBounds,
     CtrlVQE.SmoothBounds,
     CtrlVQE.HardBounds,

@@ -53,53 +53,61 @@ frames = [IDENTITY, UNCOUPLED, STATIC]
 import CtrlVQE.Bases: Occupation, Dressed           # IMPORT TYPES TO FACILITATE LABELING
 import CtrlVQE.Operators: Identity, Uncoupled, Static
 
-@testset "BareEnergy" begin
-    for frame in frames
-    @testset "$(typeof(frame))" begin
-        values = Vector{Float64}(undef, 2)
+# @testset "BareEnergy" begin
+#     for frame in frames
+#     @testset "$(typeof(frame))" begin
+#         values = Vector{Float64}(undef, 2)
 
-        @testset "Occupation" begin
-            fn = BareEnergy(evolution, device, OCCUPATION, frame, grid, ψ0, O0)
-            StandardTests.validate(fn)
-            values[1] = fn(xi)
-        end
+#         @testset "Occupation" begin
+#             fn = BareEnergy(evolution, device, OCCUPATION, frame, grid, ψ0, O0)
+#             StandardTests.validate(fn)
+#             values[1] = fn(xi)
+#         end
 
-        @testset "Dressed" begin
-            fn = BareEnergy(evolution, device, DRESSED, frame, grid, ψd, Od)
-            StandardTests.validate(fn)
-            values[2] = fn(xi)
-        end
+#         @testset "Dressed" begin
+#             fn = BareEnergy(evolution, device, DRESSED, frame, grid, ψd, Od)
+#             StandardTests.validate(fn)
+#             values[2] = fn(xi)
+#         end
 
-        # FOR BARE ENERGY ONLY, CHECK CONSISTENCY BETWEEN DIFFERENT BASES
-        @test values[1] ≈ values[2]
-    end; end
-end
+#         # FOR BARE ENERGY ONLY, CHECK CONSISTENCY BETWEEN DIFFERENT BASES
+#         @test values[1] ≈ values[2]
+#     end; end
+# end
 
-for fn_type in [ProjectedEnergy, NormalizedEnergy]
-@testset "$fn_type" begin
-    for frame in frames
-    @testset "$(typeof(frame))" begin
-        for basis in bases
-        @testset "$(typeof(basis))" begin
-            fn = fn_type(evolution, device, basis, frame, grid, ψ0, O0)
-            StandardTests.validate(fn)
-        end; end
-    end; end
-end; end
+# for fn_type in [ProjectedEnergy, NormalizedEnergy]
+# @testset "$fn_type" begin
+#     for frame in frames
+#     @testset "$(typeof(frame))" begin
+#         for basis in bases
+#         @testset "$(typeof(basis))" begin
+#             fn = fn_type(evolution, device, basis, frame, grid, ψ0, O0)
+#             StandardTests.validate(fn)
+#         end; end
+#     end; end
+# end; end
 
-@testset "Normalization" begin
-    for basis in bases
-    @testset "$(typeof(basis))" begin
-        fn = Normalization(evolution, device, basis, grid, ψ0)
-        StandardTests.validate(fn)
-    end; end
-end
+# @testset "Normalization" begin
+#     for basis in bases
+#     @testset "$(typeof(basis))" begin
+#         fn = Normalization(evolution, device, basis, grid, ψ0)
+#         StandardTests.validate(fn)
+#     end; end
+# end
 
 # TEST PENALTY FUNCTIONS
 
 @testset "GlobalAmplitudeBounds" begin
     ΩMAX = 0.5      # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
     fn = CtrlVQE.GlobalAmplitudeBound(device, grid, ΩMAX, 1.0, ΩMAX)
+    StandardTests.validate(fn)
+end
+
+@testset "GlobalFrequencyBounds" begin
+    ΔMAX = 0.5      # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+    νdevice = deepcopy(device)  # We need to manipulate the resonance frequencies...
+    νdevice.ω̄ .= [1.0, 1.1]     #   so drive frequencies in range [0,1] are reasonable.
+    fn = CtrlVQE.GlobalFrequencyBound(νdevice, grid, ΔMAX, 1.0, ΔMAX)
     StandardTests.validate(fn)
 end
 

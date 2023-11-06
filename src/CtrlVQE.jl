@@ -294,6 +294,9 @@ import .NormalizedEnergies: NormalizedEnergy
 module GlobalAmplitudeBounds; include("costfns/GlobalAmplitudeBounds.jl"); end
 import .GlobalAmplitudeBounds: GlobalAmplitudeBound
 
+module GlobalFrequencyBounds; include("costfns/GlobalFrequencyBounds.jl"); end
+import .GlobalFrequencyBounds: GlobalFrequencyBound
+
 module AmplitudeBounds; include("costfns/AmplitudeBounds.jl"); end
 import .AmplitudeBounds: AmplitudeBound
 

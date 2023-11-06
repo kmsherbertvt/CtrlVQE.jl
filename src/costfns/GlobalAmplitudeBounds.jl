@@ -7,6 +7,21 @@ import ..Parameters, ..Integrations, ..Devices, ..Signals
 wall(u) = exp(u - 1/u)
 grad(u) = exp(u - 1/u) * (1 + 1/u^2)
 
+"""
+    GlobalAmplitudeBound(device, grid, ΩMAX, λ, σ)
+
+Smooth bounds on an integral over each drive signal in a device.
+
+Each pulse is integrated separately; any "area" beyond ΩMAX is penalized.
+
+# Parameters
+- `device`: the device
+- `grid`: how to integrate over time
+- `ΩMAX`: Maximum allowable amplitude on a device.
+- `λ`: Penalty strength.
+- `σ`: Penalty effective width: smaller means steeper.
+
+"""
 struct GlobalAmplitudeBound{F,FΩ} <: CostFunctions.CostFunctionType{F}
     device::Devices.DeviceType{F,FΩ}
     grid::Integrations.IntegrationType{F}
