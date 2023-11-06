@@ -263,3 +263,133 @@ function grad_function_inplace(fn::EnergyFunction{F}; ϕ=nothing) where {F}
     error("Not Implemented")
     return (∇f̄, x̄) -> Vector{F}(undef, length(fn))
 end
+
+
+
+
+"""
+    ConstrainedEnergyFunction(E, Λ̄, λ̄)
+
+An energy function modified by any number of penalty terms.
+
+# Parameters
+- `E`: the base `EnergyFunction`
+- `Λ̄`: a vector of cost functions, each matching the `eltype` and `length` of `E`
+- `λ̄`: a vector of Lagrange multipliers, matching the length of `Λ̄`
+
+NOTE: If your penalties include an energy function,
+    (eg. calculating (⟨N⟩-N0)², which calculates an "energy" of the `N̂` operator),
+    this function is usable, but will repeat the time-evolution unnecessarily.
+
+TODO (lo): Write yet another cost function,
+        which has a list of all the observables to estimate,
+        and a (generic?) function of those observables to report as the loss.
+    I think this waits 'til we have symbolic observables (ie. not dense matrices).
+
+As a practical convenience, this struct maintains some dynamic attributes
+    so that results for each component function can be inspected
+    in the middle of an optimization.
+I don't really consider them an official part of the interface,
+    but feel free to use them. Although...they aren't technically "thread-safe". ^_^
+
+"""
+struct ConstrainedEnergyFunction{F} <: EnergyFunction{F}
+    energyfn::EnergyFunction{F}
+    penaltyfns::Vector{CostFunctionType{F}}
+    weights::Vector{F}
+
+    L::Int                  # NUMBER OF PARAMETERS
+
+    f_counter::Ref{Int}     # NUMBER OF TIMES ANY COST FUNCTION IS CALLED
+    g_counter::Ref{Int}     # NUMBER OF TIMES ANY GRAD FUNCTION IS CALLED
+    energy::Ref{F}          # STORES VALUE OF ENERGY FROM THE LAST CALL
+    energygd::Ref{F}        # STORES NORM OF ENERGY GRADIENT FROM THE LAST CALL
+    penalties::Vector{F}    # STORES VALUE OF EACH PENALTY FROM THE LAST CALL
+    penaltygds::Vector{F}   # STORES NORMS OF EACH PENALTY GRADIENT FROM THE LAST CALL
+
+    function ConstrainedEnergyFunction(
+        energyfn::EnergyFunction{F},
+        penaltyfns::AbstractVector{CostFunctionType{F}},
+        weights::AbstractVector{<:Real},
+    ) where {F}
+        # NUMBER OF PENALTIES
+        @assert length(weights) == length(penaltyfns)
+
+        # NUMBER OF PARAMETERS
+        L = length(energyfn)
+        for penaltyfn in penaltyfns; @assert length(penaltyfn) == L; end
+
+        return new{F}(
+            energyfn,
+            convert(Vector{CostFunctionType{F}}, penaltyfns),
+            convert(Vector{F}, weights),
+            L, Ref(0), Ref(0),
+            Ref(zero(F)), Ref(zero(F)),
+            Vector{F}(undef, L),
+            Vector{F}(undef, L),
+        )
+    end
+end
+
+"""
+    ConstrainedEnergyFunction(E::EnergyFunction, Λ̄::CostFunctionType{F}...)
+
+Alternate constructor, letting each penalty function be passed as its own argument.
+
+Using this constructor, weights always default to λ=1 for each penalty function.
+
+"""
+function ConstrainedEnergyFunction(
+    energyfn::EnergyFunction,
+    penaltyfns::CostFunctionType{F}...
+) where {F}
+    return ConstrainedEnergyFunction(
+        energyfn,
+        CostFunctionType{F}[penaltyfn for penaltyfn in penaltyfns],
+        ones(F, length(penaltyfns)),
+    )
+end
+
+Base.length(fn::ConstrainedEnergyFunction) = fn.L
+
+function cost_function(fn::ConstrainedEnergyFunction; callback=nothing)
+    ef = cost_function(fn.energyfn; callback=callback)
+    fs = [cost_function(penaltyfn) for penaltyfn in fn.penaltyfns]
+    return (x̄) -> (
+        fn.f_counter[] += 1;
+        fn.energy[] = ef(x̄);
+        total = fn.energy[];
+        for (i, f) in enumerate(fs);
+            fx = f(x̄);          # EVALUATE EACH COMPONENT
+            fn.penalties[i] = fx;
+            total += fn.weights[i] * fx;    # TALLY RESULTS FOR THE COMPONENT
+        end;
+        total
+    )
+end
+
+function grad_function_inplace(fn::ConstrainedEnergyFunction{F}; ϕ=nothing) where {F}
+    eg! = grad_function_inplace(fn.energyfn; ϕ=ϕ)
+    g!s = [grad_function_inplace(penaltyfn) for penaltyfn in fn.penaltyfns]
+    ∇f̄_ = zeros(F, fn.L)        # USE THIS AS THE GRADIENT VECTOR FOR EACH COMPONENT CALL
+    return (∇f̄, x̄) -> (
+        fn.g_counter[] += 1;
+        eg!(∇f̄_, x̄);
+        fn.energygd[] = LinearAlgebra.norm(∇f̄_);
+        ∇f̄ .= ∇f̄_;
+        for (i, g!) in enumerate(g!s);
+            g!(∇f̄_, x̄);         # EVALUATE EACH COMPONENT. WRITES GRADIENT TO ∇f̄_
+            fn.penaltygds[i] = LinearAlgebra.norm(∇f̄_);
+            ∇f̄ .+= fn.weights[i] .* ∇f̄_;    # TALLY RESULTS FOR THE COMPONENT
+        end;
+        ∇f̄;
+    )
+end
+
+function trajectory_callback(
+    fn::ConstrainedEnergyFunction,
+    E::AbstractVector;
+    callback=nothing,
+)
+    return trajectory_callback(fn.energyfn, E; callback=callback)
+end

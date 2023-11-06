@@ -156,3 +156,21 @@ end
     fn = CtrlVQE.SoftBound(λ̄, μ̄, σ̄)
     StandardTests.validate(fn)
 end
+
+# TEST COMPOSITE FUNCTIONS
+
+@testset "CompositeCostFunction" begin
+    ΩMAX = 0.5      # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+    energyfn = BareEnergy(evolution, device, OCCUPATION, STATIC, grid, ψ0, O0)
+    penaltyfn = CtrlVQE.GlobalAmplitudeBound(device, grid, ΩMAX, 1.0, ΩMAX)
+    fn = CtrlVQE.CompositeCostFunction(energyfn, penaltyfn)
+    StandardTests.validate(fn)
+end
+
+@testset "ConstrainedEnergyFunction" begin
+    ΩMAX = 0.5      # MOCK UNITS SO THAT RANDOM PARAMETERS [0,1] ARE REASONABLE
+    energyfn = BareEnergy(evolution, device, OCCUPATION, STATIC, grid, ψ0, O0)
+    penaltyfn = CtrlVQE.GlobalAmplitudeBound(device, grid, ΩMAX, 1.0, ΩMAX)
+    fn = CtrlVQE.ConstrainedEnergyFunction(energyfn, penaltyfn)
+    StandardTests.validate(fn)
+end

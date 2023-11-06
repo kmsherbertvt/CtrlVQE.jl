@@ -199,6 +199,7 @@ import .Devices: DeviceType, LocallyDrivenDevice
 import .Devices: nqubits, nstates, nlevels, ndrives, ngrades, gradient
 import .Devices: operator, propagator, propagate!, expectation, braket
 import .Devices: drivequbit, gradequbit
+#= TODO (hi): export the new functions! =#
 
 module TransmonDevices; include("devices/TransmonDevices.jl"); end
 import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice
@@ -270,8 +271,9 @@ Thus, all you need to run a gradient based optimization is:
 
 """
 module CostFunctions; include("costfns/CostFunctions.jl"); end
-import .CostFunctions: CostFunctionType, CompositeCostFunction, EnergyFunction
+import .CostFunctions: CostFunctionType, CompositeCostFunction
 import .CostFunctions: cost_function, grad_function, grad_function_inplace
+import .CostFunctions: EnergyFunction, ConstrainedEnergyFunction
 import .CostFunctions: trajectory_callback
 
 #= ENERGY FUNCTIONS =#
