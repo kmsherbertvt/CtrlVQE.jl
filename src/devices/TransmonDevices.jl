@@ -397,7 +397,7 @@ couplingstrength(device::TransmonDevice, k::Int) = device.ḡ[k]
 Devices.ndrives(device::TransmonDevice) = length(device.q̄)
 Devices.drivequbit(device::TransmonDevice, i::Int) = device.q̄[i]
 Devices.drivefrequency(device::TransmonDevice, i::Int) = device.ν̄[i]
-Devices.drivesignal(device::TransmonDevice, i::Int) = device.Ω̄[i]
+Devices.__get__drivesignals(device::TransmonDevice) = device.Ω̄
 
 bindfrequencies(device::TransmonDevice, ν̄::AbstractVector) = (device.ν̄ .= ν̄)
 
@@ -500,7 +500,7 @@ couplingstrength(device::FixedFrequencyTransmonDevice, k::Int) = device.ḡ[k]
 Devices.ndrives(device::FixedFrequencyTransmonDevice) = length(device.q̄)
 Devices.drivequbit(device::FixedFrequencyTransmonDevice, i::Int)=device.q̄[i]
 Devices.drivefrequency(device::FixedFrequencyTransmonDevice, i::Int) = device.ν̄[i]
-Devices.drivesignal(device::FixedFrequencyTransmonDevice, i::Int) = device.Ω̄[i]
+Devices.__get__drivesignals(device::FixedFrequencyTransmonDevice) = device.Ω̄
 
 bindfrequencies(device::FixedFrequencyTransmonDevice, ν̄::AbstractVector) = nothing
 

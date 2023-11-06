@@ -199,21 +199,28 @@ function validate(device::Devices.DeviceType{F,FΩ}) where {F,FΩ}
     # FREQUENCIES
 
     Δ = [
-        Devices.detuningfrequency(device, q, i)
-            for q in 1:Devices.nqubits(device) for i in 1:Devices.ndrives(device)
+        Devices.detuningfrequency(device, i, q)
+            for i in 1:Devices.ndrives(device) for q in 1:Devices.nqubits(device)
     ]
 
     Δ_ = [
-        Devices.resonancefrequency(device, q) - Devices.drivefrequency(device, i)
-            for q in 1:Devices.nqubits(device) for i in 1:Devices.ndrives(device)
+        Devices.drivefrequency(device, i) - Devices.resonancefrequency(device, q)
+            for i in 1:Devices.ndrives(device) for q in 1:Devices.nqubits(device)
     ]
 
     @test Δ ≈ Δ_
 
     # SIGNALS
 
-    signals = [Devices.drivesignal(device, i) for i in 1:Devices.ndrives(device)]
+    signals = Devices.__get__drivesignals(device)
     @test all(isa.(signals, Signals.SignalType{F,FΩ}))
+
+    # Call the mutating set_drivesignal, but we don't want to actually change anything.
+    for (i, signal) in enumerate(signals); Devices.set_drivesignal(device, i, signal); end
+
+    # Check the accessor gives identical objects.
+    for (i, signal) in enumerate(signals); @assert Devices.drivesignal(device, i) === signal; end
+
 
     return true
 end

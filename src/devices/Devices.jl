@@ -14,9 +14,10 @@ const LABEL = Symbol(@__MODULE__)
 import ..LinearAlgebraTools: MatrixList
 const Evolvable = AbstractVecOrMat{<:Complex{<:AbstractFloat}}
 
+import ..Signals: SignalType
+
 using Memoization: @memoize
 using LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen
-
 
 """
     DeviceType{F,FΩ}
@@ -115,11 +116,12 @@ Implement these methods based only on your implementation of the methods,
 
 Each of these methods gives a scalar.
 
-## Drive methods:
+## Drive signal methods:
 
-- `drivesignal(::D, i::Int)`
+- `__get__drivesignals(::D)`
 
-Each of these methods gives some `SignalType`.
+This method exposes a vector of `SignalType`, of length `ndrives`.
+It is used by the default implementations of `drivesignal` and `set_drivesignal`.
 
 ## Gradient methods:
 
@@ -206,6 +208,7 @@ function ndrives(::DeviceType)
     error("Not Implemented")
     return 0
 end
+#= TODO (mid): we could choose to automate from __get__drivesignals =#
 
 """
     ngrades(device::DeviceType)
@@ -401,7 +404,7 @@ function resonancefrequency(device::DeviceType{F,FΩ}, q::Int) where {F,FΩ}
 end
 
 """
-    drivesignal(device::DeviceType, i::Int)
+    drivefrequency(device::DeviceType, i::Int)
 
 The drive frequency for a given pulse index.
 
@@ -417,16 +420,14 @@ function drivefrequency(device::DeviceType{F,FΩ}, i::Int) where {F,FΩ}
 end
 
 """
-    drivesignal(device::DeviceType, i::Int)
+    __get__drivesignals(device::DeviceType)
 
-The time-dependent signal for a given pulse index.
+A vector of drive signals, presumably an attribute of the device object.
 
 """
-function drivesignal(device::DeviceType{F,FΩ}, i::Int) where {F,FΩ}
+function __get__drivesignals(device::DeviceType{F,FΩ}) where {F,FΩ}
     error("Not Implemented")
-    return nothing
-    #= NOTE: This is usually an implicitly type-unstable method,
-        since sub-types will typically not want to restrict their signal types. =#
+    return Vector{<:TypeSignal{F,FΩ}}[]
 end
 
 
@@ -1654,14 +1655,41 @@ function braket(
     return LinearAlgebraTools.braket(ψ1, ops, ψ2)
 end
 
-"""
-    detuningfrequency(device::DeviceType, q::Int, i::Int)
-
-Calculate the difference between qubit resonance and drive frequency.
+##########################################################################################
+#=  =#
 
 """
-function detuningfrequency(device::DeviceType, q::Int, i::Int)
-    return resonancefrequency(device, q) - drivefrequency(device, i)
+    detuningfrequency(device::DeviceType, i::Int, q::Int)
+
+Calculate the difference between drive frequency and qubit resonance.
+
+"""
+function detuningfrequency(device::DeviceType, i::Int, q::Int)
+    return drivefrequency(device, i) - resonancefrequency(device, q)
+end
+
+"""
+    drivesignal(device::DeviceType, i::Int)
+
+The time-dependent signal for a given pulse index.
+
+"""
+function drivesignal(device::DeviceType{F,FΩ}, i::Int) where {F,FΩ}
+    return __get__drivesignals(device)[i]
+end
+
+"""
+    set_drivesignal(device::DeviceType, i::Int, signal::SignalType)
+
+Change the time-dependent signal for a given pulse index.
+
+"""
+function set_drivesignal(
+    device::DeviceType{F,FΩ},
+    i::Int,
+    signal::SignalType{F,FΩ},
+) where {F,FΩ}
+    __get__drivesignals(device)[i] = signal
 end
 
 

@@ -199,7 +199,8 @@ import .Devices: DeviceType, LocallyDrivenDevice
 import .Devices: nqubits, nstates, nlevels, ndrives, ngrades, gradient
 import .Devices: operator, propagator, propagate!, expectation, braket
 import .Devices: drivequbit, gradequbit
-#= TODO (hi): export the new functions! =#
+import .Devices: resonancefrequency, drivefrequency, detuningfrequency
+import .Devices: drivesignal, set_drivesignal
 
 module TransmonDevices; include("devices/TransmonDevices.jl"); end
 import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice
