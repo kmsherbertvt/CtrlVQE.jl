@@ -299,6 +299,7 @@ struct ConstrainedEnergyFunction{F} <: EnergyFunction{F}
     weights::Vector{F}
 
     L::Int                  # NUMBER OF PARAMETERS
+    nΛ::Int                 # NUMBER OF PENALTY FUNCTIONS
 
     f_counter::Ref{Int}     # NUMBER OF TIMES ANY COST FUNCTION IS CALLED
     g_counter::Ref{Int}     # NUMBER OF TIMES ANY GRAD FUNCTION IS CALLED
@@ -312,21 +313,23 @@ struct ConstrainedEnergyFunction{F} <: EnergyFunction{F}
         penaltyfns::AbstractVector{CostFunctionType{F}},
         weights::AbstractVector{<:Real},
     ) where {F}
-        # NUMBER OF PENALTIES
-        @assert length(weights) == length(penaltyfns)
-
         # NUMBER OF PARAMETERS
         L = length(energyfn)
         for penaltyfn in penaltyfns; @assert length(penaltyfn) == L; end
+
+        # NUMBER OF PENALTIES
+        nΛ = length(penaltyfns)
+        @assert length(weights) == nΛ
 
         return new{F}(
             energyfn,
             convert(Vector{CostFunctionType{F}}, penaltyfns),
             convert(Vector{F}, weights),
-            L, Ref(0), Ref(0),
+            L, nΛ,
+            Ref(0), Ref(0),
             Ref(zero(F)), Ref(zero(F)),
-            Vector{F}(undef, L),
-            Vector{F}(undef, L),
+            Vector{F}(undef, nΛ),
+            Vector{F}(undef, nΛ),
         )
     end
 end
