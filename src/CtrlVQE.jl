@@ -179,6 +179,15 @@ import .StepFunctionSignals: StepFunction
 module GaussianSignals; include("signals/GaussianSignals.jl"); end
 import .GaussianSignals: Gaussian
 
+module TrigonometricSignals; include("signals/TrigonometricSignals.jl"); end
+import .TrigonometricSignals: Sine
+
+module SincSignals; include("signals/SincSignals.jl"); end
+import .SincSignals: Sinc
+
+module TanhSignals; include("signals/TanhSignals.jl"); end
+import .TanhSignals: Tanh
+
 ##########################################################################################
 #= DEVICES =#
 

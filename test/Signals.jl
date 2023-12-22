@@ -64,3 +64,18 @@ end
     signal = CtrlVQE.Gaussian(0.75, 0.25, 0.75)
     StandardTests.validate(signal)
 end
+
+@testset "Sine" begin
+    signal = CtrlVQE.Sine(0.75, 0.25, 0.75)
+    StandardTests.validate(signal)
+end
+
+@testset "Sinc" begin
+    signal = CtrlVQE.Sinc(0.75, 0.25, 0.75)
+    StandardTests.validate(signal)
+end
+
+@testset "Tanh" begin
+    signal = CtrlVQE.Tanh(0.75, 0.25, 0.75)
+    StandardTests.validate(signal)
+end

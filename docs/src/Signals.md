@@ -33,3 +33,18 @@ Modules = [CtrlVQE.StepFunctionSignals]
 ```@autodocs
 Modules = [CtrlVQE.GaussianSignals]
 ```
+
+## Trigonometric Signals
+```@autodocs
+Modules = [CtrlVQE.TrigonometricSignals]
+```
+
+## Sinc Signals
+```@autodocs
+Modules = [CtrlVQE.SincSignals]
+```
+
+## Tanh Signals
+```@autodocs
+Modules = [CtrlVQE.TanhSignals]
+```
