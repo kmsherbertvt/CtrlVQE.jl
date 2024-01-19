@@ -24,6 +24,15 @@ end
     StandardTests.validate(signal)
 end
 
+@testset "WeightedCompositeSignal" begin
+    signal = CtrlVQE.WeightedCompositeSignal(
+        CtrlVQE.Constant(0.75),
+        CtrlVQE.Constant(0.25),
+    )
+    signal.weights .= [0.3, -0.7]
+    StandardTests.validate(signal)
+end
+
 @testset "WindowedSignal" begin
     signal = CtrlVQE.WindowedSignal([
         CtrlVQE.Constant(0.75),
