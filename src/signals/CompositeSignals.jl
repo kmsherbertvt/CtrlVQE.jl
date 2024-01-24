@@ -1,5 +1,5 @@
 import ..Parameters, ..Signals
-export CompositeSignal
+export CompositeSignal, WeightedCompositeSignal
 
 import ..Signals: SignalType
 

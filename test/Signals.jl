@@ -8,6 +8,11 @@ import CtrlVQE
     StandardTests.validate(signal)
 end
 
+@testset "AnalyticConstant" begin
+    signal = CtrlVQE.AnalyticSignal(CtrlVQE.Constant(0.5), im)
+    StandardTests.validate(signal)
+end
+
 @testset "CompositeSignal" begin
     signal = CtrlVQE.CompositeSignal(
         CtrlVQE.Constant(0.75),

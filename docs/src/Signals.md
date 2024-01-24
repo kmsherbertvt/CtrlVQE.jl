@@ -8,6 +8,7 @@ CurrentModule = CtrlVQE
 Modules = [
     CtrlVQE.Signals,
     CtrlVQE.ParametricSignals,
+    CtrlVQE.AnalyticSignals,
     CtrlVQE.WindowedSignals,
     CtrlVQE.CompositeSignals,
     CtrlVQE.ModulatedSignals,

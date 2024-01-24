@@ -158,6 +158,9 @@ module ParametricSignals; include("signals/ParametricSignals.jl"); end
 import .ParametricSignals: ParametricSignal, ConstrainedSignal
 import .ParametricSignals: parameters
 
+module AnalyticSignals; include("signals/AnalyticSignals.jl"); end
+import .AnalyticSignals: AnalyticSignal
+
 module CompositeSignals; include("signals/CompositeSignals.jl"); end
 import .CompositeSignals: CompositeSignal, WeightedCompositeSignal
 
