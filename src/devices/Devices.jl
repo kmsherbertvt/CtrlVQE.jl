@@ -690,6 +690,20 @@ function algebra(
     end
     return ā
 end
+#= TODO (hi): is there a reason this isn't memoized?!
+
+Also, while technically marginally less efficient,
+    you really ought to just generate the local algebra in occupation basis
+    and then globalize each element in that list.
+Less efficiency is irrelevant given memoization,
+    and it enhances polymorphism by a lot.
+
+In fact...it is the localalgebra each device should implement.
+The ONLY other thing that localloweringoperator is used for
+    is the canonical coordinate and momentum bases.
+Do we REALLY need localloweringoperator?
+
+=#
 
 """
     localalgebra(device::DeviceType[, basis::Bases.LocalBasis])

@@ -298,6 +298,7 @@ struct ConstrainedEnergyFunction{F} <: EnergyFunction{F}
     penaltyfns::Vector{CostFunctionType{F}}
     weights::Vector{F}
 
+    # TODO: No reason for these to be baked into the struct. They should be mutable, if eg. the device changes, or if someone decides to dynamically add on more penalty terms.
     L::Int                  # NUMBER OF PARAMETERS
     nΛ::Int                 # NUMBER OF PENALTY FUNCTIONS
 

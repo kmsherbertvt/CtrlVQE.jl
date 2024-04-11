@@ -58,6 +58,9 @@ module Parameters
 
     """
     function bind end
+    #= TODO (hi): Should be named `bind!`. Duh.
+        Very breaking. Maybe archive the current version as 1.0 before doing this? ^_^
+    =#
 end
 
 ##########################################################################################
