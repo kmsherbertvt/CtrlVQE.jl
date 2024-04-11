@@ -139,8 +139,6 @@ I don't really consider them an official part of the interface,
 struct CompositeCostFunction{F} <: CostFunctionType{F}
     components::Vector{CostFunctionType{F}}
 
-    L::Int                  # NUMBER OF PARAMETERS
-
     f_counter::Ref{Int}     # NUMBER OF TIMES ANY COST FUNCTION IS CALLED
     g_counter::Ref{Int}     # NUMBER OF TIMES ANY GRAD FUNCTION IS CALLED
     values::Vector{F}       # STORES VALUES OF EACH COMPONENT FROM THE LAST CALL
@@ -150,7 +148,7 @@ struct CompositeCostFunction{F} <: CostFunctionType{F}
         components::AbstractVector{CostFunctionType{F}},
     ) where {F}
         if length(components) == 0
-            return new{F}(CostFunctionType{F}[], 0, Ref(0), Ref(0), F[], F[])
+            return new{F}(CostFunctionType{F}[], Ref(0), Ref(0), F[], F[])
         end
 
         L = length(first(components))
@@ -158,7 +156,7 @@ struct CompositeCostFunction{F} <: CostFunctionType{F}
 
         return new{F}(
             convert(Vector{CostFunctionType{F}}, components),
-            L, Ref(0), Ref(0),
+            Ref(0), Ref(0),
             Vector{F}(undef, L),
             Vector{F}(undef, L),
         )
@@ -175,7 +173,15 @@ function CompositeCostFunction(components::CostFunctionType{F}...) where {F}
     return CompositeCostFunction(CostFunctionType{F}[component for component in components])
 end
 
-Base.length(fn::CompositeCostFunction) = fn.L
+function Base.length(fn::CompositeCostFunction)
+    isempty(fn.components) && return 0
+    L = length(first(fn.components))
+    # Confirm self-consistency.
+    for component in fn.components
+        @assert length(component) == L
+    end
+    return L
+end
 
 function cost_function(fn::CompositeCostFunction)
     fs = [cost_function(component) for component in fn.components]
@@ -193,7 +199,7 @@ end
 
 function grad_function_inplace(fn::CompositeCostFunction{F}) where {F}
     g!s = [grad_function_inplace(component) for component in fn.components]
-    ∇f̄_ = zeros(F, fn.L)        # USE THIS AS THE GRADIENT VECTOR FOR EACH COMPONENT CALL
+    ∇f̄_ = zeros(F, length(fn))  # USE THIS AS THE GRADIENT VECTOR FOR EACH COMPONENT CALL
     return (∇f̄, x̄) -> (
         fn.g_counter[] += 1;
         ∇f̄ .= 0;
@@ -298,10 +304,6 @@ struct ConstrainedEnergyFunction{F} <: EnergyFunction{F}
     penaltyfns::Vector{CostFunctionType{F}}
     weights::Vector{F}
 
-    # TODO: No reason for these to be baked into the struct. They should be mutable, if eg. the device changes, or if someone decides to dynamically add on more penalty terms.
-    L::Int                  # NUMBER OF PARAMETERS
-    nΛ::Int                 # NUMBER OF PENALTY FUNCTIONS
-
     f_counter::Ref{Int}     # NUMBER OF TIMES ANY COST FUNCTION IS CALLED
     g_counter::Ref{Int}     # NUMBER OF TIMES ANY GRAD FUNCTION IS CALLED
     energy::Ref{F}          # STORES VALUE OF ENERGY FROM THE LAST CALL
@@ -326,7 +328,6 @@ struct ConstrainedEnergyFunction{F} <: EnergyFunction{F}
             energyfn,
             convert(Vector{CostFunctionType{F}}, penaltyfns),
             convert(Vector{F}, weights),
-            L, nΛ,
             Ref(0), Ref(0),
             Ref(zero(F)), Ref(zero(F)),
             Vector{F}(undef, nΛ),
@@ -354,7 +355,14 @@ function ConstrainedEnergyFunction(
     )
 end
 
-Base.length(fn::ConstrainedEnergyFunction) = fn.L
+function Base.length(fn::ConstrainedEnergyFunction)
+    L = length(fn.energyfn)
+    # Confirm self-consistency.
+    for penaltyfn in fn.penaltyfns
+        @assert length(penaltyfn) == L
+    end
+    return L
+end
 
 function cost_function(fn::ConstrainedEnergyFunction; callback=nothing)
     ef = cost_function(fn.energyfn; callback=callback)
@@ -375,7 +383,7 @@ end
 function grad_function_inplace(fn::ConstrainedEnergyFunction{F}; ϕ=nothing) where {F}
     eg! = grad_function_inplace(fn.energyfn; ϕ=ϕ)
     g!s = [grad_function_inplace(penaltyfn) for penaltyfn in fn.penaltyfns]
-    ∇f̄_ = zeros(F, fn.L)        # USE THIS AS THE GRADIENT VECTOR FOR EACH COMPONENT CALL
+    ∇f̄_ = zeros(F, length(fn))  # USE THIS AS THE GRADIENT VECTOR FOR EACH COMPONENT CALL
     return (∇f̄, x̄) -> (
         fn.g_counter[] += 1;
         eg!(∇f̄_, x̄);
