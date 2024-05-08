@@ -1787,7 +1787,7 @@ function localdriveoperators(
     n = nqubits(device)
     isnothing(result) && (result = Array{F,3}(undef, m, m, n))
     result .= 0
-    for i in 1:n
+    for i in 1:ndrives(device)
         q = drivequbit(device, i)
         result[:,:,q] .+= driveoperator(device, ā, i, t)
     end
