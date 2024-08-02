@@ -81,7 +81,7 @@ function Parameters.values(signal::S) where {P,R,S<:ParametricSignal{P,R}}
     return P[getfield(signal, field) for field in parameters(S)]
 end
 
-function Parameters.bind(
+function Parameters.bind!(
     signal::S,
     x̄::AbstractVector{P}
 ) where {P,R,S<:ParametricSignal{P,R}}
@@ -103,7 +103,7 @@ The parametric signal `constrained`, freezing all fields in `constraints`.
 
 Frozen parameters are omitted from the `Parameters` interface.
 In other words, they do not appear in `Parameters.names` or `Parameters.values`,
-    and they are not mutated by `Parameters.bind`.
+    and they are not mutated by `Parameters.bind!`.
 
 """
 struct ConstrainedSignal{P,R,S<:ParametricSignal{P,R}} <: Signals.SignalType{P,R}
@@ -145,7 +145,7 @@ function Parameters.values(signal::ConstrainedSignal)
     return Parameters.values(signal.constrained)[collect(signal._map)]
 end
 
-function Parameters.bind(
+function Parameters.bind!(
     signal::ConstrainedSignal{P,R,S},
     x̄::AbstractVector{P}
 ) where {P,R,S}

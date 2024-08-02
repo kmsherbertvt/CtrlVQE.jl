@@ -5,7 +5,7 @@ import ..LinearAlgebraTools
 import ..Integrations, ..Devices
 import ..Bases
 
-import ..Bases: OCCUPATION
+import ..Bases: BARE
 import ..Operators: STATIC, Drive
 
 import ..TrapezoidalIntegrations: TrapezoidalIntegration
@@ -17,7 +17,7 @@ using LinearAlgebra: norm
 
 A Trotterization method (using `r` steps) alternately propagating static and drive terms.
 
-The work basis for this algorithm is `Bases.OCCUPATION`,
+The work basis for this algorithm is `Bases.BARE`,
     since the time-dependent "Drive" operator at each step is usually qubit-local.
 
 NOTE: This method assumes a trapezoidal rule,
@@ -26,7 +26,7 @@ NOTE: This method assumes a trapezoidal rule,
 """
 struct Toggle <: Evolutions.EvolutionType end; TOGGLE = Toggle()
 
-Evolutions.workbasis(::Toggle) = OCCUPATION
+Evolutions.workbasis(::Toggle) = BARE
 
 function Evolutions.evolve!(::Toggle,
     device::Devices.DeviceType,
@@ -45,9 +45,9 @@ function Evolutions.evolve!(::Toggle,
     # RUN EVOLUTION
     for i in 1:r
         callback !== nothing && callback(i, t̄[i], ψ)
-        ψ = Devices.propagate!(Drive(t̄[i]),  device, OCCUPATION, τ/2, ψ)
-        ψ = Devices.propagate!(STATIC, device, OCCUPATION, τ, ψ)
-        ψ = Devices.propagate!(Drive(t̄[i+1]),  device, OCCUPATION, τ/2, ψ)
+        ψ = Devices.propagate!(Drive(t̄[i]),  device, BARE, τ/2, ψ)
+        ψ = Devices.propagate!(STATIC, device, BARE, τ, ψ)
+        ψ = Devices.propagate!(Drive(t̄[i+1]),  device, BARE, τ/2, ψ)
     end
     callback !== nothing && callback(r+1, t̄[r+1], ψ)
 

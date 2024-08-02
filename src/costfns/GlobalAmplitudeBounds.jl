@@ -53,7 +53,7 @@ function CostFunctions.cost_function(fn::GlobalAmplitudeBound{F,FΩ}) where {F,F
     )
 
     return (x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         total = zero(F);
         for i in 1:Devices.ndrives(fn.device);
             signal = Devices.drivesignal(fn.device, i);
@@ -75,7 +75,7 @@ function CostFunctions.grad_function_inplace(fn::GlobalAmplitudeBound{F,FΩ}) wh
     )
 
     return (∇f̄, x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         ∇f̄ .= 0;
         offset = 0;
         for i in 1:Devices.ndrives(fn.device);

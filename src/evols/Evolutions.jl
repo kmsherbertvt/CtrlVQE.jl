@@ -5,7 +5,7 @@ import ..LinearAlgebraTools
 import ..Integrations, ..Devices
 import ..Bases
 
-import ..Bases: OCCUPATION
+import ..Bases: BARE
 import ..Operators: STATIC, Drive, Gradient
 
 import ..TrapezoidalIntegrations: TrapezoidalIntegration
@@ -45,7 +45,7 @@ Also defines the default basis to interpret ψ as, in evolution methods.
 """
 function workbasis(::EvolutionType)
     error("Not Implemented")
-    return OCCUPATION
+    return BARE
 end
 
 """
@@ -164,7 +164,7 @@ NOTE: Currently, this method assumes a trapezoidal rule,
 
 - `basis::Bases.BasisType`: which basis `ψ` is represented in.
         ALSO determines the basis in which calculations are carried out.
-        Defaults to `Bases.OCCUPATION`.
+        Defaults to `Bases.BARE`.
 
 - `grid::TrapezoidalIntegration`: defines the time integration bounds (eg. from 0 to `T`)
 
@@ -180,7 +180,7 @@ NOTE: Currently, this method assumes a trapezoidal rule,
         The function is passed three arguments:
         - `i`: indexes the iteration
         - `t`: the current time point
-        - `ψ`: the current statevector, in the OCCUPATION basis
+        - `ψ`: the current statevector, in the BARE basis
         The function is called after having evolved ψ into |ψ(t)⟩,
             but before calculating ϕ̄[i,:]. Evolution here runs backwards.
 
@@ -284,9 +284,9 @@ function gradientsignals(
         LinearAlgebraTools.rotate!(@view(Ō[:,:,k]), @view(λ̄[:,k]))
     end
 
-    # ROTATE INTO OCCUPATION BASIS FOR THE REST OF THIS METHOD
-    if basis != OCCUPATION
-        U = Devices.basisrotation(OCCUPATION, basis, device)
+    # ROTATE INTO BARE BASIS FOR THE REST OF THIS METHOD
+    if basis != BARE
+        U = Devices.basisrotation(BARE, basis, device)
         ψ = LinearAlgebraTools.rotate!(U, ψ)
         for k in axes(Ō,3)
             LinearAlgebraTools.rotate!(U, @view(λ̄[:,k]))
@@ -298,7 +298,7 @@ function gradientsignals(
     for k in axes(Ō,3)
         λ = @view(λ̄[:,k])
         for j in 1:Devices.ngrades(device)
-            z = Devices.braket(Gradient(j, t̄[end]), device, OCCUPATION, λ, ψ)
+            z = Devices.braket(Gradient(j, t̄[end]), device, BARE, λ, ψ)
             result[r+1,j,k] = 2 * imag(z)   # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
         end
     end
@@ -306,14 +306,14 @@ function gradientsignals(
     # ITERATE OVER TIME
     for i in reverse(1:r)
         # COMPLETE THE PREVIOUS TIME-STEP AND START THE NEXT
-        ψ = Devices.propagate!(Drive(t̄[i+1]), device, OCCUPATION, -τ/2, ψ)
-        ψ = Devices.propagate!(STATIC, device, OCCUPATION, -τ, ψ)
-        ψ = Devices.propagate!(Drive(t̄[i]),   device, OCCUPATION, -τ/2, ψ)
+        ψ = Devices.propagate!(Drive(t̄[i+1]), device, BARE, -τ/2, ψ)
+        ψ = Devices.propagate!(STATIC, device, BARE, -τ, ψ)
+        ψ = Devices.propagate!(Drive(t̄[i]),   device, BARE, -τ/2, ψ)
         for k in axes(Ō,3)
             λ = @view(λ̄[:,k])
-            Devices.propagate!(Drive(t̄[i+1]), device, OCCUPATION, -τ/2, λ)
-            Devices.propagate!(STATIC, device, OCCUPATION, -τ, λ)
-            Devices.propagate!(Drive(t̄[i]),   device, OCCUPATION, -τ/2, λ)
+            Devices.propagate!(Drive(t̄[i+1]), device, BARE, -τ/2, λ)
+            Devices.propagate!(STATIC, device, BARE, -τ, λ)
+            Devices.propagate!(Drive(t̄[i]),   device, BARE, -τ/2, λ)
         end
 
         # CALCULATE GRADIENT SIGNAL BRAKETS
@@ -321,7 +321,7 @@ function gradientsignals(
         for k in axes(Ō,3)
             λ = @view(λ̄[:,k])
             for j in 1:Devices.ngrades(device)
-                z = Devices.braket(Gradient(j, t̄[i]), device, OCCUPATION, λ, ψ)
+                z = Devices.braket(Gradient(j, t̄[i]), device, BARE, λ, ψ)
                 result[i,j,k] = 2 * imag(z) # ϕ̄[i,j,k] = -𝑖z + 𝑖z̄
             end
         end

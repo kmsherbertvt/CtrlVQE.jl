@@ -84,7 +84,7 @@ function CostFunctions.cost_function(fn::Normalization; callback=nothing)
     π̄ = QubitOperators.localqubitprojectors(fn.device)
 
     return (x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         Evolutions.evolve(
             fn.evolution,
             fn.device,
@@ -112,7 +112,7 @@ function CostFunctions.grad_function_inplace(fn::Normalization{F}; ϕ=nothing) w
     Π = QubitOperators.qubitprojector(fn.device)
 
     return (∇f̄, x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         Evolutions.gradientsignals(
             fn.evolution,
             fn.device,

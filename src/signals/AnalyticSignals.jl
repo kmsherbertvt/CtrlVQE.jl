@@ -36,8 +36,8 @@ Parameters.count(signal::AnalyticSignal) = Parameters.count(signal.continued)
 Parameters.names(signal::AnalyticSignal) = Parameters.names(signal.continued)
 Parameters.values(signal::AnalyticSignal) = Parameters.values(signal.continued)
 
-function Parameters.bind(signal::AnalyticSignal{P,C}, x̄::AbstractVector{P}) where {P,C}
-    Parameters.bind(signal.continued, x̄)
+function Parameters.bind!(signal::AnalyticSignal{P,C}, x̄::AbstractVector{P}) where {P,C}
+    Parameters.bind!(signal.continued, x̄)
 end
 
 #= `Signals` INTERFACE =#

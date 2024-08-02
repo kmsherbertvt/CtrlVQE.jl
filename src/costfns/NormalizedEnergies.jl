@@ -114,7 +114,7 @@ function CostFunctions.cost_function(fn::NormalizedEnergy; callback=nothing)
     π̄ = QubitOperators.localqubitprojectors(fn.device)
 
     return (x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         Evolutions.evolve(
             fn.evolution,
             fn.device,
@@ -161,7 +161,7 @@ function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}; ϕ=nothing
     ∂N = Array{F}(undef, length(fn))
 
     return (∇f̄, x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         Evolutions.evolve(
             fn.evolution,
             fn.device,
@@ -173,7 +173,7 @@ function CostFunctions.grad_function_inplace(fn::NormalizedEnergy{F}; ϕ=nothing
         E = real(LinearAlgebraTools.expectation(OT, ψ));
         N = real(LinearAlgebraTools.expectation(π̄, ψ));
 
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         Evolutions.gradientsignals(
             fn.evolution,
             fn.device,

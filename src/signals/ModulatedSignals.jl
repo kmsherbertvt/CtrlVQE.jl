@@ -53,11 +53,11 @@ function Parameters.values(signal::ModulatedSignal{P,R}) where {P,R}
     return allvalues
 end
 
-function Parameters.bind(signal::ModulatedSignal{P,R}, x̄::AbstractVector{P}) where {P,R}
+function Parameters.bind!(signal::ModulatedSignal{P,R}, x̄::AbstractVector{P}) where {P,R}
     offset = 0
     for component in signal.components
         L = Parameters.count(component)::Int
-        Parameters.bind(component, x̄[offset+1:offset+L])
+        Parameters.bind!(component, x̄[offset+1:offset+L])
         offset += L
     end
 end

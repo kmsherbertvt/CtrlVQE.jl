@@ -1,5 +1,18 @@
 module CtrlVQE
 
+#= TODO
+
+modules live in files.
+I used to like this strat for the sake of indentation and modularity,
+    but it's just too disorienting.
+The modules themselves are perfectly modular, so use them as such.
+
+Parameters can be its own file, I think.
+
+
+
+=#
+
 """
     Parameters
 
@@ -46,21 +59,18 @@ module Parameters
     function values end
 
     """
-        bind(entity, x̄::AbstractVector)
+        bind!(entity, x̄::AbstractVector)
 
     Assigns new values for each variational parameter in `entity`.
 
     # Implementation
 
     This method should mutate `entity` such that, for example,
-        the expression `bind(entity, x̄); ȳ = values(entity); x̄ == ȳ` evaluates true.
+        the expression `bind!(entity, x̄); ȳ = values(entity); x̄ == ȳ` evaluates true.
     There is no return value.
 
     """
-    function bind end
-    #= TODO (hi): Should be named `bind!`. Duh.
-        Very breaking. Maybe archive the current version as 1.0 before doing this? ^_^
-    =#
+    function bind! end
 end
 
 ##########################################################################################
@@ -197,25 +207,15 @@ import .TanhSignals: Tanh
 ##########################################################################################
 #= DEVICES =#
 
-"""
-    Devices
-
-*In silico* representation of quantum devices, in which quantum states evolve in time.
-
-In this package,
-    the "static" components (ie. qubit frequencies, couplings, etc.)
-    and the "drive" components (ie. control signal, variational parameters, etc.)
-    are *all* integrated into a single `DeviceType` object.
-All you need to know how a quantum state `ψ` evolves up time `T` is in the device.
-
-"""
-module Devices; include("devices/Devices.jl"); end
-import .Devices: DeviceType, LocallyDrivenDevice
-import .Devices: nqubits, nstates, nlevels, ndrives, ngrades, gradient
+include("devices/Devices.jl")
+import .Devices: DeviceType
+import .Devices: nqubits, nstates, ndrives, ngrades
+import .Devices: nlevels, noperators, localalgebra
+import .Devices: gradient
 import .Devices: operator, propagator, propagate!, expectation, braket
-import .Devices: drivequbit, gradequbit
-import .Devices: resonancefrequency, drivefrequency, detuningfrequency
-import .Devices: drivesignal, set_drivesignal
+
+import .LocallyDrivenDevices: LocallyDrivenDevice
+import .LocallyDrivenDevices: drivequbit, gradequbit
 
 module TransmonDevices; include("devices/TransmonDevices.jl"); end
 import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice
@@ -306,11 +306,11 @@ module NormalizedEnergies; include("costfns/NormalizedEnergies.jl"); end
 import .NormalizedEnergies: NormalizedEnergy
 
 #= PENALTY FUNCTIONS =#
-module GlobalAmplitudeBounds; include("costfns/GlobalAmplitudeBounds.jl"); end
-import .GlobalAmplitudeBounds: GlobalAmplitudeBound
+# module GlobalAmplitudeBounds; include("costfns/GlobalAmplitudeBounds.jl"); end
+# import .GlobalAmplitudeBounds: GlobalAmplitudeBound
 
-module GlobalFrequencyBounds; include("costfns/GlobalFrequencyBounds.jl"); end
-import .GlobalFrequencyBounds: GlobalFrequencyBound
+# module GlobalFrequencyBounds; include("costfns/GlobalFrequencyBounds.jl"); end
+# import .GlobalFrequencyBounds: GlobalFrequencyBound
 
 module AmplitudeBounds; include("costfns/AmplitudeBounds.jl"); end
 import .AmplitudeBounds: AmplitudeBound

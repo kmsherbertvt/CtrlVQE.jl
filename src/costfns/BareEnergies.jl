@@ -105,7 +105,7 @@ function CostFunctions.cost_function(fn::BareEnergy; callback=nothing)
     OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, T, OT)
 
     return (x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         Evolutions.evolve(
             fn.evolution,
             fn.device,
@@ -134,7 +134,7 @@ function CostFunctions.grad_function_inplace(fn::BareEnergy{F}; ϕ=nothing) wher
     OT = copy(fn.O0); Devices.evolve!(fn.frame, fn.device, fn.basis, T, OT)
 
     return (∇f̄, x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         Evolutions.gradientsignals(
             fn.evolution,
             fn.device,

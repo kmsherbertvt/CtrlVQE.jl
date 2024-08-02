@@ -53,11 +53,11 @@ function Parameters.values(signal::CompositeSignal{P,R}) where {P,R}
     return allvalues
 end
 
-function Parameters.bind(signal::CompositeSignal{P,R}, x̄::AbstractVector{P}) where {P,R}
+function Parameters.bind!(signal::CompositeSignal{P,R}, x̄::AbstractVector{P}) where {P,R}
     offset = 0
     for component in signal.components
         L = Parameters.count(component)::Int
-        Parameters.bind(component, x̄[offset+1:offset+L])
+        Parameters.bind!(component, x̄[offset+1:offset+L])
         offset += L
     end
 end
@@ -168,7 +168,7 @@ function Parameters.values(signal::WeightedCompositeSignal{P,R}) where {P,R}
     return allvalues
 end
 
-function Parameters.bind(
+function Parameters.bind!(
     signal::WeightedCompositeSignal{P,R},
     x̄::AbstractVector{P},
 ) where {P,R}
@@ -180,7 +180,7 @@ function Parameters.bind(
 
         # BIND COMPONENT
         L = Parameters.count(component)::Int
-        Parameters.bind(component, x̄[offset+1:offset+L])
+        Parameters.bind!(component, x̄[offset+1:offset+L])
         offset += L
     end
 end

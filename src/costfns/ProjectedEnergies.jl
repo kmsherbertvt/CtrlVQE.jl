@@ -110,7 +110,7 @@ function CostFunctions.cost_function(fn::ProjectedEnergy; callback=nothing)
     LinearAlgebraTools.rotate!(π̄, OT)
 
     return (x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         Evolutions.evolve(
             fn.evolution,
             fn.device,
@@ -142,7 +142,7 @@ function CostFunctions.grad_function_inplace(fn::ProjectedEnergy{F}; ϕ=nothing)
     LinearAlgebraTools.rotate!(π̄, OT)
 
     return (∇f̄, x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         Evolutions.gradientsignals(
             fn.evolution,
             fn.device,

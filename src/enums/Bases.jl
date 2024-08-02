@@ -16,6 +16,20 @@ const DRESSED = Dressed()
 
 
 
+"""
+    Bare(), aka BARE
+
+The "default" representation, defined by the `localalgebra` a `Device` implements.
+
+For transmons, it is the eigenbasis of local number operators ``n̂ ≡ a'a``,
+    and generally, it is what would be called the "computational basis".
+
+"""
+struct Bare <: BasisType end
+const BARE = Bare()
+
+
+#= TODO: The rest of this file is deprecated. =#
 
 abstract type LocalBasis <: BasisType end
 

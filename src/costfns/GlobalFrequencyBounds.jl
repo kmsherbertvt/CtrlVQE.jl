@@ -51,7 +51,7 @@ Base.length(fn::GlobalFrequencyBound) = Parameters.count(fn.device)
 
 function CostFunctions.cost_function(fn::GlobalFrequencyBound{F,FΩ}) where {F,FΩ}
     return (x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         total = zero(F);
         for i in 1:Devices.ndrives(fn.device);
             q = Devices.drivequbit(fn.device, i);
@@ -83,7 +83,7 @@ function CostFunctions.grad_function_inplace(fn::GlobalFrequencyBound{F,FΩ}) wh
 
     # AT THIS POINT (for now) ASSUME x[offset+i] == ith frequency
     return (∇f̄, x̄) -> (
-        Parameters.bind(fn.device, x̄);
+        Parameters.bind!(fn.device, x̄);
         ∇f̄ .= 0;
         for i in 1:nD;
             q = Devices.drivequbit(fn.device, i);

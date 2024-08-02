@@ -101,10 +101,10 @@ function Parameters.values(signal::WindowedSignal{P,R}) where {P,R}
     return allvalues
 end
 
-function Parameters.bind(signal::WindowedSignal{P,R}, x̄::AbstractVector{P}) where {P,R}
+function Parameters.bind!(signal::WindowedSignal{P,R}, x̄::AbstractVector{P}) where {P,R}
     for (k, window) in enumerate(signal.windows)
         L = Parameters.count(window)::Int
-        Parameters.bind(window, x̄[1+signal.offsets[k]:L+signal.offsets[k]])
+        Parameters.bind!(window, x̄[1+signal.offsets[k]:L+signal.offsets[k]])
     end
 end
 
