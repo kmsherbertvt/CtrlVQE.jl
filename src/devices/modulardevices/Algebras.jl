@@ -20,15 +20,13 @@ module Algebras
 
     ######################################################################################
 
-    struct TruncatedBosonicAlgebra{F} <: AlgebraType
-        m::Int
-    end
+    struct TruncatedBosonicAlgebra{m,F} <: AlgebraType end
 
-    Devices.nlevels(algebra::TruncatedBosonicAlgebra) = algebra.m
+    Devices.nlevels(::TruncatedBosonicAlgebra{m,F}) where {m,F} = m
     Devices.noperators(::TruncatedBosonicAlgebra) = 1
-    function Devices.localalgebra(algebra::TruncatedBosonicAlgebra{F}) where {F}
-        āq = zeros(F, (algebra.m, algebra.m, 1))
-        for i in 1:algebra.m-1
+    function Devices.localalgebra(::TruncatedBosonicAlgebra{m,F}) where {m,F}
+        āq = zeros(F, (m, m, 1))
+        for i in 1:m-1
             āq[i,i+1,1] = √i
         end
         return āq

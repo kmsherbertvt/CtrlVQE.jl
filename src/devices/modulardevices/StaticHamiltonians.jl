@@ -9,6 +9,8 @@ module StaticHamiltonians
     import ...LinearAlgebraTools
     import ...Quples: Quple
 
+    using LinearAlgebra: I, mul!
+
     """
         StaticHamiltonianType{A}
 
@@ -26,7 +28,7 @@ module StaticHamiltonians
 
     ######################################################################################
 
-    struct TransmonHamiltonian{F} <: StaticHamiltonianType{TruncatedBosonicAlgebra{F}}
+    struct TransmonHamiltonian{m,F} <: StaticHamiltonianType{TruncatedBosonicAlgebra{m,F}}
         ω::Vector{F}
         δ::Vector{F}
         g::Vector{F}
@@ -48,11 +50,15 @@ module StaticHamiltonians
         return result
     end
 
-    function Devices.staticcoupling(static::TransmonHamiltonian, ā; result)
+    function Devices.staticcoupling(
+        static::TransmonHamiltonian{m,F},
+        ā;
+        result,
+    ) where {m,F}
         aTa = array(F, size(result), LABEL)
 
         result .= 0
-        for pq in eachindex(device.quples)
+        for pq in eachindex(static.quples)
             p, q = static.quples[pq]
 
             aTa = mul!(aTa, (@view(ā[:,:,1,p]))', @view(ā[:,:,1,q]))

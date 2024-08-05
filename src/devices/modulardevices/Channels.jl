@@ -7,6 +7,7 @@ module Channels
     const LABEL = Symbol(@__MODULE__)
 
     import ...LinearAlgebraTools
+    import ...Integrations
     import ...Signals
     import ...Signals: SignalType
 
@@ -71,7 +72,7 @@ module Channels
         grid::Integrations.IntegrationType,
         ϕα::AbstractVector,
         ϕβ::AbstractVector,
-    )
+    ) where {F}
         # CALCULATE GRADIENT FOR FREQUENCY PARAMETERS
         t̄ = Integrations.lattice(grid)
         ∂̄ = array(F, size(t̄), LABEL)
@@ -95,17 +96,17 @@ module Channels
 
     ######################################################################################
 
-    struct QubitChannel{F} <: LocalChannel{TruncatedBosonicAlgebra{F}}
+    struct QubitChannel{m,F} <: LocalChannel{TruncatedBosonicAlgebra{m,F}}
         q::Int
         Ω::SignalType{F,Complex{F}}
         ν::SignalType{F,F}
     end
 
     function Parameters.count(channel::QubitChannel)
-        return sum(
+        return sum((
             Parameters.count(channel.Ω),
             Parameters.count(channel.ν),
-        )
+        ))
     end
 
     function Parameters.values(channel::QubitChannel)
@@ -122,12 +123,12 @@ module Channels
         ]
     end
 
-    function Parameters.bind!(channel::QubitChannel{F}, x::AbstractVector{F}) where {F}
+    function Parameters.bind!(channel::QubitChannel, x::AbstractVector)
         L = Parameters.count(channel.Ω)
         xΩ = @view(x[1:L])
         xν = @view(x[1+L:end])
 
-        Parameters.bind!(channel.ν, xΩ)
+        Parameters.bind!(channel.Ω, xΩ)
         Parameters.bind!(channel.ν, xν)
     end
 
@@ -187,7 +188,7 @@ module Channels
 
     # ######################################################################################
 
-    # struct RealChannel{F} <: LocalChannel{TruncatedBosonicAlgebra{F}}
+    # struct RealChannel{m,F} <: LocalChannel{TruncatedBosonicAlgebra{m,F}}
     #     q::Int
     #     Ω::SignalType{F,F}
     #     ν::SignalType{F}
@@ -197,7 +198,7 @@ module Channels
 
     # ######################################################################################
 
-    # struct PolarChannel{F} <: LocalChannel{TruncatedBosonicAlgebra{F}}
+    # struct PolarChannel{m,F} <: LocalChannel{TruncatedBosonicAlgebra{m,F}}
     #     q::Int
     #     Ω::SignalType{F,F}
     #     ϕ::SignalType{F,F}
@@ -208,7 +209,7 @@ module Channels
 
     # ######################################################################################
 
-    # struct NoRWAChannel{F} <: LocalChannel{TruncatedBosonicAlgebra{F}}
+    # struct NoRWAChannel{m,F} <: LocalChannel{TruncatedBosonicAlgebra{m,F}}
     #     q::Int
     #     Ω::SignalType{F,F}
     #     ϕ::SignalType{F,F}

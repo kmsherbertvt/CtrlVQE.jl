@@ -120,7 +120,7 @@ Enumerates various linear-algebraic bases for representing statevectors and matr
 """
 module Bases; include("enums/Bases.jl"); end
 import .Bases: BasisType, LocalBasis
-import .Bases: DRESSED, OCCUPATION, COORDINATE, MOMENTUM
+import .Bases: DRESSED, BARE
 
 """
     Operators
@@ -216,6 +216,10 @@ import .Devices: operator, propagator, propagate!, expectation, braket
 
 import .LocallyDrivenDevices: LocallyDrivenDevice
 import .LocallyDrivenDevices: drivequbit, gradequbit
+
+include("devices/ModularDevices.jl")
+import .ModularDevices: ModularDevice
+import .ModularDevices: maxchannelcount, sync_channels!, map_values!, map_gradients!
 
 module TransmonDevices; include("devices/TransmonDevices.jl"); end
 import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice

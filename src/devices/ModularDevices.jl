@@ -3,6 +3,7 @@ module ModularDevices
     const LABEL = Symbol(@__MODULE__)
 
     import ..Parameters, ..Devices, ..LocallyDrivenDevices
+    import ..Integrations
 
     using LinearAlgebra: mul!
 
@@ -31,11 +32,15 @@ module ModularDevices
     =#
     ######################################################################################
 
-    include("Algebras.jl");             import .Algebras: AlgebraType
-    include("StaticHamiltonians.jl");   import .StaticHamiltonians: StaticHamiltonianType
-    include("Channels.jl");             import .Channels: ChannelType, LocalChannel
-    include("Mappers.jl");              import .Mappers: Mapper
-    import .Mappers: DisjointMapper, LinearMapper
+    include("modulardevices/Algebras.jl")
+        import .Algebras: AlgebraType
+    include("modulardevices/StaticHamiltonians.jl")
+        import .StaticHamiltonians: StaticHamiltonianType
+    include("modulardevices/Channels.jl")
+        import .Channels: ChannelType, LocalChannel
+    include("modulardevices/Mappers.jl")
+        import .Mappers: Mapper
+        import .Mappers: DisjointMapper, LinearMapper
 
     ######################################################################################
 
@@ -45,7 +50,7 @@ module ModularDevices
         H <: StaticHamiltonianType{A},
         C <: LocalChannel{A},
         M <: Mapper,
-    } <: Devices.LocallyDrivenDevice{F}
+    } <: LocallyDrivenDevices.LocallyDrivenDevice{F}
         algebra::A
         static::H
         channels::Vector{C}
@@ -62,7 +67,7 @@ module ModularDevices
 
     """
     function maxchannelcount(device::ModularDevice)
-        return maximum(Parameter.count, device.channels)
+        return maximum(Parameters.count, device.channels)
     end
 
     """
@@ -71,11 +76,11 @@ module ModularDevices
     Update all parameters in each channel to match the current device parameters.
 
     """
-    function syncchannels!(device::ModularDevice)
-        y_ = array(eltype(device), maxchannelcount(device), LABEL)
+    function sync_channels!(device::ModularDevice)
+        y_ = array(eltype(device), (maxchannelcount(device),), LABEL)
         for (i, channel) in enumerate(device.channels)
             y = @view(y_[1:Parameters.count(channel)])
-            map_values!(device.map, i, y)
+            map_values!(device, i, y)
             Parameters.bind!(channel, y)
         end
     end
@@ -96,7 +101,7 @@ module ModularDevices
         y::AbstractVector{F},
     ) where {F,A,H,C}
         offset = sum(Parameters.count, @view(device.channels[1:i-1]), init=0)
-        L = Parameters.count(device.channel[i])
+        L = Parameters.count(device.channels[i])
         y .= @view(device.x[offset+1:offset+L])
         return y
     end
@@ -163,9 +168,9 @@ module ModularDevices
         )
     end
 
-    function Parameters.bind!(device::ModularDevice{F}, x::AbstractVector)
+    function Parameters.bind!(device::ModularDevice, x::AbstractVector)
         device.x .= x
-        update_channels!(device)
+        sync_channels!(device)
     end
 
     ######################################################################################
@@ -181,9 +186,9 @@ module ModularDevices
     # Algebra methods
 
     function Devices.localalgebra(device::ModularDevice; result=nothing)
-        isnothing(result) && return _localalgebra(device)
+        isnothing(result) && return Devices._localalgebra(device)
         āq = Devices.localalgebra(device.algebra)
-        for q in 1:nqubits(device)
+        for q in 1:Devices.nqubits(device)
             result[:,:,:,q] .= āq
         end
         return result
@@ -205,7 +210,7 @@ module ModularDevices
 
     function Devices.staticcoupling(
         device::ModularDevice,
-        ā::MatrixList;
+        ā;
         result=nothing,
     )
         C = Complex{eltype(device)}
@@ -215,19 +220,19 @@ module ModularDevices
 
     function Devices.driveoperator(
         device::ModularDevice,
-        ā::MatrixList,
+        ā,
         i::Int,
         t::Real;
         result=nothing,
     )
         C = Complex{eltype(device)}
         isnothing(result) && (result = Array{C}(undef, size(ā)[1:2]))
-        return Devices.driveoperator(device.channel[i], ā, t; result=result)
+        return Devices.driveoperator(device.channels[i], ā, t; result=result)
     end
 
     function Devices.gradeoperator(
         device::ModularDevice,
-        ā::MatrixList,
+        ā,
         j::Int,
         t::Real;
         result=nothing,
@@ -235,7 +240,7 @@ module ModularDevices
         C = Complex{eltype(device)}
         isnothing(result) && (result = Array{C}(undef, size(ā)[1:2]))
         i = ((j-1) >> 1) + 1
-        return Devices.gradeoperator(device.channel[i], ā, j, t; result=result)
+        return Devices.gradeoperator(device.channels[i], ā, j, t; result=result)
     end
 
     ######################################################################################
@@ -248,7 +253,7 @@ module ModularDevices
         result=nothing,
     )
         # TEMP ARRAY TO HOLD GRADIENTS FOR EACH CHANNEL (one at a time)
-        ∂y_ = array(eltype(device), maxchannelcount(device), LABEL)
+        ∂y_ = array(eltype(device), (maxchannelcount(device),), LABEL)
         g_ = array(eltype(device), (length(device.x), maxchannelcount(device)), LABEL)
 
         result .= 0
@@ -269,12 +274,12 @@ module ModularDevices
     # `LocallyDrivenDevice` interface
 
     function LocallyDrivenDevices.drivequbit(device::ModularDevice, i::Int)
-        return LocallyDrivenDevices.drivequbit(device.channel[i])
+        return LocallyDrivenDevices.drivequbit(device.channels[i])
     end
 
     function LocallyDrivenDevices.gradequbit(device::ModularDevice, j::Int)
         i = ((j-1) >> 1) + 1
-        return LocallyDrivenDevices.drivequbit(device.channel[i])
+        return LocallyDrivenDevices.drivequbit(device.channels[i])
     end
 
 end

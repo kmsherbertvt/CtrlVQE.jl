@@ -159,7 +159,6 @@ function _dress_phase!(Λ, U::Matrix{<:Real})
 end
 
 function _dress_phase!(Λ, U::Matrix{<:Complex})
-    N = length(Λ)
     for i in 1:length(Λ)
         U[:,i] .*= exp(-im*angle(U[i,i]))
     end
