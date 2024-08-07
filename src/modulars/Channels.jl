@@ -1,7 +1,6 @@
 module Channels
-    import ..Parameters, ..Devices, ..LocallyDrivenDevices
-    import ..Algebras: AlgebraType
-    import ..Algebras: TruncatedBosonicAlgebra
+    import ...Parameters, ...Devices, ...LocallyDrivenDevices
+    import ..Algebras
 
     import ...TempArrays: array
     const LABEL = Symbol(@__MODULE__)
@@ -11,8 +10,11 @@ module Channels
     import ...Signals
     import ...Signals: SignalType
 
+    import ..Algebras: AlgebraType
+    import ..Algebras: TruncatedBosonicAlgebra
+
     """
-        ChannelType{F,A}
+        ChannelType{A}
 
     Component of `ModularDevices` delegated the following methods:
     - `Devices.driveoperator`
@@ -29,6 +31,8 @@ module Channels
 
     """
     abstract type ChannelType{A<:AlgebraType} end
+
+    Algebras.algebratype(::ChannelType{A}) where {A} = A
 
     """
         LocalChannel{F,A}
@@ -94,12 +98,27 @@ module Channels
         but its interface would be the same as polar
         so I think it needs to be categorically separated. =#
 
+    #= TODO: Properly, each type should get its own sub-module,
+        but straining the spaghetti will get a little painful,
+        so I'll deal with that once we actually implement other channels. =#
+
     ######################################################################################
 
-    struct QubitChannel{m,F} <: LocalChannel{TruncatedBosonicAlgebra{m,F}}
+    struct QubitChannel{
+        F,                  # Float type
+        A <: TruncatedBosonicAlgebra,
+    } <: LocalChannel{A}
         q::Int
         Ω::SignalType{F,Complex{F}}
         ν::SignalType{F,F}
+
+        function QubitChannel{A}(
+            q::Int,
+            Ω::SignalType{F,Complex{F}},
+            ν::SignalType{F,F},
+        ) where {F,A<:TruncatedBosonicAlgebra}
+            return new{F,A}(q, Ω, ν)
+        end
     end
 
     function Parameters.count(channel::QubitChannel)

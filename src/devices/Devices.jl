@@ -24,7 +24,7 @@ module Devices
     const Evolvable = AbstractVecOrMat{<:Complex{<:AbstractFloat}}
 
     # Find here all the functions you need to implement for your own `DeviceType`.
-    include("devicetype/__abstractinterface.jl")
+    include("__device__abstractinterface.jl")
     export DeviceType
     export ndrives, ngrades, nlevels, nqubits, noperators
     export localalgebra
@@ -36,51 +36,23 @@ module Devices
     Base.eltype(::DeviceType{F}) where {F} = F
 
     # Find here some generic elements of the interface, already implemented.
-    include("devicetype/__concreteinterface.jl")
+    include("__device__concreteinterface.jl")
     export nstates
     export globalalgebra
     export globalize, dress, basisrotation
 
     #= Find here the core functionality of the `DeviceType`,
         interacting with each `OperatorType` as efficiently as possible. =#
-    include("devicetype/__operator.jl")
+    include("__device__operator.jl")
     export operator, localqubitoperators
 
-    include("devicetype/__propagation.jl")
+    include("__device__propagation.jl")
     export propagator, localqubitpropagators, propagate!
 
-    include("devicetype/__evolution.jl")
+    include("__device__evolution.jl")
     export evolver, localqubitevolvers, evolve!
 
-    include("devicetype/__brakets.jl")
+    include("__device__brakets.jl")
     export expectation, braket
 
 end # module Devices
-
-module LocallyDrivenDevices
-    import ..TempArrays: array
-    const LABEL = Symbol(@__MODULE__)
-
-    import ..Devices
-    import ..Devices: Evolvable
-    using ..Devices
-
-    import ..LinearAlgebraTools
-    import ..Bases, ..Operators
-
-    using Memoization: @memoize
-    using LinearAlgebra: I, Diagonal, Hermitian, Eigen, eigen
-
-    # Find here all the functions you need to implement for your own `LocallyDrivenDevice`.
-    include("locallydrivendevice/__abstractinterface.jl")
-    export LocallyDrivenDevice
-    export drivequbit, gradequbit
-    # NOTE: New devices must also implement the `Parameters` and `DeviceType` interfaces.
-
-    # Find here some generic elements of the interface, already implemented.
-    include("locallydrivendevice/__concreteinterface.jl")
-    export localdriveoperators, localdrivepropagators
-
-    # Find here more efficient implementations for some core `DeviceType` functionality.
-    include("locallydrivendevice/__overrides.jl")
-end

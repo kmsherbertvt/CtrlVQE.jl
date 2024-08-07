@@ -51,9 +51,16 @@ module Parameters
 
     An ordered list of the numerical values for each variational parameter in `entity`.
 
+    The resulting array should be treated as read-only,
+        since whether it is or isn't "backed" by entity is not enforced.
+    That means changes to the resulting array MAY or MAY NOT modfiy `entity`.
+    So don't do it!
+
     # Implementation
 
     Must return a vector of some float type.
+
+    If at all possible, avoid allocating a new array when calling this function.
 
     """
     function values end
@@ -214,13 +221,11 @@ import .Devices: nlevels, noperators, localalgebra
 import .Devices: gradient
 import .Devices: operator, propagator, propagate!, expectation, braket
 
+include("devices/LocallyDrivenDevices.jl")
 import .LocallyDrivenDevices: LocallyDrivenDevice
 import .LocallyDrivenDevices: drivequbit, gradequbit
 
-include("devices/ModularDevices.jl")
-import .ModularDevices: ModularDevice
-import .ModularDevices: maxchannelcount, sync_channels!, map_values!, map_gradients!
-
+# TODO: Deprecated?
 module TransmonDevices; include("devices/TransmonDevices.jl"); end
 import .TransmonDevices: TransmonDevice, FixedFrequencyTransmonDevice
 
@@ -336,6 +341,68 @@ import .SmoothBounds: SmoothBound
 
 
 
+##########################################################################################
+#= MODULAR DEVICES - a concrete but flexible LocallyDrivenDevice =#
+
+"""
+    Modulars
+
+This module provides a concrete implementation of a device,
+    modularly built up from a static Hamiltonian and a list of channels,
+    and a host of other conveniences enabled by this code layout.
+
+Everything is mostly independent,
+    but new channel types require (simple) implementations of `get_signal` and `get_slice`
+    to enable using the Bound cost function.
+
+NOTE: Currently, the name `ModularDevice` is a concrete type,
+        and specifically a `LocallyDrivenDevice`.
+    If/when we want to generalize this "modular" approach to non-locally driven devices,
+        the easiest way is probably just to carbon-copy the `modulardevices` directory,
+        rename it and the enclosing module to `nonlocalmodulardevices`,
+        and implement some nonlocal channels.
+    I think the only other thing
+        is getting rid of the `drivequbit` and `gradequbit` methods...
+
+"""
+module Modulars
+    include("modulars/Algebras.jl")
+    import .Algebras: AlgebraType
+    import .Algebras: TruncatedBosonicAlgebra, PauliAlgebra
+
+    include("modulars/StaticHamiltonians.jl")
+    import .StaticHamiltonians: StaticHamiltonianType
+    import .StaticHamiltonians: TransmonHamiltonian
+
+    include("modulars/Channels.jl")
+    import .Channels: ChannelType, LocalChannel
+    import .Channels: QubitChannel
+
+    include("modulars/Mappers.jl")
+    import .Mappers: Mapper
+    import .Mappers: DISJOINT, LinearMapper
+
+    include("modulars/ModularDevices.jl")
+    import .ModularDevices: ModularDevice
+    import .ModularDevices: sync_channels!, map_values!, map_gradients!
+
+    include("modulars/Bounds.jl")
+    import .Bounds: AMPLITUDE, FREQUENCY
+    import .Bounds: Bound
+
+    include("modulars/PreparationProtocols.jl")
+    import .PreparationProtocols: PreparationProtocolType
+    import .PreparationProtocols: initialstate
+    import .PreparationProtocols: KetPreparation
+
+    include("modulars/MeasurementProtocols.jl")
+    import .MeasurementProtocols: MeasurementProtocolType
+    import .MeasurementProtocols: measure, observables, gradient
+    import .MeasurementProtocols: BareMeasurement
+
+    include("modulars/ModularEnergies.jl")
+    import .ModularEnergies: ModularEnergy
+end
 
 ##########################################################################################
 #= RECIPES =#

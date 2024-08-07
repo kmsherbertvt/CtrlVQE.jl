@@ -1,48 +1,18 @@
 module ModularDevices
-    import ..TempArrays: array
+    import ...Parameters, ...Devices, ...LocallyDrivenDevices
+    import ..Algebras
+
+    import ...TempArrays: array
     const LABEL = Symbol(@__MODULE__)
 
-    import ..Parameters, ..Devices, ..LocallyDrivenDevices
-    import ..Integrations
+    import ...Integrations
 
     using LinearAlgebra: mul!
 
-    #=
-
-    The methods we need to implement for a ModularDevice:
-
-    Parameters
-    - values, count, names, bind!
-    Devices
-    - ndrives, ngrades, nlevels, nqubits, noperators
-    - localalgebra
-    - qubithamiltonian, staticcoupling, driveoperator, gradeoperator
-    - gradient
-    LocallyDrivenDevices
-    - drivequbit, gradequbit
-
-    The conceit of ModularDevices is that each of these
-        is delegated to more specialized abstraction:
-
-    AlgebraType - handles localalgebra, nlevels, noperators
-    StaticHamiltonianType{A} - handles qubithamiltonian, staticcoupling
-    ChannelType{A} - handles driveoperator, gradeoperator;
-        a LocalChannel type handles drivequbit
-
-    =#
-    ######################################################################################
-
-    include("modulardevices/Algebras.jl")
-        import .Algebras: AlgebraType
-    include("modulardevices/StaticHamiltonians.jl")
-        import .StaticHamiltonians: StaticHamiltonianType
-    include("modulardevices/Channels.jl")
-        import .Channels: ChannelType, LocalChannel
-    include("modulardevices/Mappers.jl")
-        import .Mappers: Mapper
-        import .Mappers: DisjointMapper, LinearMapper
-
-    ######################################################################################
+    import ..Algebras: AlgebraType
+    import ..StaticHamiltonians: StaticHamiltonianType
+    import ..Channels: LocalChannel
+    import ..Mappers: Mapper, DisjointMapper, LinearMapper
 
     struct ModularDevice{
         F,
@@ -58,17 +28,7 @@ module ModularDevices
         x::Vector{F}
     end
 
-    """
-        maxchannelcount(device::ModularDevice)
-
-    Identify the largest number of parameters found in any channel.
-
-    Useful for allocating temp arrays when mapping between device/channel parameters.
-
-    """
-    function maxchannelcount(device::ModularDevice)
-        return maximum(Parameters.count, device.channels)
-    end
+    Algebras.algebratype(::ModularDevice{F,A,H,C,M}) where {F,A,H,C,M} = A
 
     """
         update_channels(device::ModularDevice)
@@ -77,7 +37,8 @@ module ModularDevices
 
     """
     function sync_channels!(device::ModularDevice)
-        y_ = array(eltype(device), (maxchannelcount(device),), LABEL)
+        L = maximum(Parameters.count, device.channels)
+        y_ = array(eltype(device), (L,), LABEL)
         for (i, channel) in enumerate(device.channels)
             y = @view(y_[1:Parameters.count(channel)])
             map_values!(device, i, y)
@@ -150,8 +111,8 @@ module ModularDevices
     ######################################################################################
     #= `Parameters` interface =#
 
-    Parameters.count(::ModularDevice) = length(device.x)
-    Parameters.values(device::ModularDevice) = deepcopy(device.x)
+    Parameters.count(device::ModularDevice) = length(device.x)
+    Parameters.values(device::ModularDevice) = device.x
 
     function Parameters.names(
         device::ModularDevice{F,A,H,C,<:LinearMapper},
@@ -176,7 +137,7 @@ module ModularDevices
     ######################################################################################
     # Counting methods
 
-    Devices.nqubits(device::ModularDevice) = Devices.nqubits(device.static)
+    Devices.nqubits(device::ModularDevice) = Devices.nqubits(device.algebra)
     Devices.nlevels(device::ModularDevice) = Devices.nlevels(device.algebra)
     Devices.ndrives(device::ModularDevice) = length(device.channels)
     Devices.ngrades(device::ModularDevice) = Devices.ndrives(device) * 2
@@ -187,11 +148,7 @@ module ModularDevices
 
     function Devices.localalgebra(device::ModularDevice; result=nothing)
         isnothing(result) && return Devices._localalgebra(device)
-        āq = Devices.localalgebra(device.algebra)
-        for q in 1:Devices.nqubits(device)
-            result[:,:,:,q] .= āq
-        end
-        return result
+        return Devices.localalgebra(device.algebra; result=result)
     end
 
     ######################################################################################
@@ -253,8 +210,9 @@ module ModularDevices
         result=nothing,
     )
         # TEMP ARRAY TO HOLD GRADIENTS FOR EACH CHANNEL (one at a time)
-        ∂y_ = array(eltype(device), (maxchannelcount(device),), LABEL)
-        g_ = array(eltype(device), (length(device.x), maxchannelcount(device)), LABEL)
+        L = maximum(Parameters.count, device.channels)
+        ∂y_ = array(eltype(device), (L,), LABEL)
+        g_ = array(eltype(device), (length(device.x), L), LABEL)
 
         result .= 0
         for (i, channel) in enumerate(device.channels)
@@ -281,5 +239,4 @@ module ModularDevices
         i = ((j-1) >> 1) + 1
         return LocallyDrivenDevices.drivequbit(device.channels[i])
     end
-
 end
