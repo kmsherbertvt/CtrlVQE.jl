@@ -211,6 +211,9 @@ import .SincSignals: Sinc
 module TanhSignals; include("signals/TanhSignals.jl"); end
 import .TanhSignals: Tanh
 
+include("signals/HarmonicSignals.jl")
+import .HarmonicSignals: ComplexHarmonic
+
 ##########################################################################################
 #= DEVICES =#
 
@@ -397,7 +400,7 @@ module Modulars
 
     include("modulars/MeasurementProtocols.jl")
     import .MeasurementProtocols: MeasurementProtocolType
-    import .MeasurementProtocols: measure, observables, gradient
+    import .MeasurementProtocols: measure, nobservables, observables, gradient
     import .MeasurementProtocols: BareMeasurement
 
     include("modulars/ModularEnergies.jl")

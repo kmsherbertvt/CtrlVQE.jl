@@ -120,7 +120,7 @@ function Devices.braket(
     m = nlevels(device)
     n = nqubits(device)
     identity = Matrix(I, m, m)
-    ops = array(Matrix(I, m, m), (m,m,n), LABEL)
+    ops = array(Complex{eltype(device)}, (m,m,n), LABEL)
     for p in 1:n
         if p == q
             gradeoperator(device, ā, op.j, op.t; result=@view(ops[:,:,p]))

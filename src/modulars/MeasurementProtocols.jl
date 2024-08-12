@@ -125,17 +125,17 @@ module MeasurementProtocols
         result=nothing
     )
         N = Devices.nstates(device)
-        isnothing(result) && (result = Array{Complex{eltype(device)}}(N, N, 1))
+        isnothing(result) && (result = Array{Complex{eltype(device)}}(undef, N, N, 1))
 
         # REPRESENT O IN THE MEASUREMENT BASIS
-        result[:,:,1] .= measurement.observable
+        result[:,:,1] .= measurer.observable
 
         # ROTATE INTO THE REQUESTED BASIS
-        U = Devices.basisrotation(basis, measurement.basis, device)
+        U = Devices.basisrotation(basis, measurer.basis, device)
         LinearAlgebraTools.rotate!(U, @view(result[:,:,1]))
 
         # APPLY THE FRAME ROTATION
-        Devices.evolve!(measurer.frame, device, measurer.basis, t, @view(result[:,:,1]))
+        Devices.evolve!(measurer.frame, device, basis, t, @view(result[:,:,1]))
 
         return result
     end
@@ -143,11 +143,11 @@ module MeasurementProtocols
     function gradient(
         measurer::BareMeasurement,
         device::Devices.DeviceType,
-        ϕ::AbstractArray{3},
-        grid::Integrations.IntegrationType;
+        grid::Integrations.IntegrationType,
+        ϕ::AbstractArray;
         result=nothing
     )
-        return Devices.gradient(device, @view(ϕ[:,:,1]), grid; result=result)
+        return Devices.gradient(device, grid, @view(ϕ[:,:,1]); result=result)
     end
 
 

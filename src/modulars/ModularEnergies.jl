@@ -10,7 +10,7 @@ module ModularEnergies
 
     import ..ModularDevice
     import ..PreparationProtocolType, ..initialstate
-    import ..MeasurementProtocolType, ..measure, ..observables, ..gradient
+    import ..MeasurementProtocolType, ..measure, ..nobservables, ..observables, ..gradient
 
     struct ModularEnergy{F} <: CostFunctions.EnergyFunction{F}
         evolution::Evolutions.EvolutionType
@@ -107,7 +107,7 @@ module ModularEnergies
                 result=ϕ,
             );
             Parameters.bind!(fn.device, x̄0);
-            gradient(fn.measurer, fn.device, fn.grid, ϕ; ∇f̄)
+            gradient(fn.measurer, fn.device, fn.grid, ϕ; result=∇f̄)
         )
     end
 end

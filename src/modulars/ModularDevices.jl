@@ -28,6 +28,26 @@ module ModularDevices
         x::Vector{F}
     end
 
+    function ModularDevice(
+        static::StaticHamiltonianType{A},
+        channels::Vector{<:LocalChannel{A}},
+        mapper::DisjointMapper,
+        F::Type{<:AbstractFloat},
+    ) where {A}
+        L = sum(Parameters.count, channels)
+        return ModularDevice(A(), static, channels, mapper, zeros(F,L))
+    end
+
+    function ModularDevice(
+        static::StaticHamiltonianType{A},
+        channels::Vector{<:LocalChannel{A}},
+        mapper::LinearMapper,
+        F::Type{<:AbstractFloat},
+    ) where {A}
+        L = size(mapper.A, 2)
+        return ModularDevice(A(), static, channels, mapper, zeros(F,L))
+    end
+
     Algebras.algebratype(::ModularDevice{F,A,H,C,M}) where {F,A,H,C,M} = A
 
     """
@@ -217,7 +237,7 @@ module ModularDevices
         result .= 0
         for (i, channel) in enumerate(device.channels)
             ∂y = @view(∂y_[1:Parameters.count(channel)])
-            Devices.gradient(channel, grid, ϕ̄[2i-1:2i]; result=∂y)
+            Devices.gradient(channel, grid, ϕ̄[:,2i-1:2i]; result=∂y)
 
             g = @view(g_[:,1:Parameters.count(channel)])
             map_gradients!(device, i, g)
