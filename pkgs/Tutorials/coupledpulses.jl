@@ -47,6 +47,8 @@ Float = Float64
 # THE CHEMISTRY
 H = NPZ.npzread("$(@__DIR__)/matrix/lih30.npy")     # MOLECULAR HAMILTONIAN
 ket_prep = [0,0,1,1]                    # HARTREE FOCK REFERENCE (for this mapping)
+HΛ, HU = LinearAlgebra.eigen(H)
+E0 = HΛ[1]
 
 # # THE CHEMISTRY (H2 for debugging purposes)
 # H = NPZ.npzread("$(@__DIR__)/matrix/H2_sto-3g_singlet_1.5_P-m.npy")     # MOLECULAR HAMILTONIAN
@@ -122,6 +124,7 @@ measurer = Modulars.BareMeasurement{A}(H, basis_meas, frame_meas)
 optimizer = Optim.BFGS(linesearch=linesearch)
 options = Optim.Options(
     show_trace = true, show_every = 1,  # Monitor progress as optimizations proceed.
+    store_trace = true,                 # Lets us lazily fetch the loss curve.
     f_tol=f_tol, g_tol=g_tol, iterations = maxiter,
 )
 
@@ -217,8 +220,7 @@ function calculate_hessian(fn, x)
         x,
     )[1]
 
-    # REGULARIZE
-    return (Hs .+ Hs') ./ 2
+    return Hs
 end
 
 function fetch_hessian(fn, x, tag)
@@ -226,16 +228,23 @@ function fetch_hessian(fn, x, tag)
     isfile(file) && return NPZ.npzread(file)
     Hs = calculate_hessian(fn, x)
     NPZ.npzwrite(file, Hs)
-    return Hs
+
+    # REGULARIZE
+    return (Hs .+ Hs') ./ 2
 end
 
-function fetch_minimizer(f, g!, x0, optimizer, options, tag)
-    file = "dat/$(basename(@__FILE__)[begin:end-3]).xf.$tag.npy"
-    isfile(file) && return (NPZ.npzread(file), nothing)
+function fetch_optim(f, g!, x0, optimizer, options, tag)
+    xfile = "dat/$(basename(@__FILE__)[begin:end-3]).xf.$tag.npy"
+    Efile = "dat/$(basename(@__FILE__)[begin:end-3]).E.$tag.npy"
+    isfile(xfile) && isfile(Efile) && return (
+        NPZ.npzread(xfile), NPZ.npzread(Efile), nothing
+    )
     optimization = Optim.optimize(f, g!, x0, optimizer, options)
     xf = Optim.minimizer(optimization)
-    NPZ.npzwrite(file, xf)
-    return xf, optimization
+    E = Optim.f_trace(optimization)
+    NPZ.npzwrite(xfile, xf)
+    NPZ.npzwrite(Efile, E)
+    return xf, E, optimization
 end
 
 ##########################################################################################
@@ -249,7 +258,7 @@ f  = CtrlVQE.cost_function(ENERGY)
 g! = CtrlVQE.grad_function_inplace(ENERGY)
 x0 = zeros(Float, Parameters.count(DEVICE))
 
-xf, optimization = fetch_minimizer(f, g!, x0, optimizer, options, @__MODULE__)
+xf, E, optimization = fetch_optim(f, g!, x0, optimizer, options, @__MODULE__)
 Parameters.bind!(DEVICE, xf)
 xfp = Main.disjointvalues(DEVICE)       # Identical to `xf` but included for consistency.
 
@@ -275,7 +284,7 @@ module Normal
     g! = CtrlVQE.grad_function_inplace(energy)
     x0 = zeros(Main.Float, Parameters.count(device))
 
-    xf, optimization = Main.fetch_minimizer(f, g!, x0, optimizer, options, @__MODULE__)
+    xf, E, optimization = Main.fetch_optim(f, g!, x0, optimizer, options, @__MODULE__)
     Parameters.bind!(device, xf)
     xfp = Main.disjointvalues(device)
 
@@ -302,7 +311,7 @@ module InterNormal
     g! = CtrlVQE.grad_function_inplace(energy)
     x0 = zeros(Main.Float, Parameters.count(device))
 
-    xf, optimization = Main.fetch_minimizer(f, g!, x0, optimizer, options, @__MODULE__)
+    xf, E, optimization = Main.fetch_optim(f, g!, x0, optimizer, options, @__MODULE__)
     Parameters.bind!(device, xf)
     xfp = Main.disjointvalues(device)
 
@@ -329,7 +338,7 @@ module OptiNormal
     g! = CtrlVQE.grad_function_inplace(energy)
     x0 = zeros(Main.Float, Parameters.count(device))
 
-    xf, optimization = Main.fetch_minimizer(f, g!, x0, optimizer, options, @__MODULE__)
+    xf, E, optimization = Main.fetch_optim(f, g!, x0, optimizer, options, @__MODULE__)
     Parameters.bind!(device, xf)
     xfp = Main.disjointvalues(device)
 
@@ -360,7 +369,7 @@ module Natural
     g! = CtrlVQE.grad_function_inplace(energy)
     x0 = zeros(Main.Float, Parameters.count(device))
 
-    xf, optimization = Main.fetch_minimizer(f, g!, x0, optimizer, options, @__MODULE__)
+    xf, E, optimization = Main.fetch_optim(f, g!, x0, optimizer, options, @__MODULE__)
     Parameters.bind!(device, xf)
     xfp = Main.disjointvalues(device)
 
@@ -390,7 +399,7 @@ module InterNatural
     g! = CtrlVQE.grad_function_inplace(energy)
     x0 = zeros(Main.Float, Parameters.count(device))
 
-    xf, optimization = Main.fetch_minimizer(f, g!, x0, optimizer, options, @__MODULE__)
+    xf, E, optimization = Main.fetch_optim(f, g!, x0, optimizer, options, @__MODULE__)
     Parameters.bind!(device, xf)
     xfp = Main.disjointvalues(device)
 
@@ -420,7 +429,7 @@ module OptiNatural
     g! = CtrlVQE.grad_function_inplace(energy)
     x0 = zeros(Main.Float, Parameters.count(device))
 
-    xf, optimization = Main.fetch_minimizer(f, g!, x0, optimizer, options, @__MODULE__)
+    xf, E, optimization = Main.fetch_optim(f, g!, x0, optimizer, options, @__MODULE__)
     Parameters.bind!(device, xf)
     xfp = Main.disjointvalues(device)
 
@@ -530,3 +539,31 @@ plot_distribution!(distributionplot, Natural)
 plot_distribution!(distributionplot, InterNatural)
 plot_distribution!(distributionplot, OptiNatural)
 Plots.savefig(distributionplot, "fig/$(basename(@__FILE__)[1:end-3]).distribution.pdf")
+
+
+##########################################################################################
+#= Plot loss curves. =#
+##########################################################################################
+
+function plot_loss!(plt, MODULE; kwargs...)
+    Plots.plot!(
+        plt, MODULE.E .- E0;
+        lw=3, α=0.6, label=string(MODULE),
+        kwargs...
+    )
+end
+
+lossplot = Plots.plot(;
+    ylims=[1e-17, 1e1],
+    yticks=10.0 .^ (-16:2:0),
+    yscale=:log10,
+    legend=:bottomright,
+)
+plot_loss!(lossplot, Main; color=:black)
+plot_loss!(lossplot, Normal)
+plot_loss!(lossplot, InterNormal)
+plot_loss!(lossplot, OptiNormal)
+plot_loss!(lossplot, Natural)
+plot_loss!(lossplot, InterNatural)
+plot_loss!(lossplot, OptiNatural)
+Plots.savefig(lossplot, "fig/$(basename(@__FILE__)[1:end-3]).loss.pdf")
