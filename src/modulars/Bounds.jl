@@ -4,10 +4,12 @@ module Bounds
     import ...TempArrays: array
     const LABEL = Symbol(@__MODULE__)
 
-    import ...Integrations, ...Signals
+    import ...Parameters, ...Integrations, ...Signals
 
     import ..ModularDevices: ModularDevice, map_gradients!
     import ..Channels: QubitChannel
+
+    import LinearAlgebra: mul!
 
     # NOTE: Implicitly use smooth bounding function.
     smoothwall(u) = exp(u - 1/u)
@@ -24,7 +26,7 @@ module Bounds
             u ≤ 0 ? zero(u) : u
         )
 
-        t̄ = Integrations.lattice(fn.grid)                       # CACHED, THEREFORE FREE
+        t̄ = Integrations.lattice(grid)                          # CACHED, THEREFORE FREE
         Ω̄ = array(FΩ, (length(t̄),), (LABEL, :overflow))         # TO FILL, FOR EACH DRIVE
 
         Ω̄ = Signals.valueat(signal, t̄; result=Ω̄)
@@ -40,10 +42,10 @@ module Bounds
     ) where {F,FΩ}
         Φ(t, Ω, ∂) = (
             u = (abs(Ω) - A) / σ;
-            u ≤ 0 ? zero(u) : real(conj(Ω)*∂) / (abs(Ω)*fn.σ)
+            u ≤ 0 ? zero(u) : real(conj(Ω)*∂) / (abs(Ω)*σ)
         )
 
-        t̄ = Integrations.lattice(fn.grid)                       # CACHED, THEREFORE FREE
+        t̄ = Integrations.lattice(grid)                          # CACHED, THEREFORE FREE
         Ω̄ = array(FΩ, (length(t̄),), (LABEL, :overflow))         # TO FILL, FOR EACH DRIVE
         ∂̄ = array(FΩ, (length(t̄),), (LABEL, :gradient))         # TO FILL, FOR EACH DRIVE
 
@@ -141,7 +143,7 @@ module Bounds
             @assert eltype(device) == F
             @assert length(A) == length(σ) == length(λ) == length(device.channels)
 
-            return new{F,T}(
+            return new{F,typeof(boundarytype)}(
                 boundarytype,
                 device,
                 grid,
@@ -171,15 +173,15 @@ module Bounds
     Base.length(fn::Bound) = Parameters.count(fn.device)
 
     function CostFunctions.cost_function(fn::Bound{F}) where {F}
-        x̄0 = Vector{eltype(device)}(undef, Parameter.count(device))
+        x̄0 = Vector{eltype(fn.device)}(undef, Parameters.count(fn.device))
         return (x̄) -> (
             x̄0 .= Parameters.values(fn.device);
             Parameters.bind!(fn.device, x̄);
             total = zero(F);
-            for channel in fn.device.channels;
+            for (i, channel) in enumerate(fn.device.channels);
                 signal = get_signal(fn.boundarytype, channel);
-                J = overflow_cost(signal, fn.grid, fn.A, fn.σ);
-                total += fn.λ * smoothwall(J);
+                J = overflow_cost(signal, fn.grid, fn.A[i], fn.σ[i]);
+                total += J == 0 ? zero(J) : fn.λ[i] * smoothwall(J);
             end;
             Parameters.bind!(fn.device, x̄0);
             total
@@ -187,12 +189,12 @@ module Bounds
     end
 
     function CostFunctions.grad_function_inplace(fn::Bound{F}) where {F}
-        x̄0 = Vector{eltype(device)}(undef, Parameter.count(device))
+        x̄0 = Vector{eltype(fn.device)}(undef, Parameters.count(fn.device))
 
         # TEMP ARRAY TO HOLD GRADIENTS FOR EACH CHANNEL (one at a time)
         L = maximum(Parameters.count, fn.device.channels)
-        ∂y_ = Array{eltype(device)}(undef, L)
-        g_ = Array{eltype(device)}(undef, length(device.x), L)
+        ∂y_ = Array{eltype(fn.device)}(undef, L)
+        g_ = Array{eltype(fn.device)}(undef, length(fn.device.x), L)
 
         return (∇f̄, x̄) -> (
             x̄0 .= Parameters.values(fn.device);
@@ -204,15 +206,15 @@ module Bounds
 
                 # Effect of signal parameters on overflow.
                 ∂y = @view(@view(∂y_[1:Parameters.count(signal)])[slice]);
-                overflow_grad!(∂y, signal, fn.grid, fn.A, fn.σ);
+                overflow_grad!(∂y, signal, fn.grid, fn.A[i], fn.σ[i]);
 
                 # Smooth out the cusp between some overflow and none.
-                J = overflow_cost(signal, fn.grid, fn.A, fn.σ);
-                ∂y .*= fn.λ * smoothgrad(J);
+                J = overflow_cost(signal, fn.grid, fn.A[i], fn.σ[i]);
+                ∂y .*= J == 0 ? zero(J) : fn.λ[i] * smoothgrad(J);
 
                 # Connect signal parameters to the device.
                 g = @view(g_[:,1:Parameters.count(channel)]);
-                map_gradients!(device, i, g);
+                map_gradients!(fn.device, i, g);
 
                 # ADD MATRIX PRODUCT g * ∂y TO RESULT
                 mul!(∇f̄, @view(g[:,slice]), ∂y, 1, 1);
