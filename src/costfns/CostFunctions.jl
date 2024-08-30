@@ -313,7 +313,7 @@ struct ConstrainedEnergyFunction{F} <: EnergyFunction{F}
 
     function ConstrainedEnergyFunction(
         energyfn::EnergyFunction{F},
-        penaltyfns::AbstractVector{CostFunctionType{F}},
+        penaltyfns::AbstractVector{<:CostFunctionType{F}},
         weights::AbstractVector{<:Real},
     ) where {F}
         # NUMBER OF PARAMETERS

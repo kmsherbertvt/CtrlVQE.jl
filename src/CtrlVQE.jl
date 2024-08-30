@@ -336,6 +336,9 @@ import .HardBounds: HardBound
 module SmoothBounds; include("costfns/SmoothBounds.jl"); end
 import .SmoothBounds: SmoothBound
 
+module VariationalEntropies; include("costfns/VariationalEntropies.jl"); end
+import .VariationalEntropies: VariationalEntropy, SmoothVariationalEntropy
+
 #= TODO (mid): Global RMS penalty on selected parameters. =#
 #= TODO (mid): Global RMS penalty on diff of selected parameters. =#
 

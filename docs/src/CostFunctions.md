@@ -27,5 +27,6 @@ Modules = [
     CtrlVQE.SmoothBounds,
     CtrlVQE.HardBounds,
     CtrlVQE.SoftBounds,
+    CtrlVQE.VariationalEntropies,
 ]
 ```
