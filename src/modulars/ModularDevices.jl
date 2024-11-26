@@ -67,6 +67,27 @@ module ModularDevices
     end
 
     """
+        sync_parameters!(device::ModularDevice)
+
+    Update the parameter vector to match current state of all channels.
+
+    Note that this may resize the parameter vector,
+        which may warrant clearing cached arrays.
+
+    """
+    function sync_parameters!(device::CtrlVQE.Modulars.ModularDevice)
+        L = sum(CtrlVQE.Parameters.count, device.channels)
+        resize!(device.x, L)
+        offset = 0
+        for channel in device.channels
+            Li = CtrlVQE.Parameters.count(channel)
+            device.x[1+offset:Li+offset] .= CtrlVQE.Parameters.values(channel)
+            offset += Li
+        end
+        return device
+    end
+
+    """
         map_values!(device::ModularDevice, i::Int, y::AbstractVector)
 
     Compute parameters in channel i as a function of all device parameters.
@@ -229,6 +250,8 @@ module ModularDevices
         ϕ̄::AbstractMatrix;
         result=nothing,
     )
+        isnothing(result) && (result = similar(device.x))
+
         # TEMP ARRAY TO HOLD GRADIENTS FOR EACH CHANNEL (one at a time)
         L = maximum(Parameters.count, device.channels)
         ∂y_ = array(eltype(device), (L,), LABEL)
