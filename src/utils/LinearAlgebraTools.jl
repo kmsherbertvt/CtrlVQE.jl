@@ -1,7 +1,7 @@
 import ..TempArrays: array
 const LABEL = Symbol(@__MODULE__)
 
-using LinearAlgebra: kron!, eigen, Diagonal, Hermitian, mul!
+using LinearAlgebra: kron!, eigen!, Diagonal, Hermitian, mul!
 
 """
     VectorList{T}
@@ -101,16 +101,91 @@ For example, even though `A` must be Hermitian for this method to work correctly
 
 """
 function cis!(A::AbstractMatrix{<:Complex{<:AbstractFloat}}, x::Number=1)
-    Λ, U = eigen(Hermitian(A))              # TODO (lo): UNNECESSARY ALLOCATIONS
+    F = Complex{real(eltype(A))}
+    Λ = array(F, (size(A,1),), LABEL)
+    U = array(F, size(A), (LABEL, :vectors))
 
-    F = Complex{real(eltype(Λ))}
-    diag = array(F, size(Λ), LABEL)
-    diag .= exp.((im*x) .* Λ)
+    eigensolve!(Λ, U, A)
 
-    left = array(F, size(A), LABEL)
-    left = mul!(left, U, Diagonal(diag))
+    Λ .= exp.((im*x) .* Λ)
+    left = array(F, size(A), (LABEL, :left))
+    left = mul!(left, U, Diagonal(Λ))
 
     return mul!(A, left, U')                # NOTE: OVERWRITES INPUT
+end
+
+
+# import LinearAlgebra: eigen
+# function cis!(A::AbstractMatrix{<:Complex{<:AbstractFloat}}, x::Number=1)
+#     F = Complex{real(eltype(A))}
+#     inplace = array(F, size(A), (LABEL, :inplace))
+#     inplace .= A
+
+#     Λ, U = eigen!(Hermitian(inplace))   # Changing kwargs didn't help any.
+#     # Λ, U = eigen(Hermitian(A))              # TODO (lo): UNNECESSARY ALLOCATIONS
+
+#     # F = Complex{real(eltype(Λ))}
+#     diag = array(F, size(Λ), LABEL)
+#     diag .= exp.((im*x) .* Λ)
+
+#     left = array(F, size(A), LABEL)
+#     left = mul!(left, U, Diagonal(diag))
+
+#     return mul!(A, left, U')                # NOTE: OVERWRITES INPUT
+# end
+
+"""
+    eigensolve!(Λ::Vector, U::Matrix, A::Matrix)
+
+Diagonalize A and write the results to Λ (eigenvalues) and U (eigenvectors as columns).
+
+A is assumed to be Hermitian.
+
+NOTE: Does not return anything.
+
+"""
+function eigensolve!(Λ::Vector, U::Matrix, A::AbstractMatrix)
+    N = size(A,1)
+    N == 1 && return _eigensolve_1!(Λ,U,A)
+    N == 2 && return _eigensolve_2!(Λ,U,A)
+
+    # No other recourse.
+    F = Complex{real(eltype(A))}
+    inplace = array(F, size(A), (LABEL, :inplace))
+    inplace .= A
+    ΛU = eigen!(Hermitian(inplace))   # Changing kwargs didn't help any.
+
+    Λ .= ΛU.values
+    U .= ΛU.vectors
+
+    return
+end
+
+function _eigensolve_1!(Λ, U, A)
+    a = only(A)
+    Λ .= a
+    U .= 1
+    return
+end
+
+function _eigensolve_2!(Λ, U, A)
+    a, c, b, d = A
+
+    Λ[1] = (a+d)/2 - sqrt(((a-d)/2)^2 + abs2(b))
+    Λ[2] = (a+d)/2 + sqrt(((a-d)/2)^2 + abs2(b))
+
+    if abs(b) < eps(real(eltype(A)))
+        U .= 0
+        U[1,1] = 1
+        U[2,2] = 1
+        return
+    end
+
+    U[1,1] = (1 + abs2(b)/(d - Λ[1])^2)^(-1/2)
+    U[2,1] = U[1,1] * -c / (d-Λ[1])
+    U[2,2] = (1 + abs2(b)/(a - Λ[2])^2)^(-1/2)
+    U[1,2] = U[2,2] * -b / (a-Λ[2])
+    return
 end
 
 """
