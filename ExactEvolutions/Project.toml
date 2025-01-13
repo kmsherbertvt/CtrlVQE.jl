@@ -1,0 +1,16 @@
+name = "ExactEvolutions"
+uuid = "e4368c85-8418-49e8-b59d-f0a8dbbb26cf"
+authors = ["Kyle Sherbert <kmsherbert@yahoo.com>"]
+version = "0.1.0"
+
+[deps]
+DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Polynomials = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
+SpecialMatrices = "928aab9d-ef52-54ac-8ca1-acd7ca42c160"
+
+[compat]
+DifferentialEquations = "7.15.0"
+LinearAlgebra = "1.11.0"
+Polynomials = "4.0.12"
+SpecialMatrices = "3.1.0"

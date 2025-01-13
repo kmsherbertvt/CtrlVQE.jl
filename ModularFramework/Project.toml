@@ -1,0 +1,10 @@
+name = "ModularFramework"
+uuid = "ac9dda0b-80f2-49b5-843c-e77ea712727d"
+authors = ["Kyle Sherbert <kmsherbert@yahoo.com>"]
+version = "0.1.0"
+
+[deps]
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LocalCustoms = "a38abb17-106d-41ea-aadf-52de082dc5e0"
+CtrlVQE = "d54e0380-e2e1-4343-920c-16ee5b1b3d3c"
+TemporaryArrays = "b2d0ec06-4a30-46b9-b20f-1283d2f7986d"
