@@ -93,3 +93,9 @@ end
     signal = CtrlVQE.Tanh(0.75, 0.25, 0.75)
     StandardTests.validate(signal)
 end
+
+# NOTE: The built-in limited parameters didn't work the first time I tried it. >_>
+@testset "ComplexHarmonic" begin
+    signal = CtrlVQE.ComplexHarmonic(0.25, 0.75, 3, 1.0)
+    StandardTests.validate(CtrlVQE.ConstrainedSignal(signal, :T))
+end

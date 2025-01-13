@@ -169,7 +169,7 @@ O0 = CtrlVQE.QubitOperators.project(H, device)              # MOLECULAR HAMILTON
     =#
 
 # Select the measurement basis and frame.
-basis = CtrlVQE.OCCUPATION
+basis = CtrlVQE.Bases.OCCUPATION
     #= NOTE: Choosing CtrlVQE.OCCUPATION takes measurement as
             with respect to the logical qubit basis
             (which corresponds to the
@@ -342,20 +342,20 @@ g! = CtrlVQE.grad_function_inplace(costfn)      # CALLABLE g!(∇f, x)
             for a callable g(x) which returns the vector ∇f.
     =#
 
-##########################################################################################
-#= (Optional) Perturb the initial parameter vector by a random amount. =#
+# ##########################################################################################
+# #= (Optional) Perturb the initial parameter vector by a random amount. =#
 
-seed = 0000                 # RANDOM SEED
-kick_Ω = ΩMAX               # MAXIMUM KICK FOR AMPLITUDES
-kick_Δ = ΔMAX               # MAXIMUM KICK FOR FREQUENCIES
+# seed = 0000                 # RANDOM SEED
+# kick_Ω = ΩMAX               # MAXIMUM KICK FOR AMPLITUDES
+# kick_Δ = ΔMAX               # MAXIMUM KICK FOR FREQUENCIES
 
-# Perturb the initial parameters by a random amount.
-import Random; Random.seed!(seed)
-xi[Ω] .+= ΩMAX .* (2 .* rand(length(Ω)) .- 1)
-xi[ν] .+= ΔMAX .* (2 .* rand(length(ν)) .- 1)
+# # Perturb the initial parameters by a random amount.
+# import Random; Random.seed!(seed)
+# xi[Ω] .+= ΩMAX .* (2 .* rand(length(Ω)) .- 1)
+# xi[ν] .+= ΔMAX .* (2 .* rand(length(ν)) .- 1)
 
-println("Parameters after random kicks:")
-display(["$name: $value" for (name, value) in zip(names, xi)])
+# println("Parameters after random kicks:")
+# display(["$name: $value" for (name, value) in zip(names, xi)])
 
 ##########################################################################################
 #= Run the optimization. =#
@@ -402,7 +402,7 @@ display(Δ̄ ./ 2π)        # Divide by 2π to convert angular frequency to freq
 t = CtrlVQE.lattice(grid)
 
 # Extract the timeseries values of the optimized pulse.
-CtrlVQE.Parameters.bind(device, xf)             # Lock in the optimized pulse.
+CtrlVQE.Parameters.bind!(device, xf)            # Lock in the optimized pulse.
 Ωt = Array{ComplexF64}(undef, r+1, n)           # Allocate space to hold pulse values...
 for q in 1:n; Ωt[:,q] .= device.Ω̄[q](t); end    #   ...and fill that space.
 

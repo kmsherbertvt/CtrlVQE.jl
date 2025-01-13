@@ -46,9 +46,9 @@ function validate(device::Devices.DeviceType{F,FΩ}) where {F,FΩ}
     x̄ = Parameters.values(device)
     @test length(x̄) == length(Parameters.names(device)) == L
 
-    Parameters.bind(device, 2 .* x̄)
+    Parameters.bind!(device, 2 .* x̄)
     @test Parameters.values(device) ≈ 2 .* x̄
-    Parameters.bind(device, x̄)
+    Parameters.bind!(device, x̄)
 
     ϕ̄_ = repeat(ϕ̄, 1, nG)
     grad = Devices.gradient(device, grid, ϕ̄_)
@@ -277,9 +277,9 @@ function validate(signal::Signals.SignalType{P,R}) where {P,R}
     @test eltype(x̄) == P
     @test length(x̄) == length(Parameters.names(signal)) == L
 
-    Parameters.bind(signal, 2 .* x̄)
+    Parameters.bind!(signal, 2 .* x̄)
     @test Parameters.values(signal) ≈ 2 .* x̄
-    Parameters.bind(signal, x̄)
+    Parameters.bind!(signal, x̄)
 
     # TEST FUNCTION CONSISTENCY
 
@@ -313,18 +313,18 @@ function validate(signal::Signals.SignalType{P,R}) where {P,R}
     @test eltype(g0) == R
 
     function fℜ(x)
-        Parameters.bind(signal, x)
+        Parameters.bind!(signal, x)
         fx = real(Signals.valueat(signal, t))
-        Parameters.bind(signal, x̄)  # RESTORE ORIGINAL VALUES
+        Parameters.bind!(signal, x̄)  # RESTORE ORIGINAL VALUES
         return fx
     end
     gΔℜ = grad(central_fdm(5, 1), fℜ, x̄)[1]
 
     if R <: Complex
         function fℑ(x)
-            Parameters.bind(signal, x)
+            Parameters.bind!(signal, x)
             fx = imag(Signals.valueat(signal, t))
-            Parameters.bind(signal, x̄)  # RESTORE ORIGINAL VALUES
+            Parameters.bind!(signal, x̄)  # RESTORE ORIGINAL VALUES
             return fx
         end
         gΔℑ = grad(central_fdm(5, 1), fℑ, x̄)[1]

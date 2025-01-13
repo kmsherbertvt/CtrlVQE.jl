@@ -75,13 +75,13 @@ module ModularDevices
         which may warrant clearing cached arrays.
 
     """
-    function sync_parameters!(device::CtrlVQE.Modulars.ModularDevice)
-        L = sum(CtrlVQE.Parameters.count, device.channels)
+    function sync_parameters!(device::ModularDevice)
+        L = sum(Parameters.count, device.channels)
         resize!(device.x, L)
         offset = 0
         for channel in device.channels
-            Li = CtrlVQE.Parameters.count(channel)
-            device.x[1+offset:Li+offset] .= CtrlVQE.Parameters.values(channel)
+            Li = Parameters.count(channel)
+            device.x[1+offset:Li+offset] .= Parameters.values(channel)
             offset += Li
         end
         return device
