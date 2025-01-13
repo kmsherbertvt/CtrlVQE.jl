@@ -1,0 +1,12 @@
+name = "CtrlVQE"
+uuid = "d54e0380-e2e1-4343-920c-16ee5b1b3d3c"
+authors = ["Kyle Sherbert <kyle.sherbert@vt.edu> and contributors"]
+version = "2.0.0-DEV"
+
+[deps]
+FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+LocalCustoms = "a38abb17-106d-41ea-aadf-52de082dc5e0"
+Memoization = "6fafb56a-5788-4b4e-91ca-c0cea6611c73"
+TemporaryArrays = "b2d0ec06-4a30-46b9-b20f-1283d2f7986d"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
