@@ -1,8 +1,0 @@
-name = "LanczosEvolutions"
-uuid = "fb6dea87-bf29-4cb4-bdd9-ca5df41ecf66"
-authors = ["Kyle Sherbert <kyle.sherbert@vt.edu> and contributors"]
-version = "0.1.0"
-
-[deps]
-CtrlVQE = "b0286c9f-ec41-4a06-9137-e6f7f9cecc08"
-KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"

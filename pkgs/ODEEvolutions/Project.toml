@@ -1,8 +1,0 @@
-name = "ODEEvolutions"
-uuid = "a02d6d3c-0790-43b6-bd83-5dc45b012792"
-authors = ["Kyle Sherbert <kyle.sherbert@vt.edu> and contributors"]
-version = "0.1.0"
-
-[deps]
-CtrlVQE = "b0286c9f-ec41-4a06-9137-e6f7f9cecc08"
-DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
