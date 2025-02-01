@@ -36,6 +36,8 @@ module ModularFramework
 
     include("basics/KetReferences.jl")
         @local_ export KetReferences: KetReference
+    include("basics/DenseReferences.jl")
+        @local_ export DenseReferences: DenseReference
 
     include("basics/DenseMeasurements.jl")
         @local_ export DenseMeasurements: DenseMeasurement

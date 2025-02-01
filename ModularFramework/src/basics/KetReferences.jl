@@ -22,12 +22,6 @@ module KetReferences
         basis::B
     end
 
-    #= TODO: We don't really need `m` here.
-        We just use `nlevels` from the device.
-    Indeed, we don't WANT it,
-        since it prevents a perfectly good ket from being used on devices with larger m.
-    =#
-
     function Modular.prepare(
         reference::KetReference,
         device::Devices.DeviceType,
@@ -38,6 +32,7 @@ module KetReferences
         isnothing(result) && (result=Array{Complex{eltype(device)}}(undef, N))
 
         # REPRESENT ψ IN ITS NATIVE BASIS
+        #= TODO: Include an assertion the nqubits match, and that m >= maximum(ket) =#
         m = Devices.nlevels(device)
         i = 0
         for q in eachindex(reference.ket)
