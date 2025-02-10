@@ -3,3 +3,7 @@
 *.jl.mem
 /docs/build/
 Manifest.toml
+.DS_Store
+/deprecated
+/Tinkering
+/Examples
