@@ -77,7 +77,8 @@ module DenseMeasurements
         measurement::DenseMeasurement,
         device::Devices.DeviceType,
         grid::Integrations.IntegrationType,
-        ϕ::AbstractArray;
+        ϕ::AbstractArray,
+        ψ::AbstractVector;
         result=nothing
     )
         return Devices.gradient(device, grid, @view(ϕ[:,:,1]); result=result)

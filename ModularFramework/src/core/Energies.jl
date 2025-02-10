@@ -3,6 +3,7 @@ module Energies
     import ..ModularFramework: ReferenceType, MeasurementType
 
     import CtrlVQE
+    import CtrlVQE.LinearAlgebraTools as LAT
     import CtrlVQE: Parameters
     import CtrlVQE: Devices, Evolutions, CostFunctions
     import CtrlVQE.Integrations: IntegrationType
@@ -73,6 +74,15 @@ module Energies
         Ō = Modular.observables(costfn.measurement, costfn.device, workbasis, T)
                                                         # Observables, in the workbasis.
 
+        # ADD IN A CALLBACK TO RECORD THE COMPLETELY EVOLVED STATE
+        ψT = similar(ψ0)
+        U = Devices.basisrotation(costfn.measurement.basis, workbasis, costfn.device)
+        saveevolvedstate = (i, t, ψ) -> (
+            i == lastindex(costfn.grid) || return;  # Only consider ψ at end of grid.
+            ψT .= ψ;                                # Copy state into ψT.
+            LAT.rotate!(U, ψT);                     # Rotate into measurement basis.
+        )
+
         return (∇f, x) -> (
             Parameters.bind!(costfn.device, x);
             Evolutions.gradientsignals(
@@ -83,9 +93,10 @@ module Energies
                 ψ0,
                 Ō;
                 result=ϕ,
+                callback=saveevolvedstate,
             );
             Devices.gradient(
-                costfn.measurement, costfn.device, costfn.grid, ϕ;
+                costfn.measurement, costfn.device, costfn.grid, ϕ, ψT;
                 result=∇f,
             )
         )

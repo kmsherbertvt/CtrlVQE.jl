@@ -264,11 +264,14 @@ Subtypes `M` must implement the following methods:
 - `nobservables(::Type{M})`: the number of distinct observables involved in a measurement.
 - `observables(::M, device, basis, t; result)`:
     constructs the observables in the given basis.
-- `Devices.gradient(::M, device, grid, ϕ; result)`:
+- `Devices.gradient(::M, device, grid, ϕ, ψ; result)`:
     calculates the gradient of device parameters, given gradient signals.
 
 In `Devices.gradient`, `ϕ[:,j,k]` contains the jth gradient signal
-    ``ϕ_j(t)`` evaluated at each point in `grid` for observable `k`.
+    ``ϕ_j(t)`` evaluated at each point in `grid` for observable `k`,
+    while `ψ` contains the wavefunction itself,
+    evolved to the end of the grid
+    and rotated into the measurement basis.
 For the most part, implementing types will simply delegate to `device`,
     whose gradient method expects the 2d array `ϕ[:,:,k]`.
 When `M` consists of more than one observable,
