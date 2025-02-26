@@ -15,6 +15,7 @@ module Signals
         # New signals must also implement the `Parameters` interface.
         # Consider implementing a `ParametricSignal`, which does most of the work for you.
     include("Signals/__concreteinterface.jl")
+        export parametertype, returntype
         # Implements a (::SignalType)(...) signature
         # Implements certain method signatures from the abstract interface.
     include("Signals/__validation.jl")

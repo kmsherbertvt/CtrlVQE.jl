@@ -13,6 +13,9 @@ module Validation
     Each abstract type defined in the core interface implements its own `validate`,
         running a suite of interface-compliance and self-consistency checks.
 
+    TODO: Add a note here about the optional `grid`, `device` kwargs,
+        including the suggestion to use prototype
+
     """
     function validate end
 end
