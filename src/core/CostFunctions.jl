@@ -12,7 +12,7 @@ module CostFunctions
     include("CostFunctions/__abstractinterface.jl")
         export CostFunctionType
         export cost_function, grad!function
-        # Also extends Base.string
+        # Also extends Base.length
         # Consider implementing an `EnergyFunction`, with a couple extra requirements.
     include("CostFunctions/__concreteinterface.jl")
         export grad_function
@@ -28,7 +28,7 @@ module CostFunctions
 
     include("CostFunctions/__energy__abstractinterface.jl")
         export EnergyFunction
-        export trajectory_callback
+        export nobservables, trajectory_callback
         # Also extends the `CostFunctions` interface for a couple functions.
         # New energy functions must also implement the `CostFunctions` interface.
     include("CostFunctions/__energy__validation.jl")

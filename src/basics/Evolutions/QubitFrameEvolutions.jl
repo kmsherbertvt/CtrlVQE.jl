@@ -80,7 +80,7 @@ module QubitFrameEvolutions
     function Evolutions.gradientsignals(
         evolution::QubitFrameEvolution,
         device::Devices.DeviceType,
-        grid::TrapezoidalIntegration,
+        grid::TrapezoidalIntegration, # TODO: No good reason to limit this to a concrete type. Just document that this funciton implicitly assumes a trapezoidal rule.
         ψ0::AbstractVector,
         Ō::LAT.MatrixList;
         result=nothing,

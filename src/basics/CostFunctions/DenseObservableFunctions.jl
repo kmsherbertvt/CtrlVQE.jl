@@ -61,9 +61,9 @@ module DenseObservableFunctions
     end
 
     function CostFunctions.grad!function(costfn::DenseObservable{F}; ϕ=nothing) where {F}
-        isnothing(ϕ) && (
-            ϕ=Array{F}(undef, length(costfn.grid), Devices.ngrades(costfn.device))
-        )
+        nG = Devices.ngrades(costfn.device)
+        isnothing(ϕ) && (ϕ=Array{F}(undef, length(costfn.grid), nG, 1))
+        ϕ = reshape(ϕ, length(costfn.grid), nG)
 
         T = Integrations.endtime(costfn.grid)
         OT = copy(costfn.observable)
@@ -84,13 +84,13 @@ module DenseObservableFunctions
         )
     end
 
+    CostFunctions.nobservables(::DenseObservable) = 1
+
     function CostFunctions.trajectory_callback(
         costfn::DenseObservable,
         E::AbstractVector;
         callback=nothing,
     )
-        m = Devices.nlevels(costfn.device)
-        n = Devices.nqubits(costfn.device)
         workbasis = Evolutions.workbasis(costfn.evolution)  # BASIS OF CALLBACK ψ
         U = Devices.basisrotation(costfn.basis, workbasis, costfn.device)
         ψ_ = similar(costfn.reference)

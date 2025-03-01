@@ -4,7 +4,7 @@ module DenseMeasurements
 
     import CtrlVQE.LinearAlgebraTools as LAT
     import CtrlVQE: Bases, Operators
-    import CtrlVQE: Integrations, Devices
+    import CtrlVQE: Integrations, Devices, CostFunctions
 
     import TemporaryArrays: @temparray
 
@@ -47,7 +47,7 @@ module DenseMeasurements
         return real(LAT.expectation(measurement.observable, ψ_))
     end
 
-    Modular.nobservables(::Type{<:DenseMeasurement}) = 1
+    CostFunctions.nobservables(::Type{<:DenseMeasurement}) = 1
 
     function Modular.observables(
         measurement::DenseMeasurement,

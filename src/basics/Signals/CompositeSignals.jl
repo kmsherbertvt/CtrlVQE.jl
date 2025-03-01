@@ -63,6 +63,7 @@ module CompositeSignals
             Parameters.bind!(component, x[offset+1:offset+L])
             offset += L
         end
+        return signal
     end
 
     #= `Signals` INTERFACE =#
@@ -112,7 +113,7 @@ module CompositeSignals
 
     """
     function Composed(components::Signals.SignalType{P,R}...) where {P,R}
-        return CompositeSignal(components)
+        return CompositeSignal(collect(components))
     end
 
     #= TODO: We've removed WeightedCompositeSignal here. Where ought it go? =#

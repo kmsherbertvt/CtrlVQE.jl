@@ -1,4 +1,5 @@
 import CtrlVQE: Devices
+import CtrlVQE: CostFunctions
 
 """
     algebratype(object)
@@ -261,9 +262,10 @@ A protocol to measure scalars from a statevector.
 
 Subtypes `M` must implement the following methods:
 - `measure(::M, device, basis, ψ, t)`: constructs the initial statevector.
-- `nobservables(::Type{M})`: the number of distinct observables involved in a measurement.
 - `observables(::M, device, basis, t; result)`:
     constructs the observables in the given basis.
+- `CostFunctions.nobservables(::Type{M})`:
+    the number of distinct observables involved in a measurement.
 - `Devices.gradient(::M, device, grid, ϕ, ψ; result)`:
     calculates the gradient of device parameters, given gradient signals.
 
@@ -296,19 +298,6 @@ Measure the state ψ, provided in the given basis, at time t.
 function measure end
 
 """
-    nobservables(measurer)
-
-Identify the number of Hermitian observables needed for this measurement.
-
-For example, to measure the normalized energy,
-    separate observables are needed for both energy and normalization,
-    and the results are combined in a non-linear way to produce the final outcome.
-
-"""
-function nobservables end
-nobservables(::M) where {M<:MeasurementType} = nobservables(M)
-
-"""
     observables(measurer, device, basis, t; result=nothing)
 
 Constructs the Hermitian observables involved in this measurement.
@@ -328,3 +317,5 @@ The size of the third dimension must be equal to `nobservables(measurer)`.
 
 """
 function observables end
+
+CostFunctions.nobservables(::M) where {M<:MeasurementType} = CostFunctions.nobservables(M)

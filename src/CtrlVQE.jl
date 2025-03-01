@@ -14,7 +14,10 @@ module CtrlVQE
     include("enums/Parameters.jl")
         @local_ export Parameters
     include("enums/Validation.jl")
-        @local_ export Validation
+        @local_ export Validation: validate#, @withresult
+        import .Validation: @withresult
+        export @withresult
+        # TODO: LocalCustoms doesn't know what to do with macros.
     include("enums/Operators.jl")
         @local_ export Operators
     include("enums/Bases.jl")
@@ -22,7 +25,8 @@ module CtrlVQE
 
     # CORE INTERFACE
     include("core/Integrations.jl")
-        @local_ export Integrations: duration, stepsize, lattice, integrate
+        @local_ export Integrations
+        @local_ export Integrations: nsteps, duration, stepsize, integrate
     include("core/Signals.jl")
         @local_ export Signals
         @local_ export Signals: valueat, partial
@@ -37,7 +41,7 @@ module CtrlVQE
     include("core/CostFunctions.jl")
         @local_ export CostFunctions
         @local_ export CostFunctions: cost_function, grad_function, grad!function
-        @local_ export CostFunctions: trajectory_callback
+        @local_ export CostFunctions: nobservables, trajectory_callback
     #= Note that only the generically useful names have been exported
         from each of these modules. =#
 

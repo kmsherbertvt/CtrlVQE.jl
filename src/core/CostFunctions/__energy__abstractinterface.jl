@@ -29,6 +29,18 @@ Finally, the following methods must now accept a keyword argument:
 abstract type EnergyFunction{F} <: CostFunctionType{F} end
 
 """
+    nobservables(fn::EnergyFunction)::Int
+
+Identify the number of Hermitian observables needed for this energy function.
+
+For example, to measure the normalized energy,
+    separate observables are needed for both energy and normalization,
+    and the results are combined in a non-linear way to produce the final outcome.
+
+"""
+function nobservables end
+
+"""
     trajectory_callback(fn::EnergyFunction, E::AbstractVector; callback=nothing)::Function
 
 Make a callback to write the energy at each step of a time evolution.
@@ -60,6 +72,10 @@ end
 
 Same as for `CostFunctionType` except that whenever the function is called,
     ϕ (if provided) is updated to contain the gradient signals.
+The array ϕ should be a 3d array with shape (:,nG,nK),
+    where nK is the number of observables in the energy function,
+    nG is the number of gradient operators in the underlying device,
+    and the remaining dimension is the size of the time grid.
 
 """
 function grad!function(fn::EnergyFunction; ϕ=nothing)

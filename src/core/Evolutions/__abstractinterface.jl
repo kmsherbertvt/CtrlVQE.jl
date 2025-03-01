@@ -18,6 +18,7 @@ If possible, it should also implement:
 You are allowed to implement these for restricted types of `grid`
     (eg. require it to be a `TrapezoidalIntegration`),
     so long as you are clear in your documentation.
+TODO: Do not permit this!
 
 """
 abstract type EvolutionType end

@@ -27,6 +27,10 @@ module Energies
 
     Base.length(costfn::Energy) = Parameters.count(costfn.device)
 
+    function CostFunctions.nobservables(costfn::Energy)
+        return CostFunctions.nobservables(costfn.measurement)
+    end
+
     function CostFunctions.trajectory_callback(
         costfn::Energy,
         E::AbstractVector;

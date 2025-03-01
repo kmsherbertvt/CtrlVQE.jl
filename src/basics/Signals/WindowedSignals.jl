@@ -132,6 +132,7 @@ module WindowedSignals
             L = Parameters.count(window)::Int
             Parameters.bind!(window, x̄[1+signal.offsets[k]:L+signal.offsets[k]])
         end
+        return signal
     end
 
     #= `Signals` INTERFACE =#

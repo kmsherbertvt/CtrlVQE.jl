@@ -70,7 +70,7 @@ function braket(
     ψ2::AbstractVector,
 )
     N = nstates(device)
-    H = @temparray(eltype(op, device, basis), (N,N), :braket)
+    H = @temparray(eltype(device), (N,N), :braket)
     H = operator(op, device, basis; result=H)
     return LAT.braket(ψ1, H, ψ2)
 end

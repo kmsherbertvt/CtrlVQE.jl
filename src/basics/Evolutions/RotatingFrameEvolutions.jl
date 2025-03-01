@@ -41,10 +41,8 @@ module RotatingFrameEvolutions
 
         # ALLOCATE MEMORY FOR INTERACTION HAMILTONIAN
         N = Devices.nstates(device)
-        U_TYPE = LAT.cis_type(eltype(STATIC, device, DRESSED))
-        V_TYPE = LAT.cis_type(eltype(Drive(0), device, DRESSED))
-        U = @temparray(U_TYPE, (N,N), :framerotation)
-        V = @temparray(V_TYPE, (N,N), :driveoperator)
+        U = @temparray(Complex{eltype(device)}, (N,N), :framerotation)
+        V = @temparray(Complex{eltype(device)}, (N,N), :driveoperator)
 
         # ROTATE INTO INTERACTION PICTURE
         t0 = Integrations.starttime(grid)

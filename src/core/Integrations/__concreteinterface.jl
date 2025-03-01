@@ -52,7 +52,9 @@ This is equivalent to `collect(grid)` except for the `result` kwarg,
 """
 function lattice(grid::IntegrationType; result=nothing)
     isnothing(result) && (result = Vector{eltype(grid)}(undef, length(grid)))
-    result .= grid[i]
+    for i in eachindex(grid)
+        result[1+i] = grid[i]
+    end
     return result
 end
 
@@ -82,6 +84,14 @@ function integrate(grid::IntegrationType, f̄::AbstractVector)
     I = zero(promote_type(eltype(grid), eltype(f̄)))
     for i in eachindex(grid)
         I += f̄[1+i] * stepat(grid, i)
+    end
+    return I
+end
+
+function integrate(grid::IntegrationType, Φ)
+    I = zero(eltype(grid))
+    for i in eachindex(grid)
+        I += Φ(timeat(grid,i)) * stepat(grid, i)
     end
     return I
 end

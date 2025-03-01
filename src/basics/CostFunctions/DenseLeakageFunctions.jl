@@ -44,7 +44,7 @@ module DenseLeakageFunctions
         m = Devices.nlevels(costfn.device)
         n = Devices.nqubits(costfn.device)
         π̄ = QubitOperations.localqubitprojectors(m, n)
-        T = Evolutions.endtime(costfn.grid)
+        T = Integrations.endtime(costfn.grid)
         ψ = similar(costfn.reference)
 
         return (x̄) -> (
@@ -65,13 +65,16 @@ module DenseLeakageFunctions
     end
 
     function CostFunctions.grad!function(costfn::DenseLeakage{F}; ϕ=nothing) where {F}
-        isnothing(ϕ) && (
-            ϕ=Array{F}(undef, length(costfn.grid), Devices.ngrades(costfn.device))
-        )
+        nG = Devices.ngrades(costfn.device)
+        isnothing(ϕ) && (ϕ=Array{F}(undef, length(costfn.grid), nG, 1))
+        ϕ = reshape(ϕ, length(costfn.grid), nG)
 
         # CONSTRUCT LEAKAGE OBSERVABLE 1-Π
-        O = LAT.basisvectors(Devices.nstates(costfn.device))
-        O -= QubitOperations.qubitprojector(fn.device)
+        arr_type = Array{Complex{eltype(costfn.device)}}
+        O = convert(arr_type, LAT.basisvectors(Devices.nstates(costfn.device)))
+        m = Devices.nlevels(costfn.device)
+        n = Devices.nqubits(costfn.device)
+        O .-= QubitOperations.qubitprojector(m,n)
         # ROTATE THE FRAME
         T = Integrations.endtime(costfn.grid)
         Devices.evolve!(costfn.frame, costfn.device, costfn.basis, T, O)
@@ -81,19 +84,21 @@ module DenseLeakageFunctions
             =#
 
         return (∇f, x) -> (
-            Parameters.bind!(fn.device, x);
+            Parameters.bind!(costfn.device, x);
             Evolutions.gradientsignals(
-                fn.evolution,
-                fn.device,
-                fn.basis,
-                fn.grid,
-                fn.reference,
+                costfn.evolution,
+                costfn.device,
+                costfn.basis,
+                costfn.grid,
+                costfn.reference,
                 O;
                 result=ϕ,   # NOTE: This writes the gradient signal as needed.
             );
-            ∇f .= Devices.gradient(fn.device, fn.grid, ϕ)
+            ∇f .= Devices.gradient(costfn.device, costfn.grid, ϕ)
         )
     end
+
+    CostFunctions.nobservables(::DenseLeakage) = 1
 
     function CostFunctions.trajectory_callback(
         costfn::DenseLeakage,

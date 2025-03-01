@@ -93,6 +93,7 @@ function evolver(
     t::Real;
     result=nothing
 )
+    m = nlevels(device)
     h̄ = localqubitoperators(device)
     u = @temparray(Complex{eltype(device)}, (m,m), :qubitevolver)
     u .= @view(h̄[:,:,op.q])

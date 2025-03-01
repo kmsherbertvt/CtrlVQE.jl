@@ -64,4 +64,25 @@ module Parameters
 
     """
     function bind! end
+
+    """
+        validateparameters(entity)
+
+    Validate an entity satisfies the `Parameters` interface.
+
+    """
+    function validate(entity)
+        # CHECK TYPING
+        L = count(entity);              @assert L isa Int
+        x = values(entity);             @assert x isa AbstractVector
+            @assert L == length(x)
+        labels = names(entity);         @assert labels isa AbstractVector{String}
+            @assert L == length(labels)
+
+        # CHECK PARAMETER BINDING
+        entity_ = bind!(entity, zero(x))    # Set all parameters to zero.
+            @assert entity === entity_
+            @assert values(entity) == zero(x)
+        bind!(entity, x)        # Put them back.
+    end
 end
