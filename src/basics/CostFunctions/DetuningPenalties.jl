@@ -25,6 +25,35 @@ module DetuningPenalties
     But it does not appear to cause any noticeable disadvantage;
         see `Examples/CompositeCostFunctions`.
 
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> device = TransmonDevice{2}([4.82, 4.84], [0.00, 0.00], [0.02], [Quple(1,2)]; Ω=Constrained(Constant(zero(ComplexF64)), :B), Δ=Constant(zero(Float64)));
+
+    julia> penalties = [SignalStrengthPenalty(grid, signal; A=0.8) for signal in device.Δ];
+
+    julia> costfn = DetuningPenalty(device, penalties);
+
+    julia> x = collect(range(0.0, 1.0, length(costfn)))
+    4-element Vector{Float64}:
+     0.0
+     0.3333333333333333
+     0.6666666666666666
+     1.0
+
+    julia> validate(costfn; x=x, rms=1e-6);
+
+    julia> costfn(x)
+    0.02351774585600897
+    julia> grad_function(costfn)(x)
+    4-element Vector{Float64}:
+     0.0
+     0.0
+     0.0
+     0.4997520994401937
+
+    ```
+
     """
     struct DetuningPenalty{
         F,

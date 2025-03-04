@@ -53,6 +53,31 @@ module WindowedResonantPenalties
     We have selected σ defaulting to A because heuristically it seems to work well.
     Don't feel too attached to that choice.
 
+    ```jldoctests
+    julia> device = Devices.Prototype(CWRTDevice{Float64,2}, 2);
+
+    julia> costfn = WindowedResonantPenalty(device; A=0.8);
+
+    julia> x = collect(range(0.0, 1.0, length(costfn)))
+    4-element Vector{Float64}:
+     0.0
+     0.3333333333333333
+     0.6666666666666666
+     1.0
+
+    julia> validate(costfn; x=x, rms=1e-6);
+
+    julia> costfn(x)
+    0.22571605879846993
+    julia> grad_function(costfn)(x)
+    4-element Vector{Float64}:
+     0.0
+     0.0
+     0.7767775331625435
+     1.1651662997438155
+
+    ```
+
     """
     function WindowedResonantPenalty(
         device::DeviceType{F};

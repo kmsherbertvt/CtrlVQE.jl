@@ -6,9 +6,12 @@ CurrentModule = CtrlVQE
 
 Documentation for [CtrlVQE](https://github.com/kmsherbertvt/CtrlVQE.jl).
 
-```@index
-```
-
-```@autodocs
-Modules = [CtrlVQE]
+```@contents
+Pages = [
+    "utils.md",
+    "enums.md",
+    "core.md",
+    "basics.md",
+]
+Depth = 1
 ```

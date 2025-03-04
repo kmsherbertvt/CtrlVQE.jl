@@ -43,7 +43,6 @@ function Validation.validate(
         # CHECK THE GRADIENT SIGNAL MATCHES WITH DIFFERENT OBSERVABLE SHAPES
         counter[] = 0
         ϕ̄ = gradientsignals(evolution, device, grid, ψ, Ō; callback=count!)
-        # ϕ = @withresult gradientsignals(evolution, device, grid, ψ, Ō)    # TODO: Actual bug.
         ϕ = @withresult gradientsignals(evolution, device, grid, ψ, I)
             @assert ϕ ≈ reshape(ϕ̄, length(grid), :)
             @assert counter[] == length(grid)

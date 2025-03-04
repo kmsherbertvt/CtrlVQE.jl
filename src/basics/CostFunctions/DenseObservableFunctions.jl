@@ -19,6 +19,25 @@ module DenseObservableFunctions
     - `grid`: the time grid on which the state evolves.
     - `evolution`: the algorithm to calculate the time evolution.
 
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> device = Devices.Prototype(TransmonDevice{Float64,2}, 2);
+
+    julia> # ψ0 = LAT.basisvector(Complex{eltype(device)}, nstates(device), 1); # TODO extend `basisvector` interface!
+
+    julia> # O = LAT.basisvectors(Complex{eltype(device)}, nstates(device))); # TODO extend `basisvector` interface!
+
+    julia> ψ0 = convert(Array{Complex{eltype(device)}}, LAT.basisvector(nstates(device), 1));
+
+    julia> O = convert(Array{Complex{eltype(device)}}, LAT.basisvectors(nstates(device)));
+
+    julia> costfn = DenseLeakage(ψ0, device, Bases.DRESSED, Operators.STATIC, grid, QUBIT_FRAME);
+
+    julia> validate(costfn; rms=1e-6, grid=grid, device=device);
+
+    ```
+
     """
     struct DenseObservable{
         F <: AbstractFloat,

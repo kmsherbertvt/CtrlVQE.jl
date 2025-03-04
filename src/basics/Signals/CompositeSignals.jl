@@ -111,6 +111,24 @@ module CompositeSignals
 
     Convenience constructor to combine multiple signals into a `CompositeSignal`.
 
+
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> realpart = Constrained(Constant(2.0+0.0im), :B);
+
+    julia> imagpart = Constrained(Constant(0.0+1.0im), :A);
+
+    julia> signal = Composed(realpart, imagpart);
+
+    julia> validate(signal; grid=grid, t=10.0, rms=1e-6);
+
+    julia> Parameters.names(signal)
+    2-element Vector{String}:
+     "A.1"
+     "B.2"
+    ```
+
     """
     function Composed(components::Signals.SignalType{P,R}...) where {P,R}
         return CompositeSignal(collect(components))

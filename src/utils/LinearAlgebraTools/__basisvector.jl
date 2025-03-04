@@ -1,5 +1,12 @@
 import LinearAlgebra: I
 
+#=
+
+TODO: Optional type arg (defaults to Bool).
+TODO: result kwarg, instead of !?
+
+=#
+
 """
     basisvector(N::Int, i::Int)
 

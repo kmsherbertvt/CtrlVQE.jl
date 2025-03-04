@@ -39,8 +39,6 @@ module Validation
         It defaults to `nothing`, which skips the finite difference altogether.
     - `skipgradient` is a flag indicating whether to skip anlaytical gradient validation,
         useful for evolution types that don't bother to implement `gradientsignals`.
-        TODO: Also for CostFunctions?
-
 
     """
     function validate end

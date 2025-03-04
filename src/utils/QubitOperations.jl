@@ -3,6 +3,10 @@
 
 Implement some handy tools for working with specifically two-level systems.
 
+TODO: Optional type arg (defaults to Bool).
+TODO: kwargs for m0, defaults to 2.
+TODO: result kwarg
+
 """
 module QubitOperations
     export qubitprojector, localqubitprojectors

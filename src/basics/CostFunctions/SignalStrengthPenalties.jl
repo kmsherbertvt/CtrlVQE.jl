@@ -52,6 +52,35 @@ module SignalStrengthPenalties
     We have selected σ defaulting to A because heuristically it seems to work well.
     Don't feel too attached to that choice.
 
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> signal = Windowed(Constant(2.0), 20.0, 5);
+
+    julia> costfn = SignalStrengthPenalty(grid, signal; A=0.8);
+
+    julia> x = collect(range(0.0, 1.0, length(costfn)))
+    5-element Vector{Float64}:
+     0.0
+     0.25
+     0.5
+     0.75
+     1.0
+
+    julia> validate(costfn; x=x, rms=1e-6);
+
+    julia> costfn(x)
+    0.00473294635352182
+    julia> grad_function(costfn)(x)
+    5-element Vector{Float64}:
+     0.0
+     0.0
+     0.0
+     0.0
+     0.10057511001233899
+
+    ```
+
     """
     function SignalStrengthPenalty(
         grid::IntegrationType{F},

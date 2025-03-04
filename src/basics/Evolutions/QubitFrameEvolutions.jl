@@ -26,6 +26,20 @@ module QubitFrameEvolutions
     This algorithm assumes a trapezoidal rule,
         so only `TrapezoidalIntegration` grids are allowed.
 
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> device = Devices.Prototype(TransmonDevice{Float64,2}, 2);
+
+    julia> evolution = QUBIT_FRAME;
+
+    julia> validate(evolution; grid=grid, device=device, skipgradient=true);
+
+    julia> workbasis(evolution)
+    CtrlVQE.Bases.Bare()
+
+    ```
+
     """
     struct QubitFrameEvolution <: Evolutions.EvolutionType end
     QUBIT_FRAME = QubitFrameEvolution()

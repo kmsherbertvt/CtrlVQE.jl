@@ -290,6 +290,19 @@ module WindowedResonantTransmonDevices
     - `T=10.0`: total pulse duration.
     - `W=1`: number of window segments.
 
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> device = Devices.Prototype(CWRTDevice{Float64,3}, 2);
+
+    julia> validate(device; grid=grid, t=10.0);
+
+    julia> nlevels(device)
+    3
+    julia> nqubits(device)
+    2
+    ```
+
     """
     function Devices.Prototype(
         ::Type{WindowedResonantTransmonDevice{F,m}}, n::Int;

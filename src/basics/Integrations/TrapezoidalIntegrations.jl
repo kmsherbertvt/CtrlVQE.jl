@@ -19,7 +19,7 @@ module TrapezoidalIntegrations
 
     Additionally, this grid uses uniform spacing.
     You'd *think* that would mean `stepat(grid, i)` would give ``τ_i = τ`` for every `i`,
-        where ``τ ≡ T / r`` and ``T ≡ tf - t0``.
+        where ``τ ≡ T / r`` and ``T ≡ t_f - t_0``.
     But careful! The sum of all `τ_i` must match the length of the integral, ie. `T`.
     But there are `r+1` points, and `(r+1)⋅τ > T`. How do we reconcile this?
     A "Left Hand Sum" would omit `t=T` from the time points;
@@ -66,6 +66,17 @@ module TrapezoidalIntegrations
         TemporalLattice(T::Real, r::Int)
 
     Convenience constructor to make a trapezoidal time grid from t=0.0 to `T`.
+
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> validate(grid);
+
+    julia> Integrations.duration(grid)
+    20.0
+    julia> Integrations.nsteps(grid)
+    400
+    ```
 
     """
     function TemporalLattice(T::Real, r::Int)

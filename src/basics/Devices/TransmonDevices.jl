@@ -365,6 +365,19 @@ module TransmonDevices
     - `T=10.0`: the pulse duration,
         but this has no effect since the default signals are constant.
 
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> device = Devices.Prototype(TransmonDevice{Float64,3}, 2);
+
+    julia> validate(device; grid=grid, t=10.0);
+
+    julia> nlevels(device)
+    3
+    julia> nqubits(device)
+    2
+    ```
+
     """
     function Devices.Prototype(
         ::Type{TransmonDevice{F,m}}, n::Int;

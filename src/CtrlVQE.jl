@@ -37,7 +37,7 @@ module CtrlVQE
         @local_ export Devices: drivequbit, gradequbit
     include("core/Evolutions.jl")
         @local_ export Evolutions
-        @local_ export Evolutions: evolve, evolve!, gradientsignals
+        @local_ export Evolutions: workbasis, evolve, evolve!, gradientsignals
     include("core/CostFunctions.jl")
         @local_ export CostFunctions
         @local_ export CostFunctions: cost_function, grad_function, grad!function

@@ -49,7 +49,7 @@ function Validation.validate(
             fx = real(Signals.valueat(signal, t));
             Parameters.bind!(signal, x0);
             fx
-        ), x0)[1]
+        ), copy(x0))[1]
 
         if R <: Complex
             gΔℂ = FiniteDifferences.grad(cfd, x -> (
@@ -57,7 +57,7 @@ function Validation.validate(
                 fx = imag(Signals.valueat(signal, t));
                 Parameters.bind!(signal, x0);
                 fx
-            ), x0)[1]
+            ), copy(x0))[1]
         end
         gΔ = R <: Complex ? Complex.(gΔℝ, gΔℂ) : gΔℝ
 

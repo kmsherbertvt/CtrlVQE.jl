@@ -50,6 +50,29 @@ module CompositeCostFunctions
 
     Alternate constructor, letting each function be passed as its own argument.
 
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> device = Devices.Prototype(CWRTDevice{Float64,2}, 2);
+
+    julia> # ψ0 = LAT.basisvector(Complex{eltype(device)}, nstates(device), 1); # TODO extend `basisvector` interface!
+
+    julia> # O = LAT.basisvectors(Complex{eltype(device)}, nstates(device))); # TODO extend `basisvector` interface!
+
+    julia> ψ0 = convert(Array{Complex{eltype(device)}}, LAT.basisvector(nstates(device), 1));
+
+    julia> O = convert(Array{Complex{eltype(device)}}, LAT.basisvectors(nstates(device)));
+
+    julia> energyfn = DenseLeakage(ψ0, device, Bases.DRESSED, Operators.STATIC, grid, QUBIT_FRAME);
+
+    julia> penaltyfn = WindowedResonantPenalty(device; A=0.8);
+
+    julia> costfn = CompositeCostFunction(energyfn, penaltyfn);
+
+    julia> validate(costfn; rms=1e-6);
+
+    ```
+
     """
     function CompositeCostFunction(components::CostFunctionType{F}...) where {F}
         return CompositeCostFunction(

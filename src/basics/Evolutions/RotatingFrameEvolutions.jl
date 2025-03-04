@@ -23,6 +23,20 @@ module RotatingFrameEvolutions
 
     A `gradientsignals` method is not currently supported for this evolution algorithm.
 
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> device = Devices.Prototype(TransmonDevice{Float64,2}, 2);
+
+    julia> evolution = ROTATING_FRAME;
+
+    julia> validate(evolution; grid=grid, device=device, skipgradient=true);
+
+    julia> workbasis(evolution)
+    CtrlVQE.Bases.Dressed()
+
+    ```
+
     """
     struct RotatingFrameEvolution <: Evolutions.EvolutionType end
     ROTATING_FRAME = RotatingFrameEvolution()

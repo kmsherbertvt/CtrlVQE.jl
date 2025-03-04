@@ -227,6 +227,23 @@ module WindowedSignals
     Feed in `starttimes` directly,
         or make `W` uniformly spaced windows up to maximum time `T`.
 
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> signal = Windowed(Constant(2.0), 20.0, 5);
+
+    julia> validate(signal; grid=grid, t=10.0, rms=1e-6);
+
+    julia> Parameters.names(signal)
+    5-element Vector{String}:
+     "A.1"
+     "A.2"
+     "A.3"
+     "A.4"
+     "A.5"
+
+    ```
+
     """
     function Windowed end
 
