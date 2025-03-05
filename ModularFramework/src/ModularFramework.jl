@@ -41,7 +41,7 @@ module ModularFramework
 
     include("basics/DenseMeasurements.jl")
         @local_ export DenseMeasurements: DenseMeasurement
-    #= TODO: DenseReference, PauliMeasurement =#
+    #= TODO: PauliMeasurement =#
 
     ######################################################################################
 

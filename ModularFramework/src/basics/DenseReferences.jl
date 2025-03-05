@@ -3,7 +3,7 @@ module DenseReferences
     import ..ModularFramework: ReferenceType
 
     import CtrlVQE.LinearAlgebraTools as LAT
-    import CtrlVQE.QubitOperations: project
+    import CtrlVQE.QubitProjections: isometrize
     import CtrlVQE: Bases
     import CtrlVQE: Devices
 
@@ -54,16 +54,12 @@ module DenseReferences
         isnothing(result) && (result=Array{Complex{eltype(device)}}(undef, N))
 
         # REPRESENT ψ IN ITS NATIVE BASIS, WITH THE CORRECT `m`
-        reference.m == 2 || throw("Qudit DenseReference not implemented yet!")
         m = Devices.nlevels(device)
         n = Devices.nqubits(device)
         @assert m >= reference.m
         @assert n == reference.n
         result .= project(reference.statevector, m, n)
-        #= TODO: The `project` function should have:
-        - an option for inputs which aren't two-level systems?
-        - a result kwarg
-        =#
+        isometrize(reference.statevector, n, m; m0=reference.m, result=result)
 
         # ROTATE INTO THE REQUESTED BASIS
         U = Devices.basisrotation(basis, reference.basis, device)

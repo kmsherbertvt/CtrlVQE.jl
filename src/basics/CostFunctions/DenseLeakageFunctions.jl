@@ -1,9 +1,11 @@
 module DenseLeakageFunctions
     export DenseLeakage
 
-    import ..CtrlVQE: LAT, QubitOperations
+    import ..CtrlVQE: LAT, QubitProjections
     import ..CtrlVQE: Parameters, Operators, Bases
     import ..CtrlVQE: Integrations, Devices, Evolutions, CostFunctions
+
+    import TemporaryArrays: @temparray
 
     """
         DenseLeakage(reference, device, basis, frame, grid, evolution)
@@ -56,7 +58,7 @@ module DenseLeakageFunctions
     function CostFunctions.cost_function(costfn::DenseLeakage; callback=nothing)
         m = Devices.nlevels(costfn.device)
         n = Devices.nqubits(costfn.device)
-        π̄ = QubitOperations.localqubitprojectors(m, n)
+        π̄ = QubitProjections.localprojectors(n, m)
         T = Integrations.endtime(costfn.grid)
         ψ = similar(costfn.reference)
 
@@ -83,11 +85,12 @@ module DenseLeakageFunctions
         ϕ = reshape(ϕ, length(costfn.grid), nG)
 
         # CONSTRUCT LEAKAGE OBSERVABLE 1-Π
-        arr_type = Array{Complex{eltype(costfn.device)}}
-        O = convert(arr_type, LAT.basisvectors(Devices.nstates(costfn.device)))
         m = Devices.nlevels(costfn.device)
         n = Devices.nqubits(costfn.device)
-        O .-= QubitOperations.qubitprojector(m,n)
+        N = Devices.nstates(costfn.device)
+        Π = @temparray(Bool, (N, N), :grad)
+        O = LAT.basisvectors(LAT.cis_type(F), N)
+        O .-= QubitProjections.projector(n, m; result=Π)
         # ROTATE THE FRAME
         T = Integrations.endtime(costfn.grid)
         Devices.evolve!(costfn.frame, costfn.device, costfn.basis, T, O)
@@ -122,7 +125,7 @@ module DenseLeakageFunctions
         n = Devices.nqubits(costfn.device)
         workbasis = Evolutions.workbasis(costfn.evolution)  # BASIS OF CALLBACK ψ
         U = Devices.basisrotation(costfn.basis, workbasis, costfn.device)
-        π̄ = QubitOperations.localqubitprojectors(m, n)
+        π̄ = QubitProjections.localprojectors(n, m)
         ψ_ = similar(costfn.reference)
 
         return (i, t, ψ) -> (

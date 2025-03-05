@@ -5,7 +5,7 @@ import CtrlVQE: LAT
 import CtrlVQE: Parameters
 import CtrlVQE: Integrations, Devices
 
-import CtrlVQE.QubitOperations: project
+import CtrlVQE.QubitProjections: project
 import CtrlVQE.Bases: DRESSED
 import CtrlVQE.Operators: STATIC
 import CtrlVQE: Quple, QUBIT_FRAME
@@ -94,8 +94,8 @@ for ansatz in [:smooth, :window]
             Modular.DISJOINT,
         )
 
-        hamiltonian = Modular.DenseMeasurement(project(    H ,m,n), DRESSED, STATIC)
-        projection  = Modular.DenseMeasurement(project(one(H),m,n), DRESSED, STATIC)
+        hamiltonian = Modular.DenseMeasurement(project(    H ,n,m), DRESSED, STATIC)
+        projection  = Modular.DenseMeasurement(project(one(H),n,m), DRESSED, STATIC)
 
         push!(E[ansatz], Modular.measure(hamiltonian, device, DRESSED, ψ, T))
         push!(Π[ansatz], Modular.measure( projection, device, DRESSED, ψ, T))

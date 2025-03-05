@@ -7,8 +7,8 @@ module CtrlVQE
     include("utils/LinearAlgebraTools.jl")
         import .LinearAlgebraTools as LAT
         export LAT
-    include("utils/QubitOperations.jl")
-        @local_ export QubitOperations
+    include("utils/QubitProjections.jl")
+        @local_ export QubitProjections
 
     # ENUMERATIONS
     include("enums/Parameters.jl")

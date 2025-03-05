@@ -5,7 +5,6 @@ import CtrlVQE: LAT
 import CtrlVQE: Parameters
 import CtrlVQE: Integrations, Devices
 
-import CtrlVQE.QubitOperations: project
 import CtrlVQE.Bases: DRESSED
 import CtrlVQE.Operators: STATIC
 import CtrlVQE: Quple, QUBIT_FRAME

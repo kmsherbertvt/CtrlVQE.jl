@@ -28,12 +28,14 @@ module KetReferences
         basis::Bases.BasisType;
         result=nothing,
     )
+        m = Devices.nlevels(device)
+        n = Devices.nstates(device)
         N = Devices.nstates(device)
+        @assert n == length(reference.ket)
+        @assert m ≥ maximum(reference.ket)
         isnothing(result) && (result=Array{Complex{eltype(device)}}(undef, N))
 
         # REPRESENT ψ IN ITS NATIVE BASIS
-        #= TODO: Include an assertion the nqubits match, and that m >= maximum(ket) =#
-        m = Devices.nlevels(device)
         i = 0
         for q in eachindex(reference.ket)
             i *= m
