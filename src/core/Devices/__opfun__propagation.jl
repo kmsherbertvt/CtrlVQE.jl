@@ -234,7 +234,7 @@ function propagate!(
     ops .= localqubitpropagators(device, τ)
     for p in 1:n
         p == op.q && continue
-        LAT.basisvectors!(@view(ops[:,:,p]))
+        LAT.basisvectors(m; result=@view(ops[:,:,p]))
     end
     return LAT.rotate!(ops, ψ)
 end

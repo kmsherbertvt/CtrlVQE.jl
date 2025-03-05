@@ -71,7 +71,7 @@ function Devices.propagate!(
             driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
             LAT.cis!(@view(ops[:,:,p]), -τ)
         else
-            LAT.basisvectors!(@view(ops[:,:,p]))
+            LAT.basisvectors(m; result=@view(ops[:,:,p]))
         end
     end
     return LAT.rotate!(ops, ψ)
@@ -109,7 +109,7 @@ function Devices.braket(
         if p == q
             driveoperator(device, ā, op.i, op.t; result=@view(ops[:,:,p]))
         else
-            LAT.basisvectors!(@view(ops[:,:,p]))
+            LAT.basisvectors(m; result=@view(ops[:,:,p]))
         end
     end
     return LAT.braket(ψ1, ops, ψ2)
@@ -132,7 +132,7 @@ function Devices.braket(
         if p == q
             gradeoperator(device, ā, op.j, op.t; result=@view(ops[:,:,p]))
         else
-            LAT.basisvectors!(@view(ops[:,:,p]))
+            LAT.basisvectors(m; result=@view(ops[:,:,p]))
         end
     end
     return LAT.braket(ψ1, ops, ψ2)

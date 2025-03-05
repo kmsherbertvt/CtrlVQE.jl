@@ -26,9 +26,7 @@ module DenseLeakageFunctions
 
     julia> device = Devices.Prototype(TransmonDevice{Float64,2}, 2);
 
-    julia> # ψ0 = LAT.basisvector(Complex{eltype(device)}, nstates(device), 1); # TODO extend `basisvector` interface!
-
-    julia> ψ0 = convert(Array{Complex{eltype(device)}}, LAT.basisvector(nstates(device), 1));
+    julia> ψ0 = LAT.basisvector(Complex{eltype(device)}, nstates(device), 1);
 
     julia> costfn = DenseLeakage(ψ0, device, Bases.DRESSED, Operators.STATIC, grid, QUBIT_FRAME);
 

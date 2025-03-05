@@ -45,6 +45,5 @@ module LinearAlgebraTools
     include("LinearAlgebraTools/__braket.jl")
         using .LinearAlgebraTools: braket, expectation
     include("LinearAlgebraTools/__basisvector.jl")
-        using .LinearAlgebraTools: basisvector, basisvector!
-        using .LinearAlgebraTools: basisvectors, basisvectors!
+        using .LinearAlgebraTools: basisvector, basisvectors
 end

@@ -155,7 +155,7 @@ module WindowedResonantTransmonDevices
 
         # PREP AN IDENTITY MATRIX
         Im = @temparray(Bool, size(a), :qubithamiltonian)
-        LAT.basisvectors!(Im)
+        LAT.basisvectors(size(a,1); result=Im)
 
         # CONSTRUCT ω a'a - δ/2 a'a'aa
         result .= 0

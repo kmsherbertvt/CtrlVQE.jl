@@ -50,7 +50,7 @@ module QubitOperations
     """
     function localqubitprojectors(m::Int, n::Int)
         π = @temparray(Bool, (m,m), :localqubitisometries)
-        LAT.basisvectors!(π)
+        LAT.basisvectors(m; result=π)
         for l in 3:m
             π[l,l] = 0
         end
@@ -94,7 +94,7 @@ module QubitOperations
     """
     function localqubitisometries(m::Int, n::Int)
         ϕ = @temparray(Bool, (m,2), :localqubitisometries)
-        LAT.basisvectors!(ϕ)
+        LAT.basisvectors(m; result=ϕ)
 
         ϕ̄ = Array{Bool}(undef, m, 2, n)
         for q in 1:n

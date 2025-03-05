@@ -111,7 +111,7 @@ function braket(
     ops .= localqubitoperators(device)
     for p in 1:n
         p == op.q && continue
-        LAT.basisvectors!(@view(ops[:,:,p]))
+        LAT.basisvectors(m; result=@view(ops[:,:,p]))
     end
     return LAT.braket(ψ1, ops, ψ2)
 end

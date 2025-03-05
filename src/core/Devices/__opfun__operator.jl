@@ -54,7 +54,7 @@ function operator(
     result=nothing,
 )
     isnothing(result) && return _operator(op, device, basis)
-    LAT.basisvectors!(result)
+    LAT.basisvectors(size(result,1); result=result)
     return result
 end
 

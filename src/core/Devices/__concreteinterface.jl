@@ -74,7 +74,7 @@ function globalize(
         if p == q
             ops[:,:,p] .= op
         else
-            LAT.basisvectors!(@view(ops[:,:,p]))
+            LAT.basisvectors(m; result=@view(ops[:,:,p]))
         end
     end
     return LAT.kron(ops; result=result)

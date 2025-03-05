@@ -45,7 +45,7 @@ module TransmonDrifts
 
         # PREP AN IDENTITY MATRIX
         Im = @temparray(Bool, size(a), :qubithamiltonian)
-        LAT.basisvectors!(Im)
+        LAT.basisvectors(size(a,1); result=Im)
 
         result .= 0
         result .-= (drift.δ[q]/2)  .* Im        #       - δ/2    I

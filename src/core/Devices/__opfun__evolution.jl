@@ -224,7 +224,7 @@ function evolve!(
             qubithamiltonian(device, ā, op.q; result=@view(ops[:,:,p]))
             LAT.cis!(@view(ops[:,:,p]), -t)
         else
-            LAT.basisvectors!(@view(ops[:,:,p]))
+            LAT.basisvectors(m; result=@view(ops[:,:,p]))
         end
     end
     return LAT.rotate!(ops, ψ)

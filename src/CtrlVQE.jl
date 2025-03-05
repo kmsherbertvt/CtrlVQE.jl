@@ -83,5 +83,10 @@ module CtrlVQE
     include("basics/CostFunctions/DetuningPenalties.jl")
         @local_ export DetuningPenalties: DetuningPenalty
 
+    #= TODO: Shall we fold in the modular framework..?
+    It has no additional dependencies, so why not?
+    Since I expect it to pretty much always be the thing to use,
+        why bother making people figure out the sub-package nonsense?
+    =#
 
 end
