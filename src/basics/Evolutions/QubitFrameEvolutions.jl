@@ -7,8 +7,6 @@ module QubitFrameEvolutions
     import ..CtrlVQE.Bases: BARE
     import ..CtrlVQE.Operators: STATIC, Drive, Gradient
 
-    import ..CtrlVQE.TrapezoidalIntegrations: TrapezoidalIntegration
-
     import TemporaryArrays: @temparray
 
     import LinearAlgebra: norm
@@ -23,8 +21,8 @@ module QubitFrameEvolutions
     If the drive terms are local (as for a `LocallyDrivenDevice`),
         the drive propagator is relatively cheap.
 
-    This algorithm assumes a trapezoidal rule,
-        so only `TrapezoidalIntegration` grids are allowed.
+    Beware that this algorithm implicitly employs a trapezoidal rule,
+        irrespective of the `grid` passed to evolution functions.
 
     ```jldoctests
     julia> grid = TemporalLattice(20.0, 400);
@@ -49,7 +47,7 @@ module QubitFrameEvolutions
     function Evolutions.evolve!(
         ::QubitFrameEvolution,
         device::Devices.DeviceType,
-        grid::TrapezoidalIntegration,
+        grid::Integrations.IntegrationType,
         ψ::AbstractVector{<:Complex{<:AbstractFloat}};
         callback=nothing,
     )
@@ -94,7 +92,7 @@ module QubitFrameEvolutions
     function Evolutions.gradientsignals(
         evolution::QubitFrameEvolution,
         device::Devices.DeviceType,
-        grid::TrapezoidalIntegration, # TODO: No good reason to limit this to a concrete type. Just document that this funciton implicitly assumes a trapezoidal rule.
+        grid::Integrations.IntegrationType,
         ψ0::AbstractVector,
         Ō::LAT.MatrixList;
         result=nothing,

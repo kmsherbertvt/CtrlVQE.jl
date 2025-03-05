@@ -15,11 +15,6 @@ If possible, it should also implement:
 - `gradientsignals(::A, device, basis, grid, ψ0, r, Ō; kwargs...):
     compute the gradient signals of a device corresponding to multiple observables
 
-You are allowed to implement these for restricted types of `grid`
-    (eg. require it to be a `TrapezoidalIntegration`),
-    so long as you are clear in your documentation.
-TODO: Do not permit this!
-
 """
 abstract type EvolutionType end
 
