@@ -51,38 +51,6 @@ function nstates(device::DeviceType)
 end
 
 """
-    globalize(device::DeviceType, op::AbstractMatrix, q::Int; result=nothing)
-
-Extend a local operator `op` acting on qubit `q` into the global Hilbert space.
-
-The array is stored in `result` if provided.
-
-"""
-function globalize(
-    device::DeviceType, op::AbstractMatrix{F}, q::Int;
-    result=nothing,
-) where {F}
-    if isnothing(result)
-        N = nstates(device)
-        result = Matrix{F}(undef, N, N)
-    end
-
-    m = nlevels(device)
-    n = nqubits(device)
-    ops = @temparray(F, (m,m,n), :globalize)
-    for p in 1:n
-        if p == q
-            ops[:,:,p] .= op
-        else
-            LAT.basisvectors(m; result=@view(ops[:,:,p]))
-        end
-    end
-    return LAT.kron(ops; result=result)
-end
-
-
-
-"""
     globalalgebra(device::DeviceType[, basis::Bases.BasisType])
 
 A globalized version of the matrix list defined by `localalgebra`.
@@ -111,7 +79,7 @@ The array is stored in `result` or, if not provided, returned from a cache.
 
     for q in 1:n
         for σ in 1:o
-            result[:,:,σ,q] .= globalize(device, @view(ā0[:,:,σ,q]), q)
+            result[:,:,σ,q] .= LAT.globalize(@view(ā0[:,:,σ,q]), n, q)
             LAT.rotate!(U, @view(result[:,:,σ,q]))
         end
     end

@@ -1,6 +1,6 @@
 using .Devices: DeviceType, Evolvable
 using .Devices: nlevels, nqubits, nstates
-using .Devices: globalize, operator, localqubitoperators
+using .Devices: operator, localqubitoperators
 
 import ..CtrlVQE: LAT
 import ..CtrlVQE: Bases, Operators
@@ -106,8 +106,9 @@ function propagator(
     result=nothing,
 )
     isnothing(result) && return _propagator(op, device, basis, τ)
+    n = nqubits(device)
     ū = localqubitpropagators(device, τ)
-    return globalize(device, @view(ū[:,:,op.q]), op.q; result=result)
+    return LAT.globalize(@view(ū[:,:,op.q]), n, op.q; result=result)
 end
 
 """

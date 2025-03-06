@@ -20,7 +20,7 @@ function Validation.validate(
     ā0 = localalgebra(device)
     for o in 1:nO
         for q in 1:n
-            @assert ā[:,:,o,q] ≈ globalize(device, @view(ā0[:,:,o,q]), q)
+            @assert ā[:,:,o,q] ≈ LAT.globalize(@view(ā0[:,:,o,q]), n, q)
         end
     end
     v̄ = [driveoperator(device, ā, i, t) for i in 1:nD]
@@ -30,13 +30,13 @@ function Validation.validate(
     v̄0 = [driveoperator(device, ā0, i, t) for i in 1:nD]
     for i in 1:nD
         q = drivequbit(device, i)
-        @assert v̄[i] ≈ globalize(device, v̄0[i], q)
+        @assert v̄[i] ≈ LAT.globalize(v̄0[i], n, q)
     end
 
     Ā0 = [gradeoperator(device, ā0, j, t) for j in 1:nG]
     for j in 1:nG
         q = gradequbit(device, j)
-        @assert Ā[j] ≈ globalize(device, Ā0[j], q)
+        @assert Ā[j] ≈ LAT.globalize(Ā0[j], n, q)
     end
 
     # LOCAL OPERATORS

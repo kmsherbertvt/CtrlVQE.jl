@@ -25,7 +25,7 @@ module Devices
     include("Devices/__concreteinterface.jl")
         export nstates
         export globalalgebra
-        export globalize, dress, basisrotation
+        export dress, basisrotation
         # Also implements Base.eltype
     include("Devices/__opfun__operator.jl")
         export operator, localqubitoperators

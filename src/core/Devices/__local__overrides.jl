@@ -33,10 +33,11 @@ function Devices.propagator(
     q = drivequbit(device, op.i)
 
     m = nlevels(device)
+    n = nqubits(device)
     u = @temparray(Complex{eltype(device)}, (m, m), :channelpropagator)
     u = driveoperator(device, ā, op.i, op.t; result=u)
     u = LAT.cis!(u, -τ)
-    return Devices.globalize(device, u, q; result=result)
+    return LAT.globalize(u, n, q; result=result)
 end
 
 function Devices.propagate!(

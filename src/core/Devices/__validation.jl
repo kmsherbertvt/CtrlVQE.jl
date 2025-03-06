@@ -45,7 +45,7 @@ function Validation.validate(
     ā0 = @withresult localalgebra(device);      @assert size(ā0) == (m,m,nO,n)
     for o in 1:nO
         for q in 1:n
-            @assert ā[:,:,o,q] ≈ @withresult globalize(device, @view(ā0[:,:,o,q]), q)
+            @assert ā[:,:,o,q] ≈ LAT.globalize(@view(ā0[:,:,o,q]), n, q)
         end
     end
 
@@ -54,7 +54,7 @@ function Validation.validate(
         @assert all(h ≈ h' for h in h̄)
     h̄0 = [qubithamiltonian(device, ā0, q) for q in 1:n]
     for q in 1:n
-        @assert h̄[q] ≈ globalize(device, h̄0[q], q)
+        @assert h̄[q] ≈ LAT.globalize(h̄0[q], n, q)
     end
 
     G = @withresult staticcoupling(device, ā);

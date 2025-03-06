@@ -34,8 +34,12 @@ module LinearAlgebraTools
     """
     const MatrixList{T} = AbstractArray{T,3}
 
+    include("LinearAlgebraTools/__basisvector.jl")
+        using .LinearAlgebraTools: basisvector, basisvectors
     include("LinearAlgebraTools/__kron.jl")
         using .LinearAlgebraTools: kron
+    include("LinearAlgebraTools/__globalize.jl")
+        using .LinearAlgebraTools: globalize
     include("LinearAlgebraTools/__rotate.jl")
         using .LinearAlgebraTools: rotate!
     include("LinearAlgebraTools/__eigen.jl")
@@ -44,6 +48,4 @@ module LinearAlgebraTools
         using .LinearAlgebraTools: cis!, cis_type
     include("LinearAlgebraTools/__braket.jl")
         using .LinearAlgebraTools: braket, expectation
-    include("LinearAlgebraTools/__basisvector.jl")
-        using .LinearAlgebraTools: basisvector, basisvectors
 end

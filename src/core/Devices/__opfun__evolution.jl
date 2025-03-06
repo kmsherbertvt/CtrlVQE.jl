@@ -1,6 +1,6 @@
 using .Devices: DeviceType, Evolvable
 using .Devices: nlevels, nqubits, nstates
-using .Devices: globalize, localalgebra, qubithamiltonian, localqubitoperators
+using .Devices: localalgebra, qubithamiltonian, localqubitoperators
 
 import ..CtrlVQE: LAT
 import ..CtrlVQE: Bases, Operators
@@ -94,11 +94,12 @@ function evolver(
     result=nothing
 )
     m = nlevels(device)
+    n = nqubits(device)
     h̄ = localqubitoperators(device)
     u = @temparray(Complex{eltype(device)}, (m,m), :qubitevolver)
     u .= @view(h̄[:,:,op.q])
     u = LAT.cis!(u, -t)
-    return globalize(device, u, op.q; result=result)
+    return LAT.globalize(u, n, op.q; result=result)
 end
 
 """
