@@ -3,6 +3,9 @@ module TruncatedBosonicAlgebras
 
     import CtrlVQE: Devices
 
+    """
+    TODO
+    """
     struct TruncatedBosonicAlgebra{m,n} <: AlgebraType{m,n} end
 
     Devices.noperators(::Type{<:TruncatedBosonicAlgebra}) = 1

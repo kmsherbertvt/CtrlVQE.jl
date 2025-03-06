@@ -29,7 +29,7 @@ module KetReferences
         result=nothing,
     )
         m = Devices.nlevels(device)
-        n = Devices.nstates(device)
+        n = Devices.nqubits(device)
         N = Devices.nstates(device)
         @assert n == length(reference.ket)
         @assert m ≥ maximum(reference.ket)

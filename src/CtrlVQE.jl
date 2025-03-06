@@ -14,10 +14,9 @@ module CtrlVQE
     include("enums/Parameters.jl")
         @local_ export Parameters
     include("enums/Validation.jl")
-        @local_ export Validation: validate#, @withresult
+        @local_ export Validation: validate
         import .Validation: @withresult
         export @withresult
-        # TODO: LocalCustoms doesn't know what to do with macros.
     include("enums/Operators.jl")
         @local_ export Operators
     include("enums/Bases.jl")
@@ -83,10 +82,8 @@ module CtrlVQE
     include("basics/CostFunctions/DetuningPenalties.jl")
         @local_ export DetuningPenalties: DetuningPenalty
 
-    #= TODO: Shall we fold in the modular framework..?
-    It has no additional dependencies, so why not?
-    Since I expect it to pretty much always be the thing to use,
-        why bother making people figure out the sub-package nonsense?
-    =#
+    # MODULAR FRAMEWORK
+    include("modulars/ModularFramework.jl")
+        @local_ export ModularFramework
 
 end

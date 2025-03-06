@@ -1,8 +1,8 @@
 module EvolutionTests
-    import ModularFramework: LocalDevice
-    import ModularFramework: TruncatedBosonicAlgebra
-    import ModularFramework: TransmonDrift, DipoleDrive
-    import ModularFramework: DISJOINT
+    import CtrlVQE.ModularFramework: LocalDevice
+    import CtrlVQE.ModularFramework: TruncatedBosonicAlgebra
+    import CtrlVQE.ModularFramework: TransmonDrift, DipoleDrive
+    import CtrlVQE.ModularFramework: DISJOINT
 
     import CtrlVQE
     import CtrlVQE.Quples: Quple
@@ -94,8 +94,9 @@ module EvolutionTests
     end
 
 end
-import .EvolutionTests: testinfidelity
-import ModularFramework: LocalDevice
+# import .EvolutionTests: testinfidelity
+testinfidelity = EvolutionTests.testinfidelity
+import CtrlVQE.ModularFramework: LocalDevice
 
 Ω = [0.02-0.01im, -0.01+0.02im]
 Δ = [0.1, -0.2]

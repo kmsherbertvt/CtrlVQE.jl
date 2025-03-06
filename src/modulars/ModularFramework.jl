@@ -9,6 +9,14 @@ module ModularFramework
         @local_ export ModularFramework: ReferenceType, MeasurementType
         @local_ export ModularFramework: prepare, measure, nobservables, observables
 
+    #= TODO:
+    - Maybe split up abstract interface into device and energy interfaces.
+    - Validation functions for each abstract type, probably split up into device and energy.
+    - Doctests for each concrete type.
+    - Sigh...how are we going to handle prototypes? If the doctests turn out to be sufficiently concise then I guess I'm fine with it.
+    - Take the README.md and maybe fill out the docs md.
+    =#
+
     include("core/LocalDevices.jl")
         @local_ export LocalDevices: LocalDevice
     include("core/Energies.jl")

@@ -1,4 +1,4 @@
-import ModularFramework as Modular
+import CtrlVQE.ModularFramework as Modular
 
 import CtrlVQE
 import CtrlVQE: LAT

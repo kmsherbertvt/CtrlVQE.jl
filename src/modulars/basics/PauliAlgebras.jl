@@ -3,6 +3,9 @@ module PauliAlgebras
 
     import CtrlVQE: Devices
 
+    """
+    TODO
+    """
     struct PauliAlgebra{n} <: AlgebraType{2,n} end
 
     Devices.noperators(::Type{<:PauliAlgebra}) = 3

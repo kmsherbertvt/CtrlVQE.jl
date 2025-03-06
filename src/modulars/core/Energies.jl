@@ -10,6 +10,9 @@ module Energies
     import CtrlVQE.Devices: DeviceType, gradient
     import CtrlVQE.Evolutions: EvolutionType
 
+    """
+    TODO
+    """
     struct Energy{
         F,
         E <: EvolutionType,

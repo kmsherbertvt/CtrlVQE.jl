@@ -10,6 +10,9 @@ module TransmonDrifts
 
     import LinearAlgebra: mul!
 
+    """
+    TODO
+    """
     struct TransmonDrift{
         A <: TruncatedBosonicAlgebra,
         F,                  # Float type

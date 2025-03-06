@@ -7,6 +7,9 @@ module DipoleDrives
 
     import TemporaryArrays: @temparray
 
+    """
+    TODO
+    """
     struct DipoleDrive{
         A <: TruncatedBosonicAlgebra,
         F,                  # Float type

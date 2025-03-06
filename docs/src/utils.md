@@ -24,5 +24,5 @@ Modules = [LinearAlgebraTools]
 ## QubitOperations
 
 ```@autodocs
-Modules = [QubitOperations]
+Modules = [QubitProjections]
 ```

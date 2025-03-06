@@ -12,6 +12,7 @@ Pages = [
     "enums.md",
     "core.md",
     "basics.md",
+    "modulars.md",
 ]
 Depth = 1
 ```

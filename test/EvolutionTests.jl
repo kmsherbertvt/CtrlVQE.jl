@@ -100,7 +100,8 @@ module EvolutionTests
     end
 
 end
-import .EvolutionTests: testinfidelity
+# import .EvolutionTests: testinfidelity
+testinfidelity = EvolutionTests.testinfidelity
 
 Ω = [0.02-0.01im, -0.01+0.02im]
 Δ = [0.1, -0.2]

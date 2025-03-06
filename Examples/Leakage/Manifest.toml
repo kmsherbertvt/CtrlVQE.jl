@@ -2,7 +2,7 @@
 
 julia_version = "1.11.1"
 manifest_format = "2.0"
-project_hash = "c92aa7f724875fc0fe616aba8055c23e04bb099f"
+project_hash = "3757c170dd9fb5ada194c69e9de6a0691349e936"
 
 [[deps.Adapt]]
 deps = ["LinearAlgebra", "Requires"]
@@ -658,12 +658,6 @@ version = "1.2.0"
 [[deps.Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 version = "1.11.0"
-
-[[deps.ModularFramework]]
-deps = ["CtrlVQE", "LinearAlgebra", "LocalCustoms", "TemporaryArrays"]
-path = "../../ModularFramework"
-uuid = "ac9dda0b-80f2-49b5-843c-e77ea712727d"
-version = "0.1.0"
 
 [[deps.MozillaCACerts_jll]]
 uuid = "14a3606d-f60d-562e-9121-12d972cd8159"

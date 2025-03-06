@@ -1,8 +1,8 @@
-import ModularFramework: LocalDevice, Energy
-import ModularFramework: TruncatedBosonicAlgebra
-import ModularFramework: TransmonDrift, DipoleDrive
-import ModularFramework: DISJOINT
-import ModularFramework: KetReference, DenseMeasurement
+import CtrlVQE.ModularFramework: LocalDevice, Energy
+import CtrlVQE.ModularFramework: TruncatedBosonicAlgebra
+import CtrlVQE.ModularFramework: TransmonDrift, DipoleDrive
+import CtrlVQE.ModularFramework: DISJOINT
+import CtrlVQE.ModularFramework: KetReference, DenseMeasurement
 
 import CtrlVQE
 import CtrlVQE.Bases: DRESSED
@@ -41,7 +41,7 @@ drives = [DipoleDrive{A}(
     Windowed(Constant(zero(Complex{Float})), T, W),
     Constrained(Constant(zero(Float)), :A),
 ) for q in 1:2]
-device = LocalDevice(eltype(Δ), A(), drift, drives, DISJOINT)
+device = LocalDevice(eltype(ω), A(), drift, drives, DISJOINT)
 
 reference = KetReference(ket0, DRESSED)
 measurement = DenseMeasurement(H, DRESSED, STATIC)
