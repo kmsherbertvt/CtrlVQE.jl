@@ -36,7 +36,7 @@ module DenseMeasurements
 
     julia> measurement = DenseMeasurement(observable, Bases.BARE, Operators.STATIC);
 
-    julia> device = Devices.Prototype(LocalDevice{Float64}, 2);
+    julia> device = Prototype(LocalDevice{Float64}; n=2);
 
     julia> validate(measurement; device=device);
 

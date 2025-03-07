@@ -54,7 +54,7 @@ module WindowedResonantPenalties
     Don't feel too attached to that choice.
 
     ```jldoctests
-    julia> device = Devices.Prototype(CWRTDevice{Float64,2}, 2);
+    julia> device = Prototype(CWRTDevice{Float64,2}; n=2);
 
     julia> costfn = WindowedResonantPenalty(device; A=0.8);
 

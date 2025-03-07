@@ -2,7 +2,7 @@ module RealWindowedResonantTransmonDevices
     export RealWindowedResonantTransmonDevice
 
     import CtrlVQE: LAT
-    import CtrlVQE: Parameters
+    import CtrlVQE: Parameters, Prototypes
     import CtrlVQE: Integrations, Devices
 
     import CtrlVQE.Quples: Quple
@@ -289,7 +289,7 @@ module RealWindowedResonantTransmonDevices
     ```jldoctests
     julia> grid = TemporalLattice(20.0, 400);
 
-    julia> device = Devices.Prototype(RWRTDevice{Float64,3}, 2);
+    julia> device = Prototype(RWRTDevice{Float64,3}; n=2);
 
     julia> validate(device; grid=grid, t=10.0);
 
@@ -300,9 +300,10 @@ module RealWindowedResonantTransmonDevices
     ```
 
     """
-    function Devices.Prototype(
-        ::Type{RealWindowedResonantTransmonDevice{F,m}}, n::Int;
-        ω0=2π*4.82, Δω=2π*0.02, δ0=2π*0.30, T=10.0, W=1,
+    function Prototypes.Prototype(
+        ::Type{RealWindowedResonantTransmonDevice{F,m}};
+        n=2, T=10.0,
+        ω0=2π*4.82, Δω=2π*0.02, δ0=2π*0.30, W=1,
     ) where {F,m}
         !(Δω isa AbstractVector) && (Δω = fill(F(Δω), n-1))
 

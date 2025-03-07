@@ -8,7 +8,9 @@ Encapsulates a time-grid, used to decide how to integrate over time.
 
 # Implementation
 
-Any concrete sub-type `G` must implement the following methods:
+Any concrete sub-type `G` must implement the `Prototypes` interface.
+
+In addition, the following methods must be implemented.
 - `nsteps(::G)`: the total number of finite jumps within this time grid.
 
     This is the maximum index of the `timeat` and `stepat` functions,
@@ -66,28 +68,3 @@ Then ``∑_{i=0}^r τ_i = T``.
 
 """
 function stepat end
-
-"""
-    Prototype(gridtype::Type{G}, r::Int; T, kwargs...)
-
-Construct a prototypical grid of type `G` with `r` steps.
-
-The grid should integrate from 0.0 to `T` (which may be given a default value).
-
-# Implementation
-
-The primary purpose of this constructor is to produce time grids
-    with arbitrary numbers of steps
-    for testing and benchmarking purposes.
-Therefore, the constructor should use reasonable values for all unspecified fields,
-    but they need not necessarily be scientifically meaningful.
-
-Of course, the more meaningful they are,
-    the more useful this constructor can be.
-Therefore, the method signature accommodates keyword arguments
-    which can be tailored to the specific device.
-But standard tests and benchmarks are agnostic to those specifics,
-    so these kwargs must have reasonable defaults!
-
-"""
-function Prototype end

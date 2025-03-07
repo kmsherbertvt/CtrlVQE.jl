@@ -17,6 +17,8 @@ module CtrlVQE
         @local_ export Validation: validate
         import .Validation: @withresult
         export @withresult
+    include("enums/Prototypes.jl")
+        @local_ export Prototypes: Prototype
     include("enums/Operators.jl")
         @local_ export Operators
     include("enums/Bases.jl")

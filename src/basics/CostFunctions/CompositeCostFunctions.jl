@@ -53,7 +53,7 @@ module CompositeCostFunctions
     ```jldoctests
     julia> grid = TemporalLattice(20.0, 400);
 
-    julia> device = Devices.Prototype(CWRTDevice{Float64,2}, 2);
+    julia> device = Prototype(CWRTDevice{Float64,2}; n=2);
 
     julia> ψ0 = LAT.basisvector(Complex{eltype(device)}, nstates(device), 1);
 

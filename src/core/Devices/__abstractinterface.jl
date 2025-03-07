@@ -10,7 +10,7 @@ Encapuslates a device Hamiltonian, under which quantum computational states evol
 
 # Implementation
 
-Any concrete sub-type `D` must implement all functions in the `Parameters` module.
+Any concrete sub-type `D` must implement the `Prototypes` and `Parameters` interfaces.
 - In particular, if any static operators in your device depend on variational parameters,
     you should consult the "Note on Caching" below.
 
@@ -88,11 +88,6 @@ The argument `ϕ̄` is a 2d array; `ϕ̄[:,:,j]` contains the jth gradient signa
 
 This method should define `result=nothing` as a keyword argument;
     when passed, use it as the array to store your result in.
-
-## Benchmarking methods:
-
-- `Prototype(::Type{D}, n::Int; T, kwargs...)`:
-        construct a prototypical device of type `D` with `n` qubits.
 
 ## Notes on Caching
 
@@ -274,28 +269,3 @@ The array is stored in `result` if provided.
 
 """
 function gradient end
-
-"""
-    Prototype(devicetype::Type{D}, n::Int; T, kwargs...)
-
-Construct a prototypical device of type `D` with `n` qubits.
-
-The device should have a pulse duration of `T` (which may be given a default value).
-
-# Implementation
-
-The primary purpose of this constructor is to produce devices
-    with arbitrary numbers of qubits
-    for testing and benchmarking purposes.
-Therefore, the constructor should use reasonable values for all unspecified fields,
-    but they need not necessarily be scientifically meaningful.
-
-Of course, the more meaningful they are,
-    the more useful this constructor can be.
-Therefore, the method signature accommodates keyword arguments
-    which can be tailored to the specific device.
-But standard tests and benchmarks are agnostic to those specifics,
-    so these kwargs must have reasonable defaults!
-
-"""
-function Prototype end

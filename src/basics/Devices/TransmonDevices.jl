@@ -2,7 +2,7 @@ module TransmonDevices
     export TransmonDevice
 
     import CtrlVQE: LAT
-    import CtrlVQE: Parameters
+    import CtrlVQE: Parameters, Prototypes
     import CtrlVQE: Integrations, Signals, Devices
 
     import CtrlVQE.Quples: Quple
@@ -368,7 +368,7 @@ module TransmonDevices
     ```jldoctests
     julia> grid = TemporalLattice(20.0, 400);
 
-    julia> device = Devices.Prototype(TransmonDevice{Float64,3}, 2);
+    julia> device = Prototype(TransmonDevice{Float64,3}; n=2);
 
     julia> validate(device; grid=grid, t=10.0);
 
@@ -379,9 +379,10 @@ module TransmonDevices
     ```
 
     """
-    function Devices.Prototype(
-        ::Type{TransmonDevice{F,m}}, n::Int;
-        ω0=2π*4.82, Δω=2π*0.02, δ0=2π*0.30, T=10.0,
+    function Prototypes.Prototype(
+        ::Type{TransmonDevice{F,m}};
+        n=2, T=10.0,
+        ω0=2π*4.82, Δω=2π*0.02, δ0=2π*0.30,
     ) where {F,m}
         !(Δω isa AbstractVector) && (Δω = fill(F(Δω), n-1))
 

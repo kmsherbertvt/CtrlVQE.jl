@@ -30,6 +30,13 @@ Each type has a `validate` method defined, with the following signatures.
     validate(::ReferenceType; device::DeviceType)
     validate(::MeasurementType; grid::IntegrationType, device::DeviceType, t)
 
+Types may optionally implement the `Prototypes` interface.
+Since these are often inter-dependent
+    (e.g. a prototypical `DipoleDrive` may depend on the `DriftType`),
+    prototypes defined here are implemented in a special file, `Prototypes.jl`,
+    and users defining their own types are advised to do something similar
+    for the sake of writing concise doctests.
+
 """
 module ModularFramework
     import LocalCustoms: @local_    # Gives easy exports from local modules.
@@ -53,14 +60,6 @@ module ModularFramework
     include("core/DrivePenalties.jl")
         @local_ export DrivePenalties: DrivePenalty
     include("core/__energyvalidation.jl")
-
-    #= TODO:
-    - import ...CtrlVQE in basics? If it were an issue, it would not have compiled!
-      Perhaps we actually want to get RID of the .. in src/basics..!
-      An in modulars/basics, use import CtrlVQE.ModularFramework..?
-      Standardize throughout. If we can just *not* use relative imports, that'd be great.
-    - I get that we can't really define Prototypes for these modular types until basic types are defined. But we CAN define a ModularFramework.Prototype function with an interface for each type. For that matter, why do we not have just one CtrlVQE.Prototype function? It can be an enumeration just like Validate..? We had considered it before, but not its parallelism with validation. Let's go ahead and do that...
-    =#
 
     ######################################################################################
     #= BASIC IMPLEMENTATIONS =#

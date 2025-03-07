@@ -5,6 +5,7 @@ Measure convergence with increasing step count.
 
 """
 module Convergence
+    import CtrlVQE
     import CtrlVQE: Bases
     import CtrlVQE: Integrations, Devices, Evolutions, CostFunctions
 
@@ -52,7 +53,7 @@ module Convergence
         # EXPERIMENT
         for k in 0:maxk
             r = round(Int, T * 2^k)
-            grid = Integrations.Prototype(gridtype, r; T=T)
+            grid = CtrlVQE.Prototype(gridtype; T=T, r=r, T=r)
             println("Solving r=$r...")
             Evolutions.evolve(evolution, device, basis, grid, ψ0; result=@view(ψ[:,1+k]))
         end
@@ -96,7 +97,7 @@ module Convergence
         # EXPERIMENT
         for k in 0:maxk
             r = round(Int, T * 2^k)
-            grid = Integrations.Prototype(gridtype, r; T=T)
+            grid = CtrlVQE.Prototype(gridtype; r=r, T=T)
             costfn = costfnfactory(grid)
             f = CostFunctions.cost_function(costfn)
             println("Solving r=$r...")
@@ -141,7 +142,7 @@ module Convergence
         # EXPERIMENT
         for k in 0:maxk
             r = round(Int, T * 2^k)
-            grid = Integrations.Prototype(gridtype, r; T=T)
+            grid = CtrlVQE.Prototype(gridtype; r=r, T=T)
             costfn = costfnfactory(grid)
             g! = CostFunctions.grad!function(costfn)
             println("Solving r=$r...")

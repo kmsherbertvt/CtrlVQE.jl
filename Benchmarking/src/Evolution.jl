@@ -1,6 +1,7 @@
 
 import .Benchmarking
 
+import CtrlVQE
 import CtrlVQE: LAT
 import CtrlVQE: Integrations, Devices, Evolutions
 
@@ -87,10 +88,10 @@ function Benchmarking.scaling(
 
     # RUN THE EXPERIMENTS
     for n in 1:maxn
-        device = Devices.Prototype(devicetype, n; T=T)
+        device = Devices.Prototype(devicetype; n=n, T=T)
         for k in 0:maxk
             r = round(Int, T * 2^k)
-            grid = Integrations.Prototype(gridtype, r; T=T)
+            grid = Integrations.Prototype(gridtype; r=r, T=T)
             println("Benchmarking n=$n, r=$r...")
             trial = benchmark(evolution, device, grid)
 
@@ -162,7 +163,7 @@ function Benchmarking.analyze(
     NPZ.npzwrite("$outdir/A.npz"; A...)
 
     # PLOT RESULTS
-    N = [Devices.nstates(Devices.Prototype(devicetype, n)) for n in 1:maxn]
+    N = [Devices.nstates(CtrlVQE.Prototype(devicetype; n=n)) for n in 1:maxn]
 
     plt = Plots.plot(;
         xlabel = "Size of Hilbert Space",

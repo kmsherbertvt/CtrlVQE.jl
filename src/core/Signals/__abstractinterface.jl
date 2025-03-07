@@ -9,7 +9,7 @@ Encapsulates a parametric and differntiable scalar function ``Ω(t)``.
 
 # Implementation
 
-Any concrete sub-type `S` must implement all functions in the `Parameters` module.
+Any concrete sub-type `S` must implement all the `Parameters` interface.
 - In particular, `Parameters.values(Ω::S)` must return a vector of type `P`.
 - If you are trying to create your own signal type,
     you *probably* want to implement a `ParametricSignal`,

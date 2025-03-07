@@ -22,7 +22,7 @@ module KetReferences
 
     julia> reference = KetReference([0,1], Bases.BARE);
 
-    julia> device = Devices.Prototype(LocalDevice{Float64}, 2);
+    julia> device = Prototype(LocalDevice{Float64}; n=2);
 
     julia> validate(reference; device=device);
 

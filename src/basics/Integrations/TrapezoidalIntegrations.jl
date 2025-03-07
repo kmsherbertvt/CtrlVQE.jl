@@ -1,6 +1,7 @@
 module TrapezoidalIntegrations
     export TrapezoidalIntegration, TemporalLattice
 
+    import CtrlVQE: Prototypes
     import CtrlVQE: Integrations
 
     """
@@ -49,15 +50,10 @@ module TrapezoidalIntegrations
         return Integrations.stepsize(grid) / ((0 < i < grid.r) ? 1 : 2)
     end
 
-    """
-        Prototype(::Type{TrapezoidalIntegration{F}}, r::Int; T=10.0)
-
-    A prototypical time grid from t=0.0 to `T`.
-
-    """
-    function Integrations.Prototype(
-        ::Type{TrapezoidalIntegration{F}}, r::Int;
+    function Prototypes.Prototype(
+        ::Type{TrapezoidalIntegration{F}};
         T=10.0,
+        r=round(Int, 20T),
     ) where {F}
         return TrapezoidalIntegration(zero(F), F(T), r)
     end

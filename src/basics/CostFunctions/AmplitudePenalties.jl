@@ -28,7 +28,7 @@ module AmplitudePenalties
     ```jldoctests
     julia> grid = TemporalLattice(20.0, 400);
 
-    julia> device = Devices.Prototype(TransmonDevice{Float64,2}, 2);
+    julia> device = Prototype(TransmonDevice{Float64,2}; n=2);
 
     julia> penalties = [SignalStrengthPenalty(grid, signal; A=0.8) for signal in device.Ω];
 

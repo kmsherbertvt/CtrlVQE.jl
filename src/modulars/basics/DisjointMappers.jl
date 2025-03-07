@@ -17,7 +17,7 @@ module DisjointMappers
 
     julia> pmap = DISJOINT;
 
-    julia> device = Devices.Prototype(LocalDevice{Float64}, 3; pmap=pmap);
+    julia> device = Prototype(LocalDevice{Float64}; n=3, pmap=pmap);
 
     julia> validate(pmap; device=device);
 
