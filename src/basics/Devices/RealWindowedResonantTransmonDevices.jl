@@ -1,11 +1,11 @@
 module RealWindowedResonantTransmonDevices
     export RealWindowedResonantTransmonDevice
 
-    import ..CtrlVQE: LAT
-    import ..CtrlVQE: Parameters
-    import ..CtrlVQE: Integrations, Devices
+    import CtrlVQE: LAT
+    import CtrlVQE: Parameters
+    import CtrlVQE: Integrations, Devices
 
-    import ..CtrlVQE.Quples: Quple
+    import CtrlVQE.Quples: Quple
 
     import TemporaryArrays: @temparray
 

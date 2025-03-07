@@ -1,4 +1,4 @@
-using .Signals: SignalType, ParametricSignal
+import .Signals: SignalType, ParametricSignal
 
 import ..CtrlVQE: Parameters
 import ..CtrlVQE: Signals

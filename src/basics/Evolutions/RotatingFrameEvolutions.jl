@@ -1,11 +1,11 @@
 module RotatingFrameEvolutions
     export ROTATING_FRAME
 
-    import ..CtrlVQE: LAT
-    import ..CtrlVQE: Integrations, Devices, Evolutions
+    import CtrlVQE: LAT
+    import CtrlVQE: Integrations, Devices, Evolutions
 
-    import ..CtrlVQE.Bases: DRESSED
-    import ..CtrlVQE.Operators: STATIC, Drive
+    import CtrlVQE.Bases: DRESSED
+    import CtrlVQE.Operators: STATIC, Drive
 
     import TemporaryArrays: @temparray
 

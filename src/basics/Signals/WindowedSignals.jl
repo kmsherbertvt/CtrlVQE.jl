@@ -1,8 +1,8 @@
 module WindowedSignals
     export WindowedSignal, Windowed
 
-    import ..CtrlVQE: Parameters
-    import ..CtrlVQE: Integrations, Signals
+    import CtrlVQE: Parameters
+    import CtrlVQE: Integrations, Signals
 
 
     #= TODO:

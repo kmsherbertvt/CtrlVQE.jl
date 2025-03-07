@@ -1,6 +1,6 @@
-using .Devices: DeviceType, Evolvable
-using .Devices: nlevels, nqubits, nstates
-using .Devices: localalgebra, qubithamiltonian, localqubitoperators
+import .Devices: DeviceType, Evolvable
+import .Devices: nlevels, nqubits, nstates
+import .Devices: localalgebra, qubithamiltonian, localqubitoperators
 
 import ..CtrlVQE: LAT
 import ..CtrlVQE: Bases, Operators

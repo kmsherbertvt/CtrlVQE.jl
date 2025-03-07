@@ -1,4 +1,4 @@
-using .Signals: SignalType
+import .Signals: SignalType
 
 import ..CtrlVQE: Integrations, Signals
 

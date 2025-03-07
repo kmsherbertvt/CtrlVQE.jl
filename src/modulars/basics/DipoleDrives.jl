@@ -1,6 +1,6 @@
 module DipoleDrives
-    import ..ModularFramework: LocalDrive
-    import ..ModularFramework: TruncatedBosonicAlgebra
+    import CtrlVQE.ModularFramework: LocalDrive
+    import CtrlVQE.ModularFramework: TruncatedBosonicAlgebra
 
     import CtrlVQE: Parameters
     import CtrlVQE: Integrations, Signals, Devices, CostFunctions

@@ -1,4 +1,4 @@
-using .Devices: DeviceType
+import .Devices: DeviceType
 
 """
     LocallyDrivenDevice

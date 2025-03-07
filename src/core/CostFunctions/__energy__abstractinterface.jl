@@ -1,4 +1,4 @@
-using .CostFunctions: CostFunctionType
+import .CostFunctions: CostFunctionType
 
 """
     EnergyFunction{F}

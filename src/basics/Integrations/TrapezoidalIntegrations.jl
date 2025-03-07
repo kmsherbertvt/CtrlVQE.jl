@@ -1,7 +1,7 @@
 module TrapezoidalIntegrations
     export TrapezoidalIntegration, TemporalLattice
 
-    import ..CtrlVQE: Integrations
+    import CtrlVQE: Integrations
 
     """
         TrapezoidalIntegration(t0::F, tf::F, r::Int)

@@ -1,4 +1,4 @@
-using .LinearAlgebraTools: MatrixList, kron
+import .LinearAlgebraTools: MatrixList, kron
 
 import TemporaryArrays: @temparray
 

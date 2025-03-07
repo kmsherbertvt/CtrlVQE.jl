@@ -1,4 +1,4 @@
-using .Signals: SignalType
+import .Signals: SignalType
 
 """
     ParametricSignal{P,R}

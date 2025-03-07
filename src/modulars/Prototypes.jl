@@ -1,5 +1,5 @@
 module Prototypes
-    using ..ModularFramework
+    using CtrlVQE.ModularFramework
 
     import CtrlVQE: Quple
     import CtrlVQE: Devices

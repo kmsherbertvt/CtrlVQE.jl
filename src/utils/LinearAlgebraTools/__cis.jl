@@ -1,4 +1,4 @@
-using .LinearAlgebraTools: eigen!
+import .LinearAlgebraTools: eigen!
 
 import TemporaryArrays: @temparray
 

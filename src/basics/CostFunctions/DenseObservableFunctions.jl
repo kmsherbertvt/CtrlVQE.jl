@@ -1,9 +1,9 @@
 module DenseObservableFunctions
     export DenseObservable
 
-    import ..CtrlVQE: LAT
-    import ..CtrlVQE: Parameters, Operators, Bases
-    import ..CtrlVQE: Integrations, Devices, Evolutions, CostFunctions
+    import CtrlVQE: LAT
+    import CtrlVQE: Parameters, Operators, Bases
+    import CtrlVQE: Integrations, Devices, Evolutions, CostFunctions
 
     """
         DenseObservable(observable, reference, device, basis, frame, grid, evolution)

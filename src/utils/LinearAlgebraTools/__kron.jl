@@ -1,4 +1,4 @@
-using .LinearAlgebraTools: MatrixList, VectorList
+import .LinearAlgebraTools: MatrixList, VectorList
 
 import TemporaryArrays: @temparray
 

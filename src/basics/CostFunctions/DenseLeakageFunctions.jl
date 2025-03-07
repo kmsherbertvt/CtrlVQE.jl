@@ -1,9 +1,9 @@
 module DenseLeakageFunctions
     export DenseLeakage
 
-    import ..CtrlVQE: LAT, QubitProjections
-    import ..CtrlVQE: Parameters, Operators, Bases
-    import ..CtrlVQE: Integrations, Devices, Evolutions, CostFunctions
+    import CtrlVQE: LAT, QubitProjections
+    import CtrlVQE: Parameters, Operators, Bases
+    import CtrlVQE: Integrations, Devices, Evolutions, CostFunctions
 
     import TemporaryArrays: @temparray
 

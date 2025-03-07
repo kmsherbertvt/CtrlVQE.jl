@@ -1,6 +1,6 @@
 module TransmonDrifts
-    import ..ModularFramework: DriftType
-    import ..ModularFramework: TruncatedBosonicAlgebra
+    import CtrlVQE.ModularFramework: DriftType
+    import CtrlVQE.ModularFramework: TruncatedBosonicAlgebra
 
     import CtrlVQE: Quple
     import CtrlVQE: LAT

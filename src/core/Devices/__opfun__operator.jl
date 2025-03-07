@@ -1,7 +1,7 @@
-using .Devices: DeviceType
-using .Devices: ndrives, nlevels, nqubits, nstates
-using .Devices: localalgebra, globalalgebra, dress
-using .Devices: qubithamiltonian, staticcoupling, driveoperator, gradeoperator
+import .Devices: DeviceType
+import .Devices: ndrives, nlevels, nqubits, nstates
+import .Devices: localalgebra, globalalgebra, dress
+import .Devices: qubithamiltonian, staticcoupling, driveoperator, gradeoperator
 
 import ..CtrlVQE: LAT
 import ..CtrlVQE: Bases, Operators

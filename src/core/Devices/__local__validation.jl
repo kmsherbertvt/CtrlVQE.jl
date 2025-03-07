@@ -1,4 +1,4 @@
-using .Devices: DeviceType, LocallyDrivenDevice
+import .Devices: DeviceType, LocallyDrivenDevice
 
 import ..CtrlVQE: Validation
 

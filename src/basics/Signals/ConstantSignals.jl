@@ -1,7 +1,7 @@
 module ConstantSignals
     export ConstantSignal, ComplexConstantSignal, Constant
 
-    import ..CtrlVQE: Signals
+    import CtrlVQE: Signals
 
     """
         ConstantSignal(A::AbstractFloat)

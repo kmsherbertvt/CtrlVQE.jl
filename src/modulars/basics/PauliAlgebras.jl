@@ -1,5 +1,5 @@
 module PauliAlgebras
-    import ..ModularFramework: AlgebraType
+    import CtrlVQE.ModularFramework: AlgebraType
 
     import CtrlVQE: Devices
 

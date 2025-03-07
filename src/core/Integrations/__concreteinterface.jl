@@ -1,5 +1,5 @@
-using .Integrations: IntegrationType
-using .Integrations: nsteps, timeat, stepat
+import .Integrations: IntegrationType
+import .Integrations: nsteps, timeat, stepat
 
 """
     starttime(grid::IntegrationType)

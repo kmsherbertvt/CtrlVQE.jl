@@ -1,6 +1,6 @@
 module LinearMappers
-    import ..ModularFramework as Modular
-    import ..ModularFramework: ParameterMap
+    import CtrlVQE.ModularFramework as Modular
+    import CtrlVQE.ModularFramework: ParameterMap
 
     import CtrlVQE: Parameters
 

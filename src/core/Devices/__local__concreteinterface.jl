@@ -1,6 +1,6 @@
-using .Devices: LocallyDrivenDevice
-using .Devices: drivequbit, ndrives, nlevels, nqubits
-using .Devices: localalgebra, driveoperator
+import .Devices: LocallyDrivenDevice
+import .Devices: drivequbit, ndrives, nlevels, nqubits
+import .Devices: localalgebra, driveoperator
 
 import ..CtrlVQE: LAT
 

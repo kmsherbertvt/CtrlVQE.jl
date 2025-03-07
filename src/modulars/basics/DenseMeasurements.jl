@@ -1,6 +1,6 @@
 module DenseMeasurements
-    import ..ModularFramework as Modular
-    import ..ModularFramework: AlgebraType, MeasurementType
+    import CtrlVQE.ModularFramework as Modular
+    import CtrlVQE.ModularFramework: AlgebraType, MeasurementType
 
     import CtrlVQE.LinearAlgebraTools as LAT
     import CtrlVQE: Bases, Operators

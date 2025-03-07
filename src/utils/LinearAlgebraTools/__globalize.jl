@@ -1,6 +1,6 @@
-import TemporaryArrays: @temparray
-
 import .LinearAlgebraTools: kron, basisvectors
+
+import TemporaryArrays: @temparray
 
 """
     globalize(op::AbstractMatrix, n::Int, q::Int; result=nothing)

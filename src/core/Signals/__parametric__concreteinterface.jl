@@ -1,5 +1,5 @@
-using .Signals: ParametricSignal
-using .Signals: parameters
+import .Signals: ParametricSignal
+import .Signals: parameters
 
 import ..CtrlVQE: Parameters
 

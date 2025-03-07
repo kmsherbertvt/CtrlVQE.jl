@@ -1,5 +1,5 @@
-using .Evolutions: EvolutionType
-using .Evolutions: workbasis
+import .Evolutions: EvolutionType
+import .Evolutions: workbasis
 
 import ..CtrlVQE: LAT
 import ..CtrlVQE: Bases

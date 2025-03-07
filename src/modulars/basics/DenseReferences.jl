@@ -1,6 +1,6 @@
 module DenseReferences
-    import ..ModularFramework as Modular
-    import ..ModularFramework: ReferenceType
+    import CtrlVQE.ModularFramework as Modular
+    import CtrlVQE.ModularFramework: ReferenceType
 
     import CtrlVQE.LinearAlgebraTools as LAT
     import CtrlVQE.QubitProjections: isometrize

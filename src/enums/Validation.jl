@@ -5,7 +5,7 @@ Standardized interface for ensuring user-defined types are consistent with the i
 
 """
 module Validation
-    import ..CtrlVQE: Parameters
+    import CtrlVQE: Parameters
 
     """
         validate(type)

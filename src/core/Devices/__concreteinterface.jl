@@ -1,5 +1,5 @@
-using .Devices: DeviceType
-using .Devices: nlevels, nqubits, noperators, localalgebra
+import .Devices: DeviceType
+import .Devices: nlevels, nqubits, noperators, localalgebra
 
 import ..CtrlVQE: LAT
 import ..CtrlVQE: Bases, Operators

@@ -1,8 +1,8 @@
 module CompositeSignals
     export CompositeSignal, Composed
 
-    import ..CtrlVQE: Parameters
-    import ..CtrlVQE: Signals
+    import CtrlVQE: Parameters
+    import CtrlVQE: Signals
 
     """
         CompositeSignal(components::AbstractVector{<:SignalType{P,R}})

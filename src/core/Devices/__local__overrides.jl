@@ -1,6 +1,6 @@
-using .Devices: LocallyDrivenDevice, Evolvable
-using .Devices: drivequbit, gradequbit, ndrives, nlevels, nqubits
-using .Devices: localdrivepropagators, localalgebra, driveoperator, gradeoperator
+import .Devices: LocallyDrivenDevice, Evolvable
+import .Devices: drivequbit, gradequbit, ndrives, nlevels, nqubits
+import .Devices: localdrivepropagators, localalgebra, driveoperator, gradeoperator
 
 import ..CtrlVQE: LAT
 import ..CtrlVQE: Bases, Operators

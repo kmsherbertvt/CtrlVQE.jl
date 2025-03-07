@@ -9,7 +9,7 @@ module QubitProjections
     export qubitisometry, localqubitisometries
     export nqubits
 
-    import ..CtrlVQE: LAT
+    import CtrlVQE: LAT
 
     import TemporaryArrays: @temparray
 

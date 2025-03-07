@@ -1,4 +1,4 @@
-using .LinearAlgebraTools: MatrixList, rotate!
+import .LinearAlgebraTools: MatrixList, rotate!
 
 import TemporaryArrays: @temparray
 

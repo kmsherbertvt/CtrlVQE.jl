@@ -1,11 +1,11 @@
 module QubitFrameEvolutions
     export QUBIT_FRAME
 
-    import ..CtrlVQE: LAT
-    import ..CtrlVQE: Integrations, Devices, Evolutions
+    import CtrlVQE: LAT
+    import CtrlVQE: Integrations, Devices, Evolutions
 
-    import ..CtrlVQE.Bases: BARE
-    import ..CtrlVQE.Operators: STATIC, Drive, Gradient
+    import CtrlVQE.Bases: BARE
+    import CtrlVQE.Operators: STATIC, Drive, Gradient
 
     import TemporaryArrays: @temparray
 

@@ -1,13 +1,13 @@
 module TransmonDevices
     export TransmonDevice
 
-    import ..CtrlVQE: LAT
-    import ..CtrlVQE: Parameters
-    import ..CtrlVQE: Integrations, Signals, Devices
+    import CtrlVQE: LAT
+    import CtrlVQE: Parameters
+    import CtrlVQE: Integrations, Signals, Devices
 
-    import ..CtrlVQE.Quples: Quple
-    import ..CtrlVQE.Signals: SignalType
-    import ..CtrlVQE: Constant, Constrained
+    import CtrlVQE.Quples: Quple
+    import CtrlVQE.Signals: SignalType
+    import CtrlVQE: Constant, Constrained
 
     import TemporaryArrays: @temparray
 
