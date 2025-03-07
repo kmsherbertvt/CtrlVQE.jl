@@ -22,6 +22,25 @@ module LinearMappers
     `A` is represented internally as a data vector `encoding` and shape vector `size`,
         so that it can be resized in-place.
 
+    ```jldoctests
+    julia> using CtrlVQE.ModularFramework;
+
+    julia> pmap = LinearMapper(ones(2,4,3));
+
+    julia> device = Devices.Prototype(LocalDevice{Float64}, 3; pmap=pmap);
+
+    julia> validate(pmap; device=device);
+
+    julia> map_values(pmap, device, 1)
+    2-element Vector{Float64}:
+     0.0
+     0.0
+
+    julia> Parameters.count(device)
+    4
+
+    ```
+
     """
     struct LinearMapper{F} <: ParameterMap
         encoding::Vector{F}
@@ -50,14 +69,21 @@ module LinearMappers
         #= TODO: Tacitly assume encoding is orthogonal,
             and compute projection of drives onto the space spanned by the encoding
             (implicitly assuming each basis vector is orthogonal). =#
+
+        return device
     end
 
-    function Modular.map_values(pmap::LinearMapper, device, i::Int; result)
+    function Modular.map_values(pmap::LinearMapper, device, i::Int; result=nothing)
+        L = Parameters.count(device.drives[i])
+        isnothing(result) && (result = Array{eltype(device)}(undef, L))
         A = reshape(pmap.encoding, Tuple(pmap.size))
         return mul!(result, @view(A[:,:,i]), device.x)
     end
 
-    function Modular.map_gradients(pmap::LinearMapper, device, i::Int; result)
+    function Modular.map_gradients(pmap::LinearMapper, device, i::Int; result=nothing)
+        LT = Parameters.count(device)
+        Li = Parameters.count(device.drives[i])
+        isnothing(result) && (result = Array{eltype(device)}(undef, LT, Li))
         A = reshape(pmap.encoding, Tuple(pmap.size))
         result .= transpose(@view(A[:,:,i]))
         return result

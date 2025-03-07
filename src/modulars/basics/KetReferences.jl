@@ -11,10 +11,29 @@ module KetReferences
 
     Represents a basis state of the given basis.
 
-    Note the result of `initialize` will only be a basis state
-        if the ket basis and the initialization basis match.
+    # Parameters
+    - `ket`: a vector of integers, representing the ket.
+        For example, `[0,1,1]` represents state `|011⟩`, the fourth basis state.
+        Note that index 1 of the ket is the *most significant* bit.
+    - `basis`: the `BasisType` identifying the basis for which this state is a ket state.
 
-    Index 1 of ket is the *most significant* bit when determining *which* basis state.
+    ```jldoctests
+    julia> using CtrlVQE.ModularFramework;
+
+    julia> reference = KetReference([0,1], Bases.BARE);
+
+    julia> device = Devices.Prototype(LocalDevice{Float64}, 2);
+
+    julia> validate(reference; device=device);
+
+    julia> prepare(reference, device, Bases.BARE)
+    4-element Vector{ComplexF64}:
+     0.0 + 0.0im
+     1.0 + 0.0im
+     0.0 + 0.0im
+     0.0 + 0.0im
+
+    ```
 
     """
     struct KetReference{B<:Bases.BasisType} <: ReferenceType

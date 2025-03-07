@@ -8,7 +8,44 @@ module DipoleDrives
     import TemporaryArrays: @temparray
 
     """
-    TODO
+        DipoleDrive(q, ω, Ω, Δ)
+
+    A drive term representing interaction of a bosonic mode with an electric dipole,
+        in the rotating wave approximation.
+
+    `` \\hat V = Ω(t) e^{i [Δ(t)+ω] t} \\hat a_q + {\\rm h.t.} ``
+
+    # Parameters
+    - `q`: the integer index identifying which qubit this drive applies to
+    - `ω`: the resonance frequency of the qubit
+    - `Ω`: a `SignalType` representing the complex drive strength over time
+    - `Δ`: a `SignalType` representing the detuning over time
+
+    ```jldoctests
+    julia> grid = TemporalLattice(20.0, 400);
+
+    julia> Ω = Constant(2.0+1.0im);
+
+    julia> Δ = Constant(0.0);
+
+    julia> using CtrlVQE.ModularFramework;
+
+    julia> A = TruncatedBosonicAlgebra{3,2};
+
+    julia> drive = DipoleDrive{A}(1, 4.82, Ω, Δ);
+
+    julia> validate(drive; algebra=A(), grid=grid, t=10.0);
+
+    julia> ā0 = Devices.localalgebra(A());
+
+    julia> Devices.driveoperator(drive, ā0, 10.0)
+    3×3 Matrix{ComplexF64}:
+            0.0+0.0im      -0.0693931-2.23499im         0.0+0.0im
+     -0.0693931+2.23499im         0.0+0.0im      -0.0981367-3.16075im
+            0.0+0.0im      -0.0981367+3.16075im         0.0+0.0im
+
+    ```
+
     """
     struct DipoleDrive{
         A <: TruncatedBosonicAlgebra,
@@ -74,7 +111,13 @@ module DipoleDrives
     Devices.ngrades(drive::Type{<:DipoleDrive}) = 2
     Devices.drivequbit(drive::DipoleDrive) = drive.q
 
-    function Devices.driveoperator(drive::DipoleDrive, ā, t::Real; result)
+    function Devices.driveoperator(
+        drive::DipoleDrive{A,F},
+        ā,
+        t::Real;
+        result=nothing,
+    ) where {A,F}
+        isnothing(result) && (result = Array{Complex{F}}(undef, size(ā)[1:2]))
         a = @view(ā[:,:,1,drive.q])
         Ω = Signals.valueat(drive.Ω, t)
         ν = Signals.valueat(drive.Δ, t) + drive.ω
@@ -88,12 +131,13 @@ module DipoleDrives
     end
 
     function Devices.gradeoperator(
-        drive::DipoleDrive,
+        drive::DipoleDrive{A,F},
         ā,
         j::Int,
         t::Real;
         result=nothing,
-    )
+    ) where {A,F}
+        isnothing(result) && (result = Array{Complex{F}}(undef, size(ā)[1:2]))
         a = @view(ā[:,:,1,drive.q])
         ν = Signals.valueat(drive.Δ, t) + drive.ω
         e = cis(ν * t)
@@ -110,8 +154,9 @@ module DipoleDrives
         drive::DipoleDrive{A,F},
         grid::Integrations.IntegrationType,
         ϕ::AbstractMatrix;
-        result,
+        result=nothing,
     ) where {A,F}
+        isnothing(result) && (result = Array{F}(undef, Parameters.count(drive)))
         # ALIAS RELEVANT GRADIENT SIGNALS
         ϕα = @view(ϕ[:,1])
         ϕβ = @view(ϕ[:,2])

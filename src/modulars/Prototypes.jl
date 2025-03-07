@@ -5,6 +5,64 @@ module Prototypes
     import CtrlVQE: Devices
     import CtrlVQE: Constrained, Constant
 
+    function Devices.Prototype(
+        ::Type{TransmonDrift}, n::Int;
+        A=TruncatedBosonicAlgebra{2,n},
+        F=Float64,
+        Δω=F(2π*0.02), ω0=F(2π*4.82), δ0=F(2π*0.30),
+    )
+        n = Devices.nqubits(A)
+        Δω isa AbstractVector || (Δω = fill(Δω, n-1))
+
+        ω = fill(ω0, n); ω .+= [0; cumsum(Δω)]
+        δ = fill(δ0, n)
+        g = deepcopy(Δω)
+        quples = [Quple(q,q+1) for q in 1:n-1]
+        return TransmonDrift{A}(ω, δ, g, quples)
+    end
+
+    function Devices.Prototype(
+        ::Type{DipoleDrive}, q::Int;
+        A=TruncatedBosonicAlgebra{2,n},
+        F=Float64,
+        ω=F(2π*4.82),
+    )
+        Ω = Constant(zero(Complex{F}))
+        Δ = Constrained(Constant(zero(F)), :A)
+        return DipoleDrive{A}(q, ω, Ω, Δ)
+    end
+
+    function Devices.Prototype(
+        ::Type{D}, n::Int;
+        algebra=nothing,
+        drift=nothing,
+        drives=nothing,
+        pmap=nothing,
+    ) where {F,D<:LocalDevice{F}}
+        isnothing(algebra) && (algebra = TruncatedBosonicAlgebra{2,n}())
+        A = algebratype(algebra)
+        if isnothing(drift)
+            if A <: TruncatedBosonicAlgebra
+                drift = Devices.Prototype(TransmonDrift, n; A=A, F=Float64)
+            else
+                error("No default drift for $A")
+            end
+        end
+        if isnothing(drives)
+            if drift isa TransmonDrift
+                ω = drift.ω
+                drives = [Devices.Prototype(DipoleDrive, q; A=A, ω=ω[q]) for q in 1:n]
+            else
+                error("No default drive for $(typeof(drift))")
+            end
+        end
+        if isnothing(pmap)
+            pmap = DISJOINT
+        end
+
+        return LocalDevice(F, algebra, drift, drives, pmap)
+    end
+
     """
         Prototype(::Type{LocalDevice{
             F,

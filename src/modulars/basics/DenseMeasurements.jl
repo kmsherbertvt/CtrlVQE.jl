@@ -11,8 +11,44 @@ module DenseMeasurements
     """
         DenseMeasurement(algebra, observable, basis, frame)
 
-    Reperesents a bare measurement of an observable in a given basis and frame,
+    Reperesents a bare measurement of a matrix observable in a given basis and frame,
         without any logical projection prior to frame rotation.
+
+    # Parameters
+    - `observable`: the dense matrix observable.
+    - `basis`: the `BasisType` identifying the basis `observable` is written in.
+    - `frame`: the `OperatorType` identifying the frame where measurements are conducted.
+
+    Specifically, the operator identified by `frame`
+        is the one we rotate by for duration `t`
+        to move from the "lab" frame to the interaction picture.
+    Use `IDENTITY` for the lab frame itslef, and `STATIC` for the dressed frame.
+
+    ```jldoctests
+    julia> using CtrlVQE.ModularFramework;
+
+    julia> observable = LAT.basisvectors(4)
+    4×4 Matrix{Bool}:
+     1  0  0  0
+     0  1  0  0
+     0  0  1  0
+     0  0  0  1
+
+    julia> measurement = DenseMeasurement(observable, Bases.BARE, Operators.STATIC);
+
+    julia> device = Devices.Prototype(LocalDevice{Float64}, 2);
+
+    julia> validate(measurement; device=device);
+
+    julia> Ō = observables(measurement, device, Bases.BARE, 10.0);
+
+    julia> size(Ō)
+    (4, 4, 1)
+
+    julia> observable ≈ reshape(Ō, (4,4))
+    true
+
+    ```
 
     """
     struct DenseMeasurement{

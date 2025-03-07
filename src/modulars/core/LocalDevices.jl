@@ -11,9 +11,9 @@ module LocalDevices
     import LinearAlgebra: mul!
 
     """
-        LocalDevice(F, algebra, drift, drives, pmap)
+        LocalDevice(algebra, drift, drives, pmap, x)
 
-    A totally modular device in the algebraic framework (with some restrictions).
+    A totally modular device, with some restrictions (see below).
 
     # Parameters
     - `algebra::AlgebraType`: the algebra, defining the Hilbert space.
@@ -48,7 +48,7 @@ module LocalDevices
       - In principle, another type could relax this restriction if:
         - compatible drift types implement the `Parameters` interface.
         - compatible parameter map types implement suitable versions
-            of `map_values!` and `map_gradients!`
+            of `map_values` and `map_gradients`
         - the `bind!` method clears relevant methods from the `Memoization.jl` cache.
         - all loops in this file with parameter manipulation include a step for the drift.
 
@@ -204,6 +204,7 @@ module LocalDevices
         ϕ::AbstractMatrix;
         result=nothing,
     )
+        isnothing(result) && (result = Array{eltype(device)}(undef, length(device.x)))
         ng = Devices.ngrades(eltype(device.drives))
 
         # TEMP ARRAY TO HOLD GRADIENTS FOR EACH CHANNEL (one at a time)

@@ -4,13 +4,33 @@ module PauliAlgebras
     import CtrlVQE: Devices
 
     """
-    TODO
+        PauliAlgebra{n}()
+
+    An algebra of `n` spinors, represented with the Pauli spin matrices.
+
+    ```jldoctests
+    julia> using CtrlVQE.ModularFramework;
+
+    julia> A = PauliAlgebra{4};
+
+    julia> validate(A());
+
+    julia> nlevels(A)
+    2
+    julia> nqubits(A)
+    4
+    julia> noperators(A)
+    3
+
+    ```
+
     """
     struct PauliAlgebra{n} <: AlgebraType{2,n} end
 
     Devices.noperators(::Type{<:PauliAlgebra}) = 3
 
-    function Devices.localalgebra(::PauliAlgebra{n}; result) where {n}
+    function Devices.localalgebra(::PauliAlgebra{n}; result=nothing) where {n}
+        isnothing(result) && (result = Array{Complex{Int}}(undef, 2, 2, 3, n))
         result .= 0
         for q in 1:n
             # X

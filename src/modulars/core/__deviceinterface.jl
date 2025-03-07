@@ -1,5 +1,4 @@
 import CtrlVQE: Devices
-import CtrlVQE: CostFunctions
 
 """
     algebratype(object)
@@ -33,8 +32,6 @@ Subtypes `A` must implement the following methods:
         how many unique operators define an algebra on one qubit.
 - `Devices.localalgebra(::A; result)`: a 4d array ā
         where ā[:,:,σ,q] is the σ'th algebraic operator on qubit q, in the bare basis.
-    The result is written to `result`, which is mandatory
-        (unlike in the interface for device types).
 
 """
 abstract type AlgebraType{m,n} end
@@ -66,9 +63,6 @@ Subtypes `H` must implement the following methods:
         the static components of the device Hamiltonian local to qubit q.
 - `Devices.staticcoupling(::H, ā; result)`:
         the static components of the device Hamiltonian nonlocal to any one qubit.
-
-The result is written to `result`, which is mandatory
-        (unlike in the interface for device types).
 
 The `ā` arg is a 4d array with all algebra operators,
     like the one returned by `Devices.localalgebra`
@@ -103,9 +97,6 @@ Subtypes `V` must implement the `Parameters` interface, and the following method
 - `gradient(::V, grid::Integrations.IntegrationType, ϕ; result)`:
         the gradient vector for each variational parameter in the device.
 
-The result is written to `result`, which is mandatory
-        (unlike in the interface for device types).
-
 Note that the drive index `i` is omitted from the interface for `driveoperator`,
     and the grade index `j` is with respect to just this channel.
 That means `j` will only ever take values between 1 and `ngrades(V)`.
@@ -131,12 +122,12 @@ Delegated `drivequbit`.
 # Implementation
 
 Subtypes `D` must implement the `DriveType` interface, and the following method:
-- `drivequbit(::D)`: index of the qubit on which this drive is applied.
+- `Devices.drivequbit(::D)`: index of the qubit on which this drive is applied.
 
 Note that the drive index `i` is omitted from the interface for `drivequbit`.
 
 """
-abstract type LocalDrive{A<:AlgebraType} end
+abstract type LocalDrive{A<:AlgebraType} <: DriveType{A} end
 
 ##########################################################################################
 
@@ -196,13 +187,11 @@ Compute the parameters for a drive term, as a function of all device parameters.
         Certain implementations of `ParameterMap` may have additional requirements.
 - `i`: identifies which function in the family (i.e. indexes the drive).
 
-The returned result is also written to the `result` kwarg, which is mandatory.
-
 """
 function map_values end
 
 """
-    map_gradients!(device::ModularDevice, i::Int; result)
+    map_gradients(pmap::ParameterMap, device::ModularDevice, i::Int; result)
 
 Compute gradients for parameters in a drive term, with respect to each device parameter.
 
@@ -215,107 +204,5 @@ Compute gradients for parameters in a drive term, with respect to each device pa
 # Returns
 A matrix `g`, such that `g[k,j]` is ``∂_{x_k} y_j``.
 
-The returned result is also written to the `result` kwarg, which is mandatory.
-
 """
 function map_gradients end
-
-##########################################################################################
-
-"""
-    ReferenceType
-
-A protocol to prepare an initial statevector.
-
-# Implementation
-
-Subtypes `R` must implement the following methods:
-- `prepare(::R, device, basis; result)`:
-    constructs the initial statevector in the given basis.
-
-"""
-abstract type ReferenceType end
-
-"""
-    prepare(preparer, device, basis; result=nothing)
-
-Prepare the state and represent it as a statevector in the given basis.
-
-# Parameters
-- `preparer::ReferenceType`: the state preparation protocol.
-- `device::DeviceType`: the device for which the state is being prepared.
-- `basis::BasisType`: the basis to represent the reference state in.
-
-The returned result is also written to the `result` kwarg when provided.
-
-"""
-function prepare end
-
-##########################################################################################
-
-"""
-    MeasurementType
-
-A protocol to measure scalars from a statevector.
-
-# Implementation
-
-Subtypes `M` must implement the following methods:
-- `measure(::M, device, basis, ψ, t)`: constructs the initial statevector.
-- `observables(::M, device, basis, t; result)`:
-    constructs the observables in the given basis.
-- `CostFunctions.nobservables(::Type{M})`:
-    the number of distinct observables involved in a measurement.
-- `Devices.gradient(::M, device, grid, ϕ, ψ; result)`:
-    calculates the gradient of device parameters, given gradient signals.
-
-In `Devices.gradient`, `ϕ[:,j,k]` contains the jth gradient signal
-    ``ϕ_j(t)`` evaluated at each point in `grid` for observable `k`,
-    while `ψ` contains the wavefunction itself,
-    evolved to the end of the grid
-    and rotated into the measurement basis.
-For the most part, implementing types will simply delegate to `device`,
-    whose gradient method expects the 2d array `ϕ[:,:,k]`.
-When `M` consists of more than one observable,
-    it will need to decide how to combine the resulting gradients into one.
-
-"""
-abstract type MeasurementType end
-
-"""
-    measure(measurer, device, basis, ψ, t)
-
-Measure the state ψ, provided in the given basis, at time t.
-
-# Parameters
-- `measurer::MeasurementType`: the measurement protocol.
-- `device::DeviceType`: the device being measured.
-- `basis::BasisType`: the basis that `ψ` is represented in.
-- `ψ::AbstractVector`: the state to measure.
-- `t::Real`: the time at which `ψ` is being measured.
-
-"""
-function measure end
-
-"""
-    observables(measurer, device, basis, t; result=nothing)
-
-Constructs the Hermitian observables involved in this measurement.
-
-# Parameters
-- `measurer::MeasurementType`: the measurement protocol.
-- `device::DeviceType`: the device being measured.
-- `basis::BasisType`: the basis the observables are represented in.
-- `t::Real`: the time at which the measurement takes place.
-
-The returned result is also written to the `result` kwarg when provided.
-
-# Returns
-A 3darray indexed such that `result[:,:,k]` is the kth matrix,
-    the same format required by the parameter Ō in `Evolutions.gradientsignal`.
-The size of the third dimension must be equal to `nobservables(measurer)`.
-
-"""
-function observables end
-
-CostFunctions.nobservables(::M) where {M<:MeasurementType} = CostFunctions.nobservables(M)

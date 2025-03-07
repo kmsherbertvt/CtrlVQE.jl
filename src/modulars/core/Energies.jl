@@ -11,7 +11,17 @@ module Energies
     import CtrlVQE.Evolutions: EvolutionType
 
     """
-    TODO
+        Energy(evolution, device, grid, reference, measurement)
+
+    A totally modular energy function.
+
+    # Parameters
+    - `evolution::EvolutionType`: the time integration algorithm
+    - `device::DeviceType`: the device that gets evolved in time
+    - `grid::IntegrationType`: the time grid to integrate over
+    - `reference::ReferenceType`: the reference state to initialize the device to
+    - `measurement::MeasurementType`: the protocol to extract energies from evolved states
+
     """
     struct Energy{
         F,

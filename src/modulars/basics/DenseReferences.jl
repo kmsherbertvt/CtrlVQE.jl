@@ -12,6 +12,10 @@ module DenseReferences
 
     Represents an arbitrary statevector of the given basis.
 
+    # Parameters
+    - `statevector`: a dense statevector.
+    - `basis`: the `BasisType` identifying the basis `statevector` is written in.
+
     The kwargs `m` and `n` specify the number of levels and number of qubits
         for which the statevector is defined.
     The reference state may be prepared on a device with the same number of qubits,
@@ -21,6 +25,24 @@ module DenseReferences
     If neither is provided, `m` defaults to 2.
     If both are provided, an error will be thrown
         if they are not consistent with the length of `statevector`.
+
+    ```jldoctests
+    julia> using CtrlVQE.ModularFramework;
+
+    julia> reference = DenseReference([0,1,0,0], Bases.BARE);
+
+    julia> device = Devices.Prototype(LocalDevice{Float64}, 2);
+
+    julia> validate(reference; device=device);
+
+    julia> prepare(reference, device, Bases.BARE)
+    4-element Vector{ComplexF64}:
+     0.0 + 0.0im
+     1.0 + 0.0im
+     0.0 + 0.0im
+     0.0 + 0.0im
+
+    ```
 
     """
     struct DenseReference{F<:Number,B<:Bases.BasisType} <: ReferenceType
@@ -58,8 +80,7 @@ module DenseReferences
         n = Devices.nqubits(device)
         @assert m >= reference.m
         @assert n == reference.n
-        result .= project(reference.statevector, m, n)
-        isometrize(reference.statevector, n, m; m0=reference.m, result=result)
+        isometrize(reference.statevector, n, m; result=result)
 
         # ROTATE INTO THE REQUESTED BASIS
         U = Devices.basisrotation(basis, reference.basis, device)

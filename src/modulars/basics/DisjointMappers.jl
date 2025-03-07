@@ -12,6 +12,25 @@ module DisjointMappers
     In this case, all the parameters for drive 1
         are followed by all the parameters for drive 2, and so on.
 
+    ```jldoctests
+    julia> using CtrlVQE.ModularFramework;
+
+    julia> pmap = DISJOINT;
+
+    julia> device = Devices.Prototype(LocalDevice{Float64}, 3; pmap=pmap);
+
+    julia> validate(pmap; device=device);
+
+    julia> map_values(pmap, device, 1)
+    2-element Vector{Float64}:
+     0.0
+     0.0
+
+    julia> Parameters.count(device)
+    6
+
+    ```
+
     """
     struct DisjointMapper <: ParameterMap end
     DISJOINT = DisjointMapper()
@@ -34,16 +53,22 @@ module DisjointMappers
             device.x[Δ+1:Δ+L] .= Parameters.values(drive)
             Δ += L
         end
+
+        return device
     end
 
-    function Modular.map_values(::DisjointMapper, device, i::Int; result)
-        offset = sum(Parameters.count, @view(device.drives[1:i-1]), init=0)
+    function Modular.map_values(::DisjointMapper, device, i::Int; result=nothing)
         L = Parameters.count(device.drives[i])
+        isnothing(result) && (result = Array{eltype(device)}(undef, L))
+        offset = sum(Parameters.count, @view(device.drives[1:i-1]), init=0)
         result .= @view(device.x[offset+1:offset+L])
         return result
     end
 
-    function Modular.map_gradients(::DisjointMapper, device, i::Int; result)
+    function Modular.map_gradients(::DisjointMapper, device, i::Int; result=nothing)
+        LT = Parameters.count(device)
+        Li = Parameters.count(device.drives[i])
+        isnothing(result) && (result = Array{eltype(device)}(undef, LT, Li))
         offset = sum(Parameters.count, @view(device.drives[1:i-1]), init=0)
         result .= 0
         for j in axes(result,2)
