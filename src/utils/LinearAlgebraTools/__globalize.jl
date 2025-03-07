@@ -10,6 +10,23 @@ Extend a local operator `op` acting on qubit `q`,
 
 The array is stored in `result` if provided.
 
+```jldoctests
+julia> LAT.globalize([0 1; 1 0], 2, 1) # X⊗I
+4×4 Matrix{Int64}:
+ 0  0  1  0
+ 0  0  0  1
+ 1  0  0  0
+ 0  1  0  0
+
+julia> LAT.globalize([0 1; 1 0], 2, 2) # I⊗X
+4×4 Matrix{Int64}:
+ 0  1  0  0
+ 1  0  0  0
+ 0  0  0  1
+ 0  0  1  0
+
+```
+
 """
 function globalize(
     op::AbstractMatrix{F}, n::Int, q::Int;

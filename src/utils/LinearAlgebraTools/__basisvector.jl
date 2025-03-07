@@ -9,6 +9,22 @@ The result is written to `result` if provided. Otherwise returns a vector of typ
 
 Construct a length-`N` basis vector of type `T` for index `i`.
 
+```jldoctests
+julia> LAT.basisvector(4, 2)
+4-element Vector{Bool}:
+ 0
+ 1
+ 0
+ 0
+
+julia> LAT.basisvector(ComplexF64, 4, 2)
+4-element Vector{ComplexF64}:
+ 0.0 + 0.0im
+ 1.0 + 0.0im
+ 0.0 + 0.0im
+ 0.0 + 0.0im
+```
+
 """
 function basisvector(N::Int, i::Int; result=nothing)
     isnothing(result) && (result = Array{Bool}(undef, N))
@@ -28,9 +44,25 @@ Construct a matrix of length-`N` basis vectors, aka an identity matrix.
 
 The result is written to `result` if provided. Otherwise returns a matrix of type `Bool`.
 
-    basisvector(::Type{T}, N::Int, i::Int)
+    basisvectors(::Type{T}, N::Int)
 
 Construct a size-`N` identity matrix of type `T`.
+
+```jldoctests
+julia> LAT.basisvectors(4)
+4×4 Matrix{Bool}:
+ 1  0  0  0
+ 0  1  0  0
+ 0  0  1  0
+ 0  0  0  1
+
+julia> LAT.basisvectors(ComplexF64, 4)
+4×4 Matrix{ComplexF64}:
+ 1.0+0.0im  0.0+0.0im  0.0+0.0im  0.0+0.0im
+ 0.0+0.0im  1.0+0.0im  0.0+0.0im  0.0+0.0im
+ 0.0+0.0im  0.0+0.0im  1.0+0.0im  0.0+0.0im
+ 0.0+0.0im  0.0+0.0im  0.0+0.0im  1.0+0.0im
+```
 
 """
 function basisvectors(N::Int; result=nothing)

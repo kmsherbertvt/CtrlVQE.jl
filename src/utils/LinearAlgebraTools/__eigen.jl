@@ -16,6 +16,25 @@ Diagonalize a matrix with minimal allocations.
 # Returns
 This function explicitly returns nothing.
 
+```jldoctests
+julia> Λ = zeros(2);
+
+julia> U = zeros(2,2);
+
+julia> LAT.eigen!(Λ, U, Float64[0 1; 1 0]);
+
+julia> Λ
+2-element Vector{Float64}:
+ -1.0
+  1.0
+
+julia> U * √2
+2×2 Matrix{Float64}:
+  1.0  1.0
+ -1.0  1.0
+
+```
+
 """
 function eigen!(Λ::Vector, U::Matrix, A::AbstractMatrix)
     N = size(A,1)

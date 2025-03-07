@@ -29,6 +29,16 @@ Therefore, `A` must have a complex float type, and it must not be an immutable v
 For example, even though `A` must be Hermitian for this method to work correctly,
     it can't actually be a `LinearAlgebra.Hermitian` view.
 
+```jldoctests
+julia> A = ComplexF64[0 1; 1 0];
+
+julia> LAT.cis!(A, π/4) * √2
+2×2 Matrix{ComplexF64}:
+ 1.0+0.0im  0.0+1.0im
+ 0.0+1.0im  1.0+0.0im
+
+```
+
 """
 function cis!(A::AbstractMatrix{<:Complex{<:AbstractFloat}}, x::Number=1)
     F = Complex{real(eltype(A))}

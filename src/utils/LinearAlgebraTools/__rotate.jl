@@ -23,7 +23,18 @@ Since this method mutates `x`,
     the number type of `x` must be sufficiently expressive.
 For example, if `R` is a unitary matrix, `x` had better be a vector of complex floats.
 
-# TODO: doctests
+```jldoctests
+julia> LAT.rotate!([0 1; 1 0], [1; 0]) # X|0⟩
+2-element Vector{Int64}:
+ 0
+ 1
+
+julia> LAT.rotate!([0 1; 1 0], [1 0; 0 -1]) # XZX'
+2×2 Matrix{Int64}:
+ -1  0
+  0  1
+
+```
 
 """
 function rotate! end

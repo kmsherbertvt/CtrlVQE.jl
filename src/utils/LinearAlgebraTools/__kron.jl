@@ -17,7 +17,22 @@ Ordering: [x1; x2] ⊗ [y1; y2] = [x1⋅y1l  x1⋅y2;  x2⋅y1;  x2⋅y2]
 
 Optionally, pass a pre-allocated array of compatible type and shape as `result`.
 
-# TODO: doctests
+```jldoctests
+julia> LAT.kron([1 0; 0 1]) # |0⟩⊗|1⟩
+4-element Vector{Int64}:
+ 0
+ 1
+ 0
+ 0
+
+julia> LAT.kron([0 1; 1 0;;; 0 1; 1 0]) # X⊗X
+4×4 Matrix{Int64}:
+ 0  0  0  1
+ 0  0  1  0
+ 0  1  0  0
+ 1  0  0  0
+
+```
 
 """
 function kron end
