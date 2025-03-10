@@ -21,6 +21,12 @@ Modules = [Parameters]
 Modules = [Validation]
 ```
 
+## Prototypes
+
+```@autodocs
+Modules = [Prototypes]
+```
+
 ## Operators
 
 ```@autodocs

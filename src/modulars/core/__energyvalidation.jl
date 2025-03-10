@@ -39,7 +39,7 @@ function Validation.validate(
     # CHECK BASIS INVARIANCE OF OBSERVABLES
     OB = @withresult observables(measurement, device, BARE, t)
     OD = @withresult observables(measurement, device, DRESSED, t)
-    OBD = deepcopy(OB); for k in 1:nK; LAT.rotate!(U, @view(OB[:,:,k])); end
+    OBD = deepcopy(OB); for k in 1:nK; LAT.rotate!(U, @view(OBD[:,:,k])); end
         @assert OBD ≈ OD
 
     # CHECK THAT `gradient` IS DEFINED

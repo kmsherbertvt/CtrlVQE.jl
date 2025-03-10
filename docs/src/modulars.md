@@ -110,6 +110,7 @@ Modules = [
 
 ```@autodocs
 Modules = [
+    PauliMeasurements,
     DenseMeasurements,
 ]
 ```
