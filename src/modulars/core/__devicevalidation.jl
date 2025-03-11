@@ -31,7 +31,7 @@ function Validation.validate(
     drive::DriveType{A};
     algebra=nothing,
     grid=nothing,
-    t=0.0,
+    t=1.0,
 ) where {A}
     @assert A == algebratype(drive)
     isnothing(algebra) && return

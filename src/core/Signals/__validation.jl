@@ -8,7 +8,7 @@ import FiniteDifferences
 function Validation.validate(
     signal::SignalType{P,R};
     grid=nothing,
-    t=zero(P),
+    t=one(P),
     rms=nothing,
 ) where {P,R}
     Parameters.validate(signal)

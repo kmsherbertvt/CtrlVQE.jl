@@ -3,30 +3,29 @@ module KetReferences
     import CtrlVQE.ModularFramework: ReferenceType
 
     import CtrlVQE.LinearAlgebraTools as LAT
-    import CtrlVQE: Bases
     import CtrlVQE: Devices
 
     """
-        KetReference(ket, basis)
+        KetReference(basis::B, ket)
 
-    Represents a basis state of the given basis.
+    Represents a basis state of the given basis `B`.
 
     # Parameters
-    - `ket`: a vector of integers, representing the ket.
+    - `basis::Bases.BasisType`: the basis this ket is defined in.
+    - `ket`: a vector of integers representing the ket.
         For example, `[0,1,1]` represents state `|011⟩`, the fourth basis state.
         Note that index 1 of the ket is the *most significant* bit.
-    - `basis`: the `BasisType` identifying the basis for which this state is a ket state.
 
     ```jldoctests
     julia> using CtrlVQE.ModularFramework;
 
-    julia> reference = KetReference([0,1], Bases.BARE);
+    julia> reference = KetReference(BARE, [0,1]);
 
     julia> device = Prototype(LocalDevice{Float64}; n=2);
 
     julia> validate(reference; device=device);
 
-    julia> prepare(reference, device, Bases.BARE)
+    julia> prepare(reference, device)
     4-element Vector{ComplexF64}:
      0.0 + 0.0im
      1.0 + 0.0im
@@ -36,15 +35,17 @@ module KetReferences
     ```
 
     """
-    struct KetReference{B<:Bases.BasisType} <: ReferenceType
+    struct KetReference{B} <: ReferenceType{B}
         ket::Vector{Int}
-        basis::B
+    end
+
+    function KetReference(::B, ket::AbstractVector{Int}) where {B}
+        return KetReference{B}(collect(ket))
     end
 
     function Modular.prepare(
         reference::KetReference,
-        device::Devices.DeviceType,
-        basis::Bases.BasisType;
+        device::Devices.DeviceType;
         result=nothing,
     )
         m = Devices.nlevels(device)
@@ -61,10 +62,6 @@ module KetReferences
             i += reference.ket[q]
         end
         result .= 0; result[1+i] = 1
-
-        # ROTATE INTO THE REQUESTED BASIS
-        U = Devices.basisrotation(basis, reference.basis, device)
-        LAT.rotate!(U, result)
 
         return result
     end

@@ -8,13 +8,13 @@ module DenseReferences
     import CtrlVQE: Devices
 
     """
-        DenseReference(statevector, basis; m, n)
+        DenseReference(basis::B, statevector; m, n)
 
-    Represents an arbitrary statevector of the given basis.
+    Represents an arbitrary statevector of the given basis `B`.
 
     # Parameters
-    - `statevector`: a dense statevector.
-    - `basis`: the `BasisType` identifying the basis `statevector` is written in.
+    - `basis::Bases.BasisType`: the basis where `statevector` represents the reference.
+    - `statevector::AbstractVector`: a dense statevector.
 
     The kwargs `m` and `n` specify the number of levels and number of qubits
         for which the statevector is defined.
@@ -29,13 +29,13 @@ module DenseReferences
     ```jldoctests
     julia> using CtrlVQE.ModularFramework;
 
-    julia> reference = DenseReference([0,1,0,0], Bases.BARE);
+    julia> reference = DenseReference(BARE, [0,1,0,0]);
 
     julia> device = Prototype(LocalDevice{Float64}; n=2);
 
     julia> validate(reference; device=device);
 
-    julia> prepare(reference, device, Bases.BARE)
+    julia> prepare(reference, device)
     4-element Vector{ComplexF64}:
      0.0 + 0.0im
      1.0 + 0.0im
@@ -45,31 +45,32 @@ module DenseReferences
     ```
 
     """
-    struct DenseReference{F<:Number,B<:Bases.BasisType} <: ReferenceType
+    struct DenseReference{F,B} <: ReferenceType{B}
         statevector::Vector{F}
-        basis::B
         m::Int
         n::Int
 
-        function DenseReference(statevector, basis, m, n)
+        function DenseReference{B}(statevector, m, n) where {B}
             N = length(statevector)
             @assert N == m^n
-            return new{eltype(statevector),typeof(basis)}(statevector, basis, m, n)
+            return new{eltype(statevector),B}(statevector, m, n)
         end
     end
 
-    function DenseReference(statevector, basis; m=nothing, n=nothing)
+    function DenseReference(
+        ::B, statevector::AbstractVector{F};
+        m=nothing, n=nothing,
+    ) where {B,F}
         N = length(statevector)
         isnothing(m) && isnothing(n) && (m=2)
         isnothing(m) && (m = round(Int, N^(1/n)))
         isnothing(n) && (n = round(Int, log(m,N)))
-        return DenseReference(statevector, basis, m, n)
+        return DenseReference{B}(collect(statevector), m, n)
     end
 
     function Modular.prepare(
         reference::DenseReference,
-        device::Devices.DeviceType,
-        basis::Bases.BasisType;
+        device::Devices.DeviceType;
         result=nothing,
     )
         N = Devices.nstates(device)
@@ -81,10 +82,6 @@ module DenseReferences
         @assert m >= reference.m
         @assert n == reference.n
         isometrize(reference.statevector, n, m; result=result)
-
-        # ROTATE INTO THE REQUESTED BASIS
-        U = Devices.basisrotation(basis, reference.basis, device)
-        LAT.rotate!(U, result)
 
         return result
     end

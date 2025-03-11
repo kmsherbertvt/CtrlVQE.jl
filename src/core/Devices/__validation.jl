@@ -14,7 +14,7 @@ import LinearAlgebra: Diagonal
 function Validation.validate(
     device::DeviceType{F};
     grid=nothing,
-    t=zero(F),
+    t=one(F),
 ) where {F}
     Parameters.validate(device)
 

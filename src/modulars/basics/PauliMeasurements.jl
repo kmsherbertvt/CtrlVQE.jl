@@ -12,28 +12,8 @@ module PauliMeasurements
 
     import LinearAlgebra
 
-    #= TODO:
-    For both reference and measurements,
-        I think perhaps we can relegate `basis` and `frame` to type parameters,
-        and all the basis rotations happen by default.
-    Similar to evolutions, users then need only implement a version where you assume that's already happened.
-
-    Lol they already ARE type parameters in each implementation, so yeah.
-    The only problem would be if we think there is any chance ever
-        that it is useful to make a non-singleton basis or frame type.
-    Since, the basis rotations in the default would necessarily pass `B()` or `O()`.
-    I suppose we can require implementations for such types to override the defaults...
-
-    If t is omitted, maybe omit the frame rotation entirely?
-
-    Also btw constructors should probably be unchanged?
-    Easier to do PauliMeasurement(..., BARE, STATIC) than PauliMeasurement{Bare,Static}(...)
-    But I suppose it's okay to flip the order.
-
-    =#
-
     """
-        PauliMeasurement(X, Z, c, basis, frame)
+        PauliMeasurement(basis, frame, X, Z, c)
 
     Represents a bare measurement of a linear combination of Paulis,
         without any logical projection prior to frame rotation.
@@ -44,41 +24,31 @@ module PauliMeasurements
     (You could think of it as Z*X = iY, except the implementation here ignores phase.)
 
     # Parameters
+    - `basis`: the `BasisType` identifying the basis `observable` is written in.
+    - `frame`: the `OperatorType` identifying the frame where measurements are conducted.
     - `X`: a vector of integers whose bitstrings give each `x`.
     - `Z`: a vector of integers whose bitstrings give each `z`.
     - `c`: a vector of floats giving the coefficients for each pauli word.
-    - `basis`: the `BasisType` identifying the basis `observable` is written in.
-    - `frame`: the `OperatorType` identifying the frame where measurements are conducted.
 
     """
-    struct PauliMeasurement{
-        F,  # MAY BE ANY NUMBER TYPE, REAL OR COMPLEX
-        B <: Bases.BasisType,
-        O <: Operators.StaticOperator,
-    } <: MeasurementType
+    struct PauliMeasurement{F,B,O} <: MeasurementType{B,O}
         X::Vector{Int}
         Z::Vector{Int}
         c::Vector{F}
-        basis::B
-        frame::O
 
-        function PauliMeasurement(
-            X::AbstractVector{Int},
-            Z::AbstractVector{Int},
-            c::AbstractVector{F},
-            basis::B,
-            frame::O,
-        ) where {F,B,O}
-            n = length(c)
-            n == length(X) == length(Z) || error("Vector lengths must match")
-            return new{F,B,O}(
-                convert(Array, X),
-                convert(Array, Z),
-                convert(Array, c),
-                basis,
-                frame,
-            )
-        end
+        # function PauliMeasurement{B,O}(
+        #     X::AbstractVector{Int},
+        #     Z::AbstractVector{Int},
+        #     c::AbstractVector{F},
+        # ) where {F,B,O}
+        #     n = length(c)
+        #     n == length(X) == length(Z) || error("Vector lengths must match")
+        #     return new{F,B,O}(
+        #         convert(Array, X),
+        #         convert(Array, Z),
+        #         convert(Array, c),
+        #     )
+        # end
     end
 
     """
@@ -106,13 +76,13 @@ module PauliMeasurements
      0.5   0.0  1.0   0.0
      0.0  -0.5  0.0  -1.0
 
-    julia> measurement = PauliMeasurement(Bases.BARE, Operators.STATIC; XZ=0.5, IZ=1.0);
+    julia> measurement = PauliMeasurement(BARE, STATIC; XZ=0.5, IZ=1.0);
 
     julia> device = Prototype(LocalDevice{Float64}; n=2);
 
     julia> validate(measurement; device=device);
 
-    julia> Ō = observables(measurement, device, Bases.BARE, 0.0);
+    julia> Ō = observables(measurement, device);
 
     julia> size(Ō)
     (4, 4, 1)
@@ -122,17 +92,14 @@ module PauliMeasurements
     ```
 
     """
-    function PauliMeasurement(
-        basis::Bases.BasisType,
-        frame::Operators.StaticOperator;
-        kwargs...
-    )
+    function PauliMeasurement(basis::B, frame::O; kwargs...) where {B,O}
         K = length(kwargs)
         X = zeros(Int, K)
         Z = zeros(Int, K)
         labels = [String(key) for key in keys(kwargs)]
         c = [value for value in values(kwargs)]
 
+        F = K > 0 ? eltype(c) : Float64
         n = K > 0 ? length(first(labels)) : 0
         for (k, label) in enumerate(labels)
             length(label) == n || error("All Paulis must have same length.")
@@ -152,11 +119,11 @@ module PauliMeasurements
                 end
             end
         end
-        return PauliMeasurement(X, Z, c, basis, frame)
+        return PauliMeasurement{F,B,O}(X, Z, c)
     end
 
     """
-        PauliMeasurement(observable, basis, frame)
+        PauliMeasurement(basis, frame, observable; eps=1e-10)
 
     A constructor accepting a dense matrix observable.
 
@@ -164,17 +131,16 @@ module PauliMeasurements
         the Hilbert-Schmidt inner product.
 
     # Parameters
-    - `observable`: the dense matrix observable.
     - `basis`: the `BasisType` identifying the basis `observable` is written in.
     - `frame`: the `OperatorType` identifying the frame where measurements are conducted.
+    - `observable`: the dense matrix observable.
+    - `eps`: smallest coefficient to keep before discarding as negligible.
 
     """
     function PauliMeasurement(
-        observable::AbstractMatrix{F},  # NOTE: Assumes Hermitian qubit operator.
-        basis::Bases.BasisType,
-        frame::Operators.StaticOperator;
+        ::B, ::O, observable::AbstractMatrix{F};
         eps=1e-10,
-    ) where {F}
+    ) where {B,O,F}
         N = size(observable, 1)
         n = QubitProjections.nqubits(N, 2)
         σ = reshape(Devices.localalgebra(PauliAlgebra{1}()), 2, 2, 3)
@@ -209,27 +175,14 @@ module PauliMeasurements
             push!(c, cP)
         end; end
 
-        return PauliMeasurement(X, Z, c, basis, frame)
+        return PauliMeasurement{eltype(c),B,O}(X, Z, c)
     end
 
     function Modular.measure(
         measurement::PauliMeasurement{F},
         device::Devices.DeviceType,
-        basis::Bases.BasisType,
         ψ::AbstractVector,
-        t::Real,
     ) where {F}
-        # COPY THE STATE SO WE CAN ROTATE IT
-        ψ_ = @temparray(eltype(ψ), size(ψ), :measure)
-        ψ_ .= ψ
-
-        # ROTATE THE STATE INTO THE MEASUREMENT BASIS
-        U = Devices.basisrotation(measurement.basis, basis, device)
-        LAT.rotate!(U, ψ_)
-
-        # APPLY THE FRAME ROTATION
-        Devices.evolve!(measurement.frame, device, measurement.basis, -t, ψ_)
-
         # TAKE THE EXPECTATION VALUE
         m = Devices.nlevels(device)
         n = Devices.nqubits(device)
@@ -243,7 +196,7 @@ module PauliMeasurements
                 i_ = QubitProjections.mapindex(z_+1, n, m)
 
                 nZ = count_ones(z & measurement.Z[k])
-                E += (im)^nY * (-1)^nZ * measurement.c[k] * ψ_[i] * ψ_[i_]'
+                E += (im)^nY * (-1)^nZ * measurement.c[k] * ψ[i] * ψ[i_]'
             end
         end
         return real(E)
@@ -253,9 +206,7 @@ module PauliMeasurements
 
     function Modular.observables(
         measurement::PauliMeasurement,
-        device::Devices.DeviceType,
-        basis::Bases.BasisType,
-        t::Real;
+        device::Devices.DeviceType;
         result=nothing
     )
         m = Devices.nlevels(device)
@@ -278,13 +229,6 @@ module PauliMeasurements
                 O[i_, i] += (im)^nY * (-1)^nZ * measurement.c[k]
             end
         end
-
-        # ROTATE INTO THE REQUESTED BASIS
-        U = Devices.basisrotation(basis, measurement.basis, device)
-        LAT.rotate!(U, O)
-
-        # APPLY THE FRAME ROTATION
-        Devices.evolve!(measurement.frame, device, basis, t, O)
 
         return result
     end

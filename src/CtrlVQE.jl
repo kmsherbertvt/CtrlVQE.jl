@@ -21,8 +21,10 @@ module CtrlVQE
         @local_ export Prototypes: Prototype
     include("enums/Operators.jl")
         @local_ export Operators
+        @local_ export Operators: IDENTITY, STATIC
     include("enums/Bases.jl")
         @local_ export Bases
+        @local_ export Bases: BARE, DRESSED
 
     # CORE INTERFACE
     include("core/Integrations.jl")

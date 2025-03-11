@@ -43,8 +43,8 @@ drives = [DipoleDrive{A}(
 ) for q in 1:2]
 device = LocalDevice(eltype(ω), A(), drift, drives, DISJOINT)
 
-reference = KetReference(ket0, DRESSED)
-measurement = DenseMeasurement(H, DRESSED, STATIC)
+reference = KetReference(DRESSED, ket0)
+measurement = DenseMeasurement(DRESSED, STATIC, H)
 costfn = Energy(QUBIT_FRAME, device, grid, reference, measurement)
 
 # TEST SOME KNOWN PULSES

@@ -33,7 +33,7 @@ module Validation
         but if omitted the usual cost function tests will still occur.
     - `t` (a single time) and `x` (a vector of parameters)
             determine the point at which accuracy checks are conducted.
-        They default to zero when omitted.
+        `t` defaults to one when omitted, and all `x` default to zero.
     - `rms` is the maximum root mean square error permitted
             between analytical gradients and finite differences.
         It defaults to `nothing`, which skips the finite difference altogether.
