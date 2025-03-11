@@ -1,8 +1,0 @@
-[deps]
-CtrlVQE = "d54e0380-e2e1-4343-920c-16ee5b1b3d3c"
-LineSearches = "d3d80556-e9d4-5f37-9878-2ab0fcc64255"
-LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
-NPZ = "15e1cf62-19b3-5cfa-8e77-841668bca605"
-Optim = "429524aa-4258-5aef-a3af-852621145aeb"
-Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-TemporaryArrays = "b2d0ec06-4a30-46b9-b20f-1283d2f7986d"
