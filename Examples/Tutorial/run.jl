@@ -1,9 +1,3 @@
-# import CtrlVQE
-
-# import CtrlVQE.Bases: DRESSED
-# import CtrlVQE.Operators: STATIC
-# import CtrlVQE.QUBIT_FRAME
-
 using CtrlVQE
 using CtrlVQE.ModularFramework
 

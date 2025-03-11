@@ -25,11 +25,11 @@ There is another (`DriftType`) defining $\hat H_0$.
 There is another (`DriveType`) defining $\hat V_i$.
 
 And to help keep the drives as modular as possible,
-    there is a ``MapperType`` to map "device" parameters to individual drift and drive.
+    there is a `MapperType` to map "device" parameters to individual drift and drive.
 A more complete equation - which is itself less readable,
     but it makes the code *so* much easier to work with - would be
 
-$$\hat H(\vec x,t) = \hat H_0(h(\vec x)) + \sum_i \hat V_i(f_i(\vec x), t) $$
+$$\hat H(\vec x,t) = \hat H_0(h(\vec x)) + \sum_i \hat V_i(f_i(\vec x), t)$$
 
 For example, let's say you're curious how a single three-qubit interaction term
     in the static Hamiltonian of a transmon device would alter the minimal evolution time.

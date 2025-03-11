@@ -28,7 +28,7 @@ In addition, the following methods must be implemented:
 - `Base.string(Ω::S, names::AbstractVector{String})`:
         a human-readable description of the signal,
         inserting each element of `names` in the place of the corresponding parameter.
-    For example, a complex constant signal might return a description like "\$A + i \$B",
+    For example, a complex constant signal might return a description like "A + i B",
         where `A` and `B` are the "names" given by the `names` argument.
 
 """
