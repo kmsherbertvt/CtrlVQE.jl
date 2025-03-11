@@ -1,7 +1,7 @@
 name = "CtrlVQE"
 uuid = "d54e0380-e2e1-4343-920c-16ee5b1b3d3c"
 authors = ["Kyle Sherbert <kyle.sherbert@vt.edu> and contributors"]
-version = "2.0.0-DEV"
+version = "2.0.0"
 
 [deps]
 FiniteDifferences = "26cc04aa-876d-5657-8c51-4c34ba976000"
