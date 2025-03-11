@@ -186,11 +186,10 @@ module PauliMeasurements
         # TAKE THE EXPECTATION VALUE
         m = Devices.nlevels(device)
         n = Devices.nqubits(device)
-        N = Devices.nstates(device)
         E = zero(Complex{F})
         for k in eachindex(measurement.c)
             nY = count_ones(measurement.X[k] & measurement.Z[k])
-            for z in 0:N-1
+            for z in 0:1<<n-1
                 z_ = z ⊻ measurement.X[k]
                 i  = QubitProjections.mapindex(z +1, n, m)
                 i_ = QubitProjections.mapindex(z_+1, n, m)
@@ -219,7 +218,7 @@ module PauliMeasurements
         O .= 0
         for k in eachindex(measurement.c)
             nY = count_ones(measurement.X[k] & measurement.Z[k])
-            for z in 0:N-1
+            for z in 0:1<<n-1
                 z_ = z ⊻ measurement.X[k]
                 nZ = count_ones(z & measurement.Z[k])
 

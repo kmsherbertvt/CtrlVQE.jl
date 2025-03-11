@@ -81,7 +81,7 @@ module Energies
     function CostFunctions.grad!function(costfn::Energy; ϕ=nothing)
         nT = length(costfn.grid)
         nG = CtrlVQE.ngrades(costfn.device)
-        nK = Modular.nobservables(costfn.measurement)
+        nK = CostFunctions.nobservables(costfn.measurement)
         isnothing(ϕ) && (ϕ = Array{eltype(costfn)}(undef, (nT, nG, nK)))
 
         workbasis = Evolutions.workbasis(costfn.evolution)
@@ -93,7 +93,8 @@ module Energies
 
         # ADD IN A CALLBACK TO RECORD THE COMPLETELY EVOLVED STATE
         ψT = similar(ψ0)
-        U = Devices.basisrotation(costfn.measurement.basis, workbasis, costfn.device)
+        measurebasis = Modular.initbasis(costfn.measurement)
+        U = Devices.basisrotation(measurebasis, workbasis, costfn.device)
         saveevolvedstate = (i, t, ψ) -> (
             i == lastindex(costfn.grid) || return;  # Only consider ψ at end of grid.
             ψT .= ψ;                                # Copy state into ψT.
