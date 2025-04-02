@@ -38,7 +38,7 @@ Results
 - Unfortunately, it doesn't work as intended, at all. It happily zips right off the path, straight to a point that has the same infidelity as the results from optimizing infidelity!
 - I can scale up the penalty for deviating from the path. It follows the same trajectory for a short distance but then simply refuses to go further.
 
-![adiabaticpath.pdf](Update/adiabaticpath.pdf)
+![adiabaticpath.pdf](adiabaticpath.pdf)
 
 # Tangent Spaces
 
@@ -64,7 +64,7 @@ What did make a difference:
   - a bit worse, easily explained from trying to project a vector onto an even less complete basis
   - 4 levels identical to 3
 
-![tangentspaces.pdf](Update/tangentspaces.pdf)
+![tangentspaces.pdf](tangentspaces.pdf)
 
 # Linearity
 
@@ -130,7 +130,7 @@ Results:
 - I feel like this explains why the first experiment failed so spectacularly.
 - Recall my previous note that the Bloch sphere I am using is not unique; optimizing the Bloch sphere's global phase could in principle result in somewhat better results than presented here (but I haven't tried).
 
-![optimized.pdf](Update/optimized.pdf)
+![optimized.pdf](optimized.pdf)
 
 # Momentum
 
@@ -154,4 +154,4 @@ Results:
 - I have NO IDEA what is going on here!!! I dug deep into the FiniteDifferences code to be sure I was definitely using a suitably small step for the purposes of computing the instantaneous direction, and I really do seem to be, but this seems to be wholly contradictory. It surely must be a dumb bug, but I felt I was going a bit insane so I stopped looking for it. Well that and I had to travel. :)
 - Also of note is the fact that, at small x, the overlap with the target tangent vector is somewhat *better* than the asymptotic value corresponding to the supposedly optimal parameters, presented in the previous plot. I mean, it's *supposed* to be the small x overlaps that give the best overlap with the tangent vector. But, the optimizer's loss function measures the overlap of the vector apparently reproduced when using *large* x. So this is all very confusing.
 
-![momentum.pdf](Update/momentum.pdf)
+![momentum.pdf](momentum.pdf)
